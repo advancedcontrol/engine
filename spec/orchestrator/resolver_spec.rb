@@ -28,9 +28,9 @@ describe "Looking up a hostname" do
     end
 
 
-    it "should resolve an IP addresses without delay" do
+    it "should resolve an IP address without delay" do
         @loop.run do
-            Orchestrator::Resolver.lookup(@deferred, '::1')
+            Orchestrator::Resolver.first(@deferred, '::1')
             @promise.then do |result|
                 @result = result
             end
@@ -43,7 +43,7 @@ describe "Looking up a hostname" do
 
     it "should resovle a hostname on a seperate thread", :network => true do
         @loop.run do
-            Orchestrator::Resolver.lookup(@deferred, 'google.com')
+            Orchestrator::Resolver.first(@deferred, 'google.com')
             @promise.then do |result|
                 @result = result
             end
@@ -57,7 +57,7 @@ describe "Looking up a hostname" do
 
     it "should reject invalid hostnames on a seperate thread", :network => true do
         @loop.run do
-            Orchestrator::Resolver.lookup(@deferred, 'notgoogle')
+            Orchestrator::Resolver.first(@deferred, 'notgoogle')
             @promise.then do |result|
                 @result = result
             end
@@ -65,6 +65,48 @@ describe "Looking up a hostname" do
 
         @log.length.should == 1
         @result.nil?.should == true
+        @tickcount.should > 2
+    end
+
+    it "should resolve IP addresses without delay" do
+        @loop.run do
+            Orchestrator::Resolver.lookup(@deferred, '::1')
+            @promise.then do |result|
+                @result = result
+            end
+        end
+
+        @log.should == []
+        [['::1'], ['127.0.0.1']].should include(@result)
+        @tickcount.should == 2
+    end
+
+    it "should resovle a hostname on a seperate thread", :network => true do
+        @loop.run do
+            Orchestrator::Resolver.lookup(@deferred, 'google.com')
+            @promise.then do |result|
+                @result = result
+            end
+        end
+
+        @log.should == []
+        @result.nil?.should == false
+        @result.class.should == Array
+        @result.length.should > 1
+        @tickcount.should > 2
+    end
+
+    it "should not reject when looking for all IPs", :network => true do
+        @loop.run do
+            Orchestrator::Resolver.lookup(@deferred, 'notgoogle')
+            @promise.then do |result|
+                @result = result
+            end
+        end
+
+        @log.length.should == 0
+        @result.class.should == Array
+        @result.length.should == 0
         @tickcount.should > 2
     end
 end
