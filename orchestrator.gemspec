@@ -13,9 +13,11 @@ Gem::Specification.new do |s|
     s.description = "A building automation system."
 
     s.add_dependency 'rake'
-    s.add_dependency 'celluloid'          # Actor Model for Ruby
     s.add_dependency 'libuv'              # High performance IO reactor for ruby
-    s.add_dependency 'ipaddress'          # IP address utilities
+    s.add_dependency 'addressable'        # IP address utilities
+    s.add_dependency 'couchbase'          # ruby couchbase connector
+    s.add_dependency 'couchbase-model'    # couchbase active model orm
+    s.add_dependency 'couchbase-id'       # ID generation
 
     s.add_development_dependency 'rspec'    # Testing framework
     s.add_development_dependency 'yard'     # Comment based documentation generation
