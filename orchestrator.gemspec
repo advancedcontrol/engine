@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
     s.add_development_dependency 'yard'     # Comment based documentation generation
     
 
-    s.files = Dir["{lib,bin}/**/*"] + %w(Rakefile orchestrator.gemspec README.md LICENSE)
+    s.files = Dir["{lib,app,config}/**/*"] + %w(Rakefile orchestrator.gemspec README.md LICENSE)
     s.test_files = Dir["spec/**/*"]
     s.extra_rdoc_files = ["README.md"]
 

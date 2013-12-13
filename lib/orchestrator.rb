@@ -1,6 +1,12 @@
 require 'orchestrator/engine'
 
 
+# Gems
+require 'couchbase'
+require 'couchbase-model'
+require 'couchbase-id'
+
+
 require 'orchestrator/system'
 require 'orchestrator/version'
 require 'orchestrator/control'

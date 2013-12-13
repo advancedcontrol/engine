@@ -8,7 +8,7 @@ module Orchestrator
 
         # The classes / files that this module requires to execute
         # Defines module type
-        belongs_to :dependency
+        belongs_to :dependency, :class_name => "Orchestrator::Dependency"
 
 
         # Device module
@@ -38,14 +38,14 @@ module Orchestrator
 
 
         def configuration
-            if dependency.type == :device
+            if dependency.role == :device
                 begin
                     url = Addressable::URI.parse("http://#{self.ip}:#{port}/")
                     url.scheme && url.host && url
                 rescue
                     errors.add(:ip, 'ip, hostname or port are not valid')
                 end
-            elsif dependency.type == :service
+            elsif dependency.role == :service
                 begin
                     url = Addressable::URI.parse(self.uri)
                     url.scheme && url.host && url

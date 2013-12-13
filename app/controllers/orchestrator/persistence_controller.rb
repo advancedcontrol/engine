@@ -24,9 +24,14 @@ module Orchestrator
 
 
         def websocket
-            promise = request.env['rack.hijack'].call
-            # TODO:: update env with any authentication information
-            promise.then START_WS
+            hijack = request.env['rack.hijack']
+            if hijack
+                promise = hijack.call
+                # TODO:: update env with any authentication information
+                promise.then START_WS
+            else
+                render :nothing => true, :status => :method_not_allowed
+            end
         end
     end
 end

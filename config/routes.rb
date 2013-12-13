@@ -23,5 +23,4 @@ Orchestrator::Engine.routes.draw do
     # These are non-restful endpoints
     # Websockets and Eventsources
     get 'websocket', to: 'persistence#websocket', via: :all
-
 end
