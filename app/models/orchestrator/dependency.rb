@@ -3,6 +3,7 @@ require 'set'
 
 module Orchestrator
     class Dependency < Couchbase::Model
+        design_document :dep
         include ::CouchbaseId::Generator
 
 
@@ -12,6 +13,15 @@ module Orchestrator
         attribute :name
         attribute :role
         attribute :description
+
+        # Override default role accessors
+        def role
+            @role ||= self.attributes[:role].to_sym if self.attributes[:role]
+        end
+        def role=(name)
+            @role = name.to_sym
+            self.attributes[:role] = name
+        end
 
         attribute :class_name
         attribute :module_names,    default: lambda { [] }
@@ -34,7 +44,7 @@ module Orchestrator
             if self.role && ROLES.include?(self.role.to_sym)
                 self.role = self.role.to_s
             else
-                errors.add(:role, 'is not a valid security level')
+                errors.add(:role, 'is not valid')
             end
         end
     end

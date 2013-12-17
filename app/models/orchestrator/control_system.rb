@@ -1,10 +1,10 @@
+require 'set'
+
 
 module Orchestrator
     class ControlSystem < Couchbase::Model
+        design_document :sys
         include ::CouchbaseId::Generator
-
-
-        attr_accessor :running
 
 
         attribute :name

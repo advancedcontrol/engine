@@ -2,7 +2,10 @@ require 'digest'
 
 module Orchestrator
     class TrustedDevice < Couchbase::Model
+        design_document :dev
         include ::CouchbaseId::Generator
+
+
         before_create :update_secret
 
 

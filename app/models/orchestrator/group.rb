@@ -1,6 +1,7 @@
 
 module Orchestrator
     class Group < Couchbase::Model
+        design_document :grp
         include ::CouchbaseId::Generator
 
 

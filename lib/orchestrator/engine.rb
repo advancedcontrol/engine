@@ -19,6 +19,8 @@ module Orchestrator
 
 			# Clearance levels defined in code
 			app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
+
+			# Set these to be the same to enforce explicit clearance levels
 			app.config.orchestrator.default_clearance = :User		# Functions not given a clearance level are assumed User level
 			app.config.orchestrator.untrusted_clearance = :Public	# Default clearance is not given to untrusted parties
 
@@ -42,8 +44,14 @@ module Orchestrator
 			
 			app.config.orchestrator.module_paths.uniq!
 
-			# TODO:: Start the control system
+			# Force design documents
+			temp = ::Couchbase::Model::Configuration.design_documents_paths
+			::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/orchestrator'))]
+        	::Orchestrator::Module.ensure_design_document!
+        	::Couchbase::Model::Configuration.design_documents_paths = temp
 
+			# Start the control system by initializing it
+			Control.instance
 		end
 	end
 end

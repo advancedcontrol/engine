@@ -1,6 +1,7 @@
 
 module Orchestrator
     class Zone < Couchbase::Model
+        design_document :zone
         include ::CouchbaseId::Generator
 
 
