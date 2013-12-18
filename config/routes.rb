@@ -6,13 +6,15 @@ Orchestrator::Engine.routes.draw do
     # Restful access to services
     namespace :api do
         resources :systems do                    # systems have settings and define what zone they are in
-            post 'start',   on: :collection
-            post 'stop',    on: :collection
-            post 'request', on: :collection
+            post 'start',   on: :member
+            post 'stop',    on: :member
+            post 'request', on: :member
+            get  'status',  on: :member
 
             resources :modules, shallow: true do # modules have settings
-                post 'start', on: :collection
-                post 'stop',  on: :collection
+                post 'start',   on: :member
+                post 'stop',    on: :member
+                get  'status',  on: :member
             end
         end
         resources :dependencies     # dependencies have settings

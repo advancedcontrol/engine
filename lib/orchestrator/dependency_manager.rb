@@ -3,7 +3,7 @@ require 'set'
 
 
 module Orchestrator
-    class DependencyLoader
+    class DependencyManager
         include Singleton
 
 
@@ -31,7 +31,7 @@ module Orchestrator
                     class_object = nil
 
                     ::Rails.configuration.orchestrator.module_paths.each do |path|
-                        if File.exists?("#{path}/#{file}")
+                        if ::File.exists?("#{path}/#{file}")
                             @load_mutex.synchronize {
                                 load "#{path}/#{file}"
                             }
