@@ -2,7 +2,8 @@ require 'spider-gazelle/upgrades/websocket'
 
 
 module Orchestrator
-    class PersistenceController < ApplicationController
+    class PersistenceController < ActionController::Metal
+        include ActionController::Head
 
         def self.start(hijacked)
             puts 'Websocket connected!'
@@ -20,7 +21,12 @@ module Orchestrator
                 puts "failed with #{e[:code]}: #{e[:reason]}"
             })
         end
+
+
         START_WS = self.method(:start)
+        HEADERS = {
+            'Content-Length' => '0'
+        }.freeze
 
 
         def websocket
@@ -29,8 +35,10 @@ module Orchestrator
                 promise = hijack.call
                 # TODO:: update env with any authentication information
                 promise.then START_WS
+
+                head :ok     # to prevent rails from complaining 
             else
-                render :nothing => true, :status => :method_not_allowed
+                head :method_not_allowed, HEADERS.dup
             end
         end
     end

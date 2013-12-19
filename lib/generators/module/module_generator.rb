@@ -21,19 +21,25 @@ class ModuleGenerator < Rails::Generators::NamedBase
 		scope = param.join('::')
 		
 		
-		create_file File.join(path, "#{name}.rb") do
-			type = ask("What type of module (device, service, logic) will this be?")
-			
+		create_file File.join(path, "#{name}.rb") do			
 			text += <<-FILE
 
 
-class #{scope} < Orchestrator::#{type.downcase.camelcase}
+class #{scope}
+	include ::Orchestrator::Constants  # On, Off and other useful constants
+	include ::Orchestrator::Scheduler  # in, at, every and cron scheduling support
+	include ::Orchestrator::Transcoder # binary, hex and string helper methods
+	# For stream tokenization use ::UV::BufferedTokenizer or ::UV::AbstractTokenizer
+
 	def on_load
+		# module has been started
 	end
 	
 	def on_unload
+		# module has been stopped
 	end
 	
+	# Called when class updated at runtime
 	def on_update
 	end
 end
