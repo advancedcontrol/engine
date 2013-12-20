@@ -51,11 +51,11 @@ module Orchestrator
         	::Couchbase::Model::Configuration.design_documents_paths = temp
 
 			# Start the control system by initializing it
-			mm = ModuleManager.instance
+			ctrl = ::Orchestrator::Control.instance
 
 			# Don't auto-load if running in the console
             if not defined?(Rails::Console)
-                mm.mount.then mm.method(:boot)
+                ctrl.mount.then ctrl.method(:boot)
             end
 		end
 	end

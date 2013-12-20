@@ -27,7 +27,6 @@ class ModuleGenerator < Rails::Generators::NamedBase
 
 class #{scope}
 	include ::Orchestrator::Constants  # On, Off and other useful constants
-	include ::Orchestrator::Scheduler  # in, at, every and cron scheduling support
 	include ::Orchestrator::Transcoder # binary, hex and string helper methods
 	# For stream tokenization use ::UV::BufferedTokenizer or ::UV::AbstractTokenizer
 

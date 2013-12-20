@@ -27,9 +27,7 @@ module Orchestrator
         attribute :uri
 
         # Custom module names (in addition to what is defined in the dependency)
-        attribute :priority,    default: 0
         attribute :settings,    default: lambda { {} }
-        attribute :names,       default: lambda { [] }
 
         attribute :created_at,  default: lambda { Time.now.to_i }
         attribute :role         # cache the dependency role locally for load order

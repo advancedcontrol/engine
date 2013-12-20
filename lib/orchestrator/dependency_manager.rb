@@ -17,13 +17,14 @@ module Orchestrator
         class FileNotFound < StandardError; end
 
 
-        def load(classname, force = false)
+        def load(dependency, force = false)
             defer = @loop.defer
             
+            classname = dependency.class_name
             class_lookup = classname.to_sym
             class_object = @dependencies[class_lookup]
 
-            if class_object && force == false
+            if class_object && !force
                 defer.resolve(class_object)
             else
                 begin
@@ -33,15 +34,25 @@ module Orchestrator
                     ::Rails.configuration.orchestrator.module_paths.each do |path|
                         if ::File.exists?("#{path}/#{file}")
                             @load_mutex.synchronize {
-                                load "#{path}/#{file}"
+                                ::Kernel.load "#{path}/#{file}"
                             }
                             class_object = classname.constantize
+
+                            case dependency.role
+                            when :device
+                                include_device(class_object)
+                            when :service
+                                include_service(class_object)
+                            else
+                                include_logic(class_object)
+                            end
+
                             @dependencies[class_lookup] = class_object
                             defer.resolve(class_object)
                             break
                         end
                     end
-
+                    
                     if class_object.nil?
                         defer.reject(FileNotFound.new("could not find '#{file}'"))
                     end
@@ -70,6 +81,28 @@ module Orchestrator
             end
 
             defer.promise
+        end
+
+
+        protected
+
+
+        def include_logic(klass)
+            klass.class_eval do
+                include ::Orchestrator::Logic::Mixin
+            end
+        end
+
+        def include_device(klass)
+            klass.class_eval do
+                include ::Orchestrator::Device::Mixin
+            end
+        end
+
+        def include_service(klass)
+            klass.class_eval do
+                include ::Orchestrator::Service::Mixin
+            end
         end
     end
 end

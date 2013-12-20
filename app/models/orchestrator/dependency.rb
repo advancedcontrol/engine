@@ -24,7 +24,7 @@ module Orchestrator
         end
 
         attribute :class_name
-        attribute :module_names,    default: lambda { [] }
+        attribute :module_name
         attribute :settings,        default: lambda { {} }
 
         attribute :created_at,      default: lambda { Time.now.to_i }
@@ -36,7 +36,7 @@ module Orchestrator
         # Validations
         validates :name,            presence: true
         validates :class_name,      presence: true
-        validates :module_names,    presence: true
+        validates :module_name,     presence: true
         validate  :role_exists
 
 

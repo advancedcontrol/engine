@@ -2,7 +2,7 @@ require 'set'
 
 
 module Orchestrator
-    class ModuleManager
+    class Control
         include Singleton
 
         #
@@ -26,6 +26,7 @@ module Orchestrator
             @loaded = ::ThreadSafe::Cache.new
             @loader = DependencyManager.instance
             @loop = ::Libuv::Loop.default
+            @exceptions = method(:log_unhandled_exception)
         end
 
         # Start the control reactor
@@ -41,7 +42,6 @@ module Orchestrator
                         @threads = @server.threads
                     else    # We are either running no_ipc or process (unsupported for control)
                         @threads = Set.new
-                        @exceptions = method(:log_unhandled_exception)
 
                         cpus = ::Libuv.cpu_count || 1
                         cpus.times &method(:start_thread)
@@ -63,13 +63,15 @@ module Orchestrator
         # Load the modules on the loop references in round robin
         # This method is thread safe.
         def load(mod_settings)
+            mod_id = mod_settings.id.to_sym
             defer = @loop.defer
-            mod = @loaded[mod_id.to_sym]
+            mod = @loaded[mod_id]
+
             if mod
                 defer.resolve(mod)
             else
                 defer.resolve(
-                    @loader.load(mod_settings.dependency.class_name).then(proc { |klass|
+                    @loader.load(mod_settings.dependency).then(proc { |klass|
                         # We will always be on the default loop here
                         thread = @selector.next
 
@@ -78,8 +80,13 @@ module Orchestrator
                         thread.schedule do
                             defer.resolve(start_module(thread, klass, mod_settings))
                         end
+
+                        # update the module cache
+                        defer.promise.then do |mod_manager|
+                            @loaded[mod_id] = mod_manager
+                        end
                         defer.promise
-                    })
+                    }, @exceptions)
                 )
             end
             defer.promise
@@ -110,18 +117,14 @@ module Orchestrator
             # TODO:: 
             # Initialize the connection / logic / service handler here
             # We need a special case for UDP devices
-            defer = thread.defer
-
             case settings.dependency.role
             when :device
-                #Connection.new()
+                Device::Manager.new(thread, klass, settings)
             when :service
-                # Load HTTP client here
+                Service::Manager.new(thread, klass, settings)
             else
-                # Load logic module here
+                Logic::Manager.new(thread, klass, settings)
             end
-
-            defer.promise
         end
 
 
@@ -148,7 +151,11 @@ module Orchestrator
 
         # TODO:: Should use spider gazelle exception handler here
         def log_unhandled_exception(*args)
-            p "unhandled exception #{args}"
+            if args[0].respond_to? :backtrace
+                puts "unhandled exception: #{args[0]}\n #{args[0].backtrace}"
+            else
+                puts "unhandled exception: #{args}"
+            end
         end
     end
 end

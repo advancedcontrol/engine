@@ -21,6 +21,5 @@ module Orchestrator
         # Zones and settings are only required for confident coding
         validates :name,        presence: true
         validates :zones,       presence: true
-        validates :settings,    presence: true
     end
 end

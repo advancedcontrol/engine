@@ -2,7 +2,7 @@ require 'set'
 
 
 module Orchestrator
-    module Logic
+    module Core
         class ScheduleProxy
             def initialize(thread)
                 @scheduler = thread.scheduler
