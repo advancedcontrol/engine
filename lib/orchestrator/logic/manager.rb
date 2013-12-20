@@ -4,9 +4,12 @@ module Orchestrator
             def initialize(*args)
                 super(*args)
 
-                start
+                # Do we want to start here?
+                # Should be ok.
+                @thread.next_tick method(:start)
             end
 
+            # Access to other modules in the same control system
             def system
                 @system ||= ::Orchestrator::Core::SystemProxy.new(@thread, @settings.control_system_id)
             end

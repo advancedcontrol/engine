@@ -1,7 +1,7 @@
 module Orchestrator
     module Logic
         module Mixin
-            include ::Orchestrator::Core::Scheduler
+            include ::Orchestrator::Core::Mixin
 
             def system
                 @__config__.system

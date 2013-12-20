@@ -9,7 +9,7 @@ module Orchestrator
                 @thread = thread
             end
 
-            def set(mod, index = 1)
+            def get(mod, index = 1)
                 index -= 1  # Get the real index
                 name = mod.to_sym
 

@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
 
     s.add_dependency 'rake'
     s.add_dependency 'libuv'              # High performance IO reactor for ruby
+    s.add_dependency 'uv-rays'            # Evented networking library
     s.add_dependency 'addressable'        # IP address utilities
     s.add_dependency 'couchbase'          # ruby couchbase connector
     s.add_dependency 'couchbase-model'    # couchbase active model orm

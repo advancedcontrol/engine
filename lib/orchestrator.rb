@@ -5,6 +5,7 @@ require 'orchestrator/engine'
 require 'couchbase'
 require 'couchbase-model'
 require 'couchbase-id'
+require 'uv-rays'
 
 
 # System Core
@@ -20,7 +21,7 @@ require 'orchestrator/core/schedule_proxy'  # Common proxy for all module schedu
 require 'orchestrator/core/requests_proxy'  # Sends a command to all modules of that type
 require 'orchestrator/core/request_proxy'   # Sends a command to a single module
 require 'orchestrator/core/system_proxy'    # prevents stale system objects
-require 'orchestrator/core/scheduler'       # Common mixin function for modules classes
+require 'orchestrator/core/mixin'           # Common mixin functions for modules classes
 
 # Logic abstractions
 require 'orchestrator/logic/manager'        # control system manager for logic modules
