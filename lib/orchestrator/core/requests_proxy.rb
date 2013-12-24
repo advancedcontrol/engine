@@ -7,21 +7,25 @@ module Orchestrator
             end
 
             def method_missing(name, *args, &block)
-                promises = @modules.map do |mod|
-                    defer = mod.thread.defer
-                    mod.thread.schedule do
-                        begin
-                            defer.resolve(
-                                mod.instance.__send__(name, *args, &block)
-                            )
-                        rescue Exception => e
-                            defer.reject(e)
+                if ::Orchestrator::Core::PROTECTED[name]
+                    ::Libuv::Q.reject(@thread, :protected)
+                else
+                    promises = @modules.map do |mod|
+                        defer = mod.thread.defer
+                        mod.thread.schedule do
+                            begin
+                                defer.resolve(
+                                    mod.instance.__send__(name, *args, &block)
+                                )
+                            rescue Exception => e
+                                defer.reject(e)
+                            end
                         end
+                        defer.promise
                     end
-                    defer.promise
-                end
 
-                @thread.finally(*promises)
+                    @thread.finally(*promises)
+                end
             end
         end
     end
