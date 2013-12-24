@@ -23,7 +23,13 @@ module Orchestrator
                 begin
                     @instance.on_unload
                 ensure
+                    # Clean up 
                     @scheduler.clear if @scheduler
+                    if @subsciptions
+                        unsub = @stattrak.method(:unsubscribe)
+                        @subsciptions.each &unsub
+                        @subsciptions = nil
+                    end
                 end
             end
 
@@ -35,6 +41,10 @@ module Orchestrator
                 @instance.on_update
             end
 
+            def get_scheduler
+                @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread)
+            end
+
             # This is called from Core::Mixin on the thread pool as the DB query will be blocking
             # NOTE:: Couchbase does support non-blocking gets although I think this is simpler
             #
@@ -42,10 +52,10 @@ module Orchestrator
             # @raise [Couchbase::Error::NotFound] if unable to find the system in the DB
             def get_system(name)
                 id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{name}")
-                ::Orchestrator::Core::SystemProxy.new(@thread, id.to_sym)
+                ::Orchestrator::Core::SystemProxy.new(@thread, id.to_sym, self)
             end
 
-            # Called from Core::Mixin
+            # Called from Core::Mixin - thread safe
             def trak(name, value)
                 if @status[name] != value
                     @status[name] = value
@@ -59,16 +69,39 @@ module Orchestrator
             end
 
             # Subscribe to status updates from status in the same module
-            # Called from Core::Mixin
+            # Called from Core::Mixin always on the module thread
             def subscribe(status, callback)
-                raise 'callback required' unless callback.respond_to? :call
-                @stattrak.subscribe({
+                sub = @stattrak.subscribe({
                     on_thread: @thread,
                     callback: callback,
                     status: status.to_sym,
                     mod_id: @settings.id.to_sym,
                     mod: self
                 })
+                add_subscription sub
+                sub
+            end
+
+            # Called from Core::Mixin always on the module thread
+            def unsubscribe(sub)
+                if sub.is_a? ::Libuv::Q::Promise
+                    # Promise recursion?
+                    sub.then method(:unsubscribe)
+                else
+                    @subsciptions.delete sub
+                    @stattrak.unsubscribe(sub)
+                end
+            end
+
+            # Called from subscribe and SystemProxy.subscribe always on the module thread
+            def add_subscription(sub)
+                if sub.is_a? ::Libuv::Q::Promise
+                    # Promise recursion?
+                    sub.then method(:add_subscription)
+                else
+                    @subsciptions ||= Set.new
+                    @subsciptions.add sub
+                end
             end
         end
     end

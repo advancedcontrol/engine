@@ -76,7 +76,7 @@ module Orchestrator
             if sub.is_a? ::Libuv::Q::Promise 
                 sub.then @find_subscription
             else
-                find_subscription(opt)
+                find_subscription(sub)
             end
         end
 
@@ -205,7 +205,7 @@ module Orchestrator
                         thread.observer.exec_unsubscribe(sub)
                     end
                 else
-                    # NOTE:: Probably not required
+                    # Should be in our schedule
                     exec_unsubscribe(sub)
                 end
             else

@@ -4,9 +4,10 @@ require 'set'
 module Orchestrator
     module Core
         class SystemProxy
-            def initialize(thread, sys_id)
+            def initialize(thread, sys_id, origin = nil)
                 @system = sys_id.to_sym
                 @thread = thread
+                @origin = origin    # This is the module that requested the proxy
             end
 
             # Alias for get
@@ -50,6 +51,13 @@ module Orchestrator
                 system.modules
             end
 
+            # Used to be notified when an update to a status value occurs
+            #
+            # @param module [String, Symbol] the name of the module in the system
+            # @param index [Integer] the index of the module as there may be more than one
+            # @param status [String, Symbol] the name of the status variable
+            # @param callback [Proc] method, block, proc or lambda to be called when a change occurs
+            # @return [Object] a reference to the subscription for un-subscribing
             def subscribe(mod_name, index, status = nil, callback = nil, &block)
                 # Allow index to be optional
                 if not index.is_a?(Integer)
@@ -78,7 +86,7 @@ module Orchestrator
                 # if the module exists, subscribe on the correct thread
                 # use a bit of promise magic as required
                 mod_man = sys.get(mod_name, index - 1)
-                if mod_man
+                sub = if mod_man
                     defer = @thread.defer
 
                     options[:mod_id] = mod_man.settings.id.to_sym
@@ -94,6 +102,9 @@ module Orchestrator
                 else
                     @thread.observer.subscribe(options)
                 end
+
+                @origin.add_subscription sub if @origin
+                sub
             end
 
 

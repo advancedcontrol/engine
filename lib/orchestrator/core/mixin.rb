@@ -1,12 +1,15 @@
 module Orchestrator
     module Core
+        SCHEDULE_ACCESS_DENIED = 'schedule unavailable in a task'.freeze
+
         module Mixin
 
             # Returns a wrapper around a shared instance of ::UV::Scheduler
             # 
             # @return [::Orchestrator::Core::ScheduleProxy]
             def schedule
-                @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@__config__.thread)
+                raise SCHEDULE_ACCESS_DENIED unless @__config__.thread.reactor_thread?
+                @__config__.get_scheduler
             end
 
             # Looks up a system based on its name and returns a proxy to that system via a promise
@@ -24,30 +27,41 @@ module Orchestrator
             # @param callback [Proc] the work to be processed on the thread pool
             # @return [::Libuv::Q::Promise] Returns a single promise
             def task(callback = nil, &block)
-                @__config__.thread.work(callback, &block)
+                thread = @__config__.thread
+                defer = thread.defer
+                thread.schedule do
+                    defer.resolve(thread.work(callback, &block))
+                end
+                defer.promise
             end
 
+            # Thread safe status access
             def [](name)
                 @__config__.status[name.to_sym]
             end
 
+            # thread safe status settings
             def []=(status, value)
                 @__config__.trak(status.to_sym, value)
             end
 
+            # thread safe status subscription
             def subscribe(status, callback = nil, &block)
-                @__config__.subscribe(status, callback || block)
+                callback ||= block
+                raise 'callback required' unless callback.respond_to? :call
+
+                thread = @__config__.thread
+                defer = thread.defer
+                thread.schedule do
+                    defer.resolve(@__config__.subscribe(status, callback))
+                end
+                defer.promise
             end
 
+            # thread safe unsubscribe
             def unsubscribe(sub)
-                if sub.is_a? ::Libuv::Q::Promise
-                    sub.then do |val|
-                        unsubscribe(val)
-                    end
-                elsif sub.mod_id == @__config__.settings.id.to_sym
-                    @__config__.stattrak.exec_unsubscribe(sub)
-                else
-                    @__config__.stattrak.unsubscribe(sub)
+                @__config__.thread.schedule do
+                    @__config__.unsubscribe(sub)
                 end
             end
         end
