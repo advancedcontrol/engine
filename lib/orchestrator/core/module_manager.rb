@@ -10,7 +10,7 @@ module Orchestrator
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
-                @status = {}
+                @status = ::ThreadSafe::Cache.new
                 @stattrak = @thread.observer
             end
 
@@ -47,9 +47,14 @@ module Orchestrator
 
             # Called from Core::Mixin
             def trak(name, value)
-                unless @status[name] == value
+                if @status[name] != value
                     @status[name] = value
-                    @stattrak.update(@settings.id.to_sym, name, value)
+
+                    # Allows status to be updated in workers
+                    # For the most part this will run straight away
+                    @thread.schedule do
+                        @stattrak.update(@settings.id.to_sym, name, value)
+                    end
                 end
             end
 
@@ -58,9 +63,11 @@ module Orchestrator
             def subscribe(status, callback)
                 raise 'callback required' unless callback.respond_to? :call
                 @stattrak.subscribe({
+                    on_thread: @thread,
                     callback: callback,
                     status: status.to_sym,
-                    mod_id: @settings.id.to_sym
+                    mod_id: @settings.id.to_sym,
+                    mod: self
                 })
             end
         end

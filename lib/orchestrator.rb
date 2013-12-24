@@ -11,16 +11,17 @@ require 'uv-rays'
 # System Core
 require 'orchestrator/dependency_manager'   # Manages code loading
 require 'orchestrator/control'              # Module control and system loader
-require 'orchestrator/request'              # request wrapper (for user requests)
+require 'orchestrator/request'              # request wrapper (user requests from web server)
 require 'orchestrator/version'              # orchestrator version
 require 'orchestrator/system'               # This is the source of truth for all system information
+require 'orchestrator/status'               # Manages status subscriptions across threads
 
 # Common Abstractions
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers
 require 'orchestrator/core/schedule_proxy'  # Common proxy for all module schedules
 require 'orchestrator/core/requests_proxy'  # Sends a command to all modules of that type
 require 'orchestrator/core/request_proxy'   # Sends a command to a single module
-require 'orchestrator/core/system_proxy'    # prevents stale system objects
+require 'orchestrator/core/system_proxy'    # prevents stale system objects (maintains loose coupling)
 require 'orchestrator/core/mixin'           # Common mixin functions for modules classes
 
 # Logic abstractions

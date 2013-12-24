@@ -54,11 +54,12 @@ module Orchestrator
                 # Allow index to be optional
                 if not index.is_a?(Integer)
                     callback = status || block
-                    status = index
+                    status = index.to_sym
                     index = 1
                 else
                     callback ||= block
                 end
+                mod_name = mod_name.to_sym
 
                 raise 'callback required' unless callback.respond_to? :call
 
@@ -76,11 +77,12 @@ module Orchestrator
 
                 # if the module exists, subscribe on the correct thread
                 # use a bit of promise magic as required
-                mod_man = sys.get(name, index)
+                mod_man = sys.get(mod_name, index - 1)
                 if mod_man
                     defer = @thread.defer
 
                     options[:mod_id] = mod_man.settings.id.to_sym
+                    options[:mod] = mod_man
                     thread = mod_man.thread
                     thread.schedule do
                         defer.resolve (

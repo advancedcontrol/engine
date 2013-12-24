@@ -59,7 +59,10 @@ module Orchestrator
                     ::Orchestrator::System.get(id)
                 }).then(proc { |sys|
                     mod = sys.get(opt[:mod_name], opt[:index] - 1)
-                    opt[:mod_id] = mod ? mod.settings.id.to_sym : nil
+                    if mod
+                        opt[:mod_id] = mod.settings.id.to_sym
+                        opt[:mod] = mod
+                    end
 
                     do_subscribe(opt)
                 })
@@ -70,7 +73,7 @@ module Orchestrator
 
         # Removes subscription callback from the lookup
         def unsubscribe(sub)
-            if sub.is_a? Promise 
+            if sub.is_a? ::Libuv::Q::Promise 
                 sub.then @find_subscription
             else
                 find_subscription(opt)
@@ -96,7 +99,7 @@ module Orchestrator
             if subscriptions
                 sys = ::Orchestrator::System.get(@system)
 
-                subscriptions.each |sub|
+                subscriptions.each do |sub|
                     old_id = sub.mod_id
 
                     # re-index the subscription
@@ -131,8 +134,7 @@ module Orchestrator
         end
 
 
-        # NOTE:: Only to be called by find_subscription
-        # Public for simple cross thread communication
+        # NOTE:: Only to be called from subscription thread
         def exec_unsubscribe(sub)
             # Update the system lookup if a system was specified
             if sub.sys_id
@@ -185,7 +187,7 @@ module Orchestrator
                 @subscriptions[sub.mod_id][sub.status].add(sub)
 
                 # Check for existing status to send to subscriber
-                value = mod.status[sub.status]
+                value = opt[:mod].status[sub.status]
                 sub.notify(value) if value
             end
 

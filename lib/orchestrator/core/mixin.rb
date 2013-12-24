@@ -39,8 +39,16 @@ module Orchestrator
                 @__config__.subscribe(status, callback || block)
             end
 
-            def unsubscribe(subscription)
-                @__config__.stattrak.unsubscribe(subscription)
+            def unsubscribe(sub)
+                if sub.is_a? ::Libuv::Q::Promise
+                    sub.then do |val|
+                        unsubscribe(val)
+                    end
+                elsif sub.mod_id == @__config__.settings.id.to_sym
+                    @__config__.stattrak.exec_unsubscribe(sub)
+                else
+                    @__config__.stattrak.unsubscribe(sub)
+                end
             end
         end
     end
