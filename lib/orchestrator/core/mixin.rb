@@ -64,6 +64,10 @@ module Orchestrator
                     @__config__.unsubscribe(sub)
                 end
             end
+
+            def logger
+                @__config__.logger
+            end
         end
     end
 end

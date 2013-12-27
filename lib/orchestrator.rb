@@ -15,6 +15,7 @@ require 'orchestrator/request'              # request wrapper (user requests fro
 require 'orchestrator/version'              # orchestrator version
 require 'orchestrator/system'               # This is the source of truth for all system information
 require 'orchestrator/status'               # Manages status subscriptions across threads
+require 'orchestrator/logger'               # Logs events of interest as well as coordinating live log feedback
 
 # Common Abstractions
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers

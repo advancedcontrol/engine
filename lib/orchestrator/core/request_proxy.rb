@@ -6,6 +6,7 @@ module Orchestrator
         PROTECTED[:schedule] = true
         PROTECTED[:systems] = true
         PROTECTED[:system] = true
+        PROTECTED[:logger] = true
         PROTECTED[:task] = true
         PROTECTED[:send] = true
 
@@ -28,6 +29,7 @@ module Orchestrator
                                 @mod.instance.__send__(name, *args, &block)
                             )
                         rescue Exception => e
+                            @mod.logger.print_error(e)
                             defer.reject(e)
                         end
                     end

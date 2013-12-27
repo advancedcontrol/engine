@@ -24,41 +24,13 @@ module Orchestrator
             class_lookup = classname.to_sym
             class_object = @dependencies[class_lookup]
 
-            if class_object && !force
+            if class_object && force == false
                 defer.resolve(class_object)
             else
-                begin
-                    file = "#{classname.underscore}.rb"
-                    class_object = nil
-
-                    ::Rails.configuration.orchestrator.module_paths.each do |path|
-                        if ::File.exists?("#{path}/#{file}")
-                            @load_mutex.synchronize {
-                                ::Kernel.load "#{path}/#{file}"
-                            }
-                            class_object = classname.constantize
-
-                            case dependency.role
-                            when :device
-                                include_device(class_object)
-                            when :service
-                                include_service(class_object)
-                            else
-                                include_logic(class_object)
-                            end
-
-                            @dependencies[class_lookup] = class_object
-                            defer.resolve(class_object)
-                            break
-                        end
-                    end
-                    
-                    if class_object.nil?
-                        defer.reject(FileNotFound.new("could not find '#{file}'"))
-                    end
-                rescue Exception => e
-                    defer.reject(e)
-                end
+                # We need to ensure only one file loads at a time
+                @load_mutex.synchronize {
+                    perform_load(dependency, defer, classname, class_lookup, force)
+                }
             end
 
             defer.promise
@@ -86,6 +58,49 @@ module Orchestrator
 
         protected
 
+
+        # Always called from within a Mutex
+        def perform_load(dependency, defer, classname, class_lookup, force)
+            if force == false
+                class_object = @dependencies[class_lookup]
+                if class_object
+                    defer.resolve(class_object)
+                    return
+                end
+            end
+
+            begin
+                file = "#{classname.underscore}.rb"
+                class_object = nil
+
+                ::Rails.configuration.orchestrator.module_paths.each do |path|
+                    if ::File.exists?("#{path}/#{file}")
+
+                        ::Kernel.load "#{path}/#{file}"
+                        class_object = classname.constantize
+
+                        case dependency.role
+                        when :device
+                            include_device(class_object)
+                        when :service
+                            include_service(class_object)
+                        else
+                            include_logic(class_object)
+                        end
+
+                        @dependencies[class_lookup] = class_object
+                        defer.resolve(class_object)
+                        break
+                    end
+                end
+                
+                if class_object.nil?
+                    defer.reject(FileNotFound.new("could not find '#{file}'"))
+                end
+            rescue Exception => e
+                defer.reject(e)
+            end
+        end
 
         def include_logic(klass)
             klass.class_eval do

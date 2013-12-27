@@ -7,23 +7,22 @@ module Orchestrator
                 @klass = klass
                 
                 # Bit of a hack - should make testing pretty easy though
-                config = self
-                @instance = @klass.new
-                @instance.instance_eval { @__config__ = config }
                 @status = ::ThreadSafe::Cache.new
                 @stattrak = @thread.observer
+                @logger = ::Orchestrator::Logger.new(@thread, @settings)
             end
 
 
             attr_reader :thread, :settings, :instance
-            attr_reader :status, :stattrak
+            attr_reader :status, :stattrak, :logger
 
 
             def stop
                 begin
                     @instance.on_unload
                 ensure
-                    # Clean up 
+                    # Clean up
+                    @instance = nil
                     @scheduler.clear if @scheduler
                     if @subsciptions
                         unsub = @stattrak.method(:unsubscribe)
@@ -34,6 +33,9 @@ module Orchestrator
             end
 
             def start
+                config = self
+                @instance = @klass.new
+                @instance.instance_eval { @__config__ = config }
                 @instance.on_load
             end
 

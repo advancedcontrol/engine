@@ -18,6 +18,7 @@ module Orchestrator
                                     mod.instance.__send__(name, *args, &block)
                                 )
                             rescue Exception => e
+                                @mod.logger.print_error(e)
                                 defer.reject(e)
                             end
                         end

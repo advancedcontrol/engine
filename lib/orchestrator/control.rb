@@ -1,4 +1,5 @@
 require 'set'
+require 'logger'
 
 
 module Orchestrator
@@ -27,7 +28,17 @@ module Orchestrator
             @loader = DependencyManager.instance
             @loop = ::Libuv::Loop.default
             @exceptions = method(:log_unhandled_exception)
+
+            logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
+            logger.formatter = proc { |severity, datetime, progname, msg|
+                "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{progname} - #{msg}\n"
+            }
+            @logger = ::ActiveSupport::TaggedLogging.new(logger)
         end
+
+
+        attr_reader :logger
+
 
         # Start the control reactor
         def mount
@@ -108,6 +119,12 @@ module Orchestrator
 
         end
 
+        def reload(dep_id)
+            @loop.work do
+                reload_dep(dep_id)
+            end
+        end
+
 
         protected
 
@@ -132,6 +149,18 @@ module Orchestrator
         def load_all
             modules = ::Orchestrator::Module.all
             modules.each &method(:load)  # modules are streamed in
+        end
+
+        # called from the thread pool
+        def reload_dep(dep_id)
+            dep = ::Orchestrator::Dependency.find(dep_id)
+
+            # Reload file here
+            @loader.load(dep, :force)#.then(proc { |klass|
+            
+            # todo:: notify modules here
+
+            # TODO:: Logging system that logs to files and promises
         end
 
 
