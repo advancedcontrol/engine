@@ -106,6 +106,9 @@ module Orchestrator
                 end
             end
 
+            # Called from Core::Mixin on any thread
+            # For Logics: instance -> system -> zones -> dependency
+            # For Device: instance -> dependency
             def setting(name)
                 res = @settings.settings[name]
                 if res.nil?
@@ -113,15 +116,18 @@ module Orchestrator
                         sys = System.get(@settings.control_system_id)
                         res = sys.settings[name]
 
-                        # TODO:: Grab settings for zones
+                        # Check if zones have the setting
                         if res.nil?
                             sys.zones.each do |zone|
                                 res = zone.settings[name]
                                 return res unless res.nil?
                             end
+
+                            # Fallback to the dependency
                             res = @settings.dependency.settings[name]
                         end
                     else
+                        # Fallback to the dependency
                         res = @settings.dependency.settings[name]
                     end
                 end

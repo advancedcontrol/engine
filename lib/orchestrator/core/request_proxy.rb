@@ -5,7 +5,7 @@ module Orchestrator
         PROTECTED[:subscribe] = true
         PROTECTED[:schedule] = true
         PROTECTED[:systems] = true
-        PROTECTED[:setting] = true
+        #PROTECTED[:setting] = true # settings might be useful
         PROTECTED[:system] = true
         PROTECTED[:logger] = true
         PROTECTED[:task] = true
