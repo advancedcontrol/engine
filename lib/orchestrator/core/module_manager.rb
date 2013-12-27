@@ -105,6 +105,28 @@ module Orchestrator
                     @subsciptions.add sub
                 end
             end
+
+            def setting(name)
+                res = @settings.settings[name]
+                if res.nil?
+                    if !@settings.control_system_id.nil?
+                        sys = System.get(@settings.control_system_id)
+                        res = sys.settings[name]
+
+                        # TODO:: Grab settings for zones
+                        if res.nil?
+                            sys.zones.each do |zone|
+                                res = zone.settings[name]
+                                return res unless res.nil?
+                            end
+                            res = @settings.dependency.settings[name]
+                        end
+                    else
+                        res = @settings.dependency.settings[name]
+                    end
+                end
+                res
+            end
         end
     end
 end

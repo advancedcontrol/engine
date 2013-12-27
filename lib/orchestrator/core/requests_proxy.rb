@@ -9,6 +9,7 @@ module Orchestrator
             def method_missing(name, *args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
                     ::Libuv::Q.reject(@thread, :protected)
+                    @mod.logger.warn("attempt to access a protected method '#{name}' in multiple modules")
                 else
                     promises = @modules.map do |mod|
                         defer = mod.thread.defer

@@ -5,6 +5,7 @@ module Orchestrator
         PROTECTED[:subscribe] = true
         PROTECTED[:schedule] = true
         PROTECTED[:systems] = true
+        PROTECTED[:setting] = true
         PROTECTED[:system] = true
         PROTECTED[:logger] = true
         PROTECTED[:task] = true
@@ -22,6 +23,7 @@ module Orchestrator
 
                 if ::Orchestrator::Core::PROTECTED[name]
                     defer.reject(:protected)
+                    @mod.logger.warn("attempt to access module '#{@mod.settings.id}' protected method '#{name}'")
                 else
                     @mod.thread.schedule do
                         begin

@@ -75,7 +75,7 @@ module Orchestrator
                 sys = system
                 options = {
                     sys_id: @system,
-                    sys_name: sys.settings.name,
+                    sys_name: sys.config.name,
                     mod_name: mod_name,
                     index: index,
                     status: status,

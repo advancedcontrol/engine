@@ -16,15 +16,16 @@ module Orchestrator
         end
 
 
-        attr_reader :settings
+        attr_reader :zones, :config
 
 
         def initialize(control_system)
-            @settings = control_system
+            @config = control_system
             @controller = ::Orchestrator::Control.instance
 
             @modules = {}
-            @settings.modules.each &method(:index_module)
+            @config.modules.each &method(:index_module)
+            @zones = Set.new(Zone.find_by_id(@config.zones))
         end
 
         def get(mod, index)
@@ -44,9 +45,8 @@ module Orchestrator
             @modules.keys
         end
 
-        # TODO:: Fix this - should load zones in the thread pool?
-        def zones
-            @zones ||= Set.new(Zone.find_by_id(@settings.zones))
+        def settings
+            @config.settings
         end
 
 

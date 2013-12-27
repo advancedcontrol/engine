@@ -98,6 +98,7 @@ module Orchestrator
                     defer.reject(FileNotFound.new("could not find '#{file}'"))
                 end
             rescue Exception => e
+                # TODO:: log the error at the request proxy level
                 defer.reject(e)
             end
         end

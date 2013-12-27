@@ -68,6 +68,11 @@ module Orchestrator
             def logger
                 @__config__.logger
             end
+
+            def setting(name)
+                set = name.to_sym
+                @__config__.setting(set)
+            end
         end
     end
 end
