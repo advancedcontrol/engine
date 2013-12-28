@@ -14,7 +14,7 @@ module Orchestrator
                     cs = ControlSystem.find(params.permit(:system_id)[:system_id])
                     render json: ::Orchestrator::Module.find_by_id(cs.modules)
                 else
-                    # TODO:: Elastic search filter
+                    # TODO:: Elastic search
                     render json: []
                 end
             end
@@ -36,6 +36,29 @@ module Orchestrator
             def destroy
                 @mod.delete
                 head :ok
+            end
+
+
+            ##
+            # Additional Functions:
+            ##
+
+            def start
+
+            end
+
+            def stop
+
+            end
+
+            def status
+                ctrl = ::Orchestrator::Control.instance
+                mod = ctrl.loaded? id
+                if mod
+                    render json: mod.status[params.permit(:status)[:status].to_sym]
+                else
+                    render nothing: true, status: :not_found
+                end
             end
 
 

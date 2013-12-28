@@ -13,7 +13,7 @@ module Orchestrator
             render :nothing => true, :status => :not_found  # 404
         end
 
-        # Safely extract the id from the request
+        # Helper for extracting the id from the request
         def id
             params.require(:id)
             params.permit(:id)[:id]
