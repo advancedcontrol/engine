@@ -27,5 +27,10 @@ module Orchestrator
                 render json: model.errors, status: :bad_request
             end
         end
+
+        # Access to the control system controller
+        def control
+            @@__control__ ||= ::Orchestrator::Control.instance
+        end
     end
 end

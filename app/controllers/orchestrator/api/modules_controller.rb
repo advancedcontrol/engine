@@ -44,20 +44,37 @@ module Orchestrator
             ##
 
             def start
-
+                # It is possible that module start will fail
+                # TODO:: deal with case where module not loaded?
+                #  Would have to be a class load fail?
+                mod = lookup_module
+                if mod
+                    mod.thread.next_tick do
+                        if mod.start
+                            env['async.callback'].call([200, {'Content-Length' => 0}, []])
+                        else
+                            env['async.callback'].call([500, {'Content-Length' => 0}, []])
+                        end
+                    end
+                    throw :async
+                end
             end
 
             def stop
-
+                # Stop will always succeed
+                mod = lookup_module
+                if mod
+                    mod.thread.next_tick do
+                        mod.stop
+                    end
+                    render nothing: true
+                end
             end
 
             def status
-                ctrl = ::Orchestrator::Control.instance
-                mod = ctrl.loaded? id
+                mod = lookup_module
                 if mod
                     render json: mod.status[params.permit(:status)[:status].to_sym]
-                else
-                    render nothing: true, status: :not_found
                 end
             end
 
@@ -71,6 +88,15 @@ module Orchestrator
                     :ip, :tls, :udp, :port, :makebreak,
                     :uri, {settings: []}
                 )
+            end
+
+            def lookup_module
+                mod = control.loaded? id
+                if mod
+                    return mod
+                else
+                    render nothing: true, status: :not_found
+                end
             end
 
             def check_authorization

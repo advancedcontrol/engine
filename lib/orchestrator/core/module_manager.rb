@@ -18,8 +18,11 @@ module Orchestrator
 
 
             def stop
+                return if @instance.nil?
                 begin
                     @instance.on_unload
+                rescue Exeption => e
+                    @logger.print_error(e, 'error in module unload callback')
                 ensure
                     # Clean up
                     @instance = nil
@@ -33,10 +36,19 @@ module Orchestrator
             end
 
             def start
+                return unless @instance.nil?
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
-                @instance.on_load
+                begin
+                    @instance.on_load
+                rescue Exeption => e
+                    @logger.print_error(e, 'error in module load callback')
+                end
+                true
+            rescue Exeption => e
+                @logger.print_error(e, 'module failed to start')
+                false
             end
 
             def reloaded
