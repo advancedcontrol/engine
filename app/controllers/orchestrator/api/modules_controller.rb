@@ -28,14 +28,11 @@ module Orchestrator
             def update
                 para = safe_params
                 @mod.update_attributes(para)
-                if @mod.save
-                    # Update the running module if anything other than settings is updated
-                    if para.keys.size > 2 || para[:settings].nil?
+                save_and_respond(@mod) do
+                   # Update the running module if anything other than settings is updated
+                   if para.keys.size > 2 || para[:settings].nil?
                         control.update(id)
                     end
-                    respond_with :api, model
-                else
-                    render json: model.errors, status: :bad_request
                 end
             end
 
@@ -57,7 +54,7 @@ module Orchestrator
 
             def start
                 # It is possible that module class load can fail
-                mod = lookup_module
+                mod = control.loaded? id
                 if mod
                     start_module(mod)
                 else # attempt to load module
@@ -76,8 +73,7 @@ module Orchestrator
 
             def stop
                 # Stop will always succeed
-                mod = lookup_module
-                if mod
+                lookup_module do |mod|
                     mod.thread.next_tick do
                         mod.stop
                     end
@@ -86,8 +82,7 @@ module Orchestrator
             end
 
             def status
-                mod = lookup_module
-                if mod
+                lookup_module do |mod|
                     render json: mod.status[params.permit(:status)[:status].to_sym]
                 end
             end
@@ -107,7 +102,7 @@ module Orchestrator
             def lookup_module
                 mod = control.loaded? id
                 if mod
-                    return mod
+                    yield mod
                 else
                     render nothing: true, status: :not_found
                 end

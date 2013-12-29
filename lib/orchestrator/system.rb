@@ -15,6 +15,10 @@ module Orchestrator
             return system
         end
 
+        def self.expire(id)
+            @@systems.delete(id.to_sym)
+        end
+
 
         attr_reader :zones, :config
 

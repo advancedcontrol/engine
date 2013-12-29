@@ -22,6 +22,7 @@ module Orchestrator
         # Used to save and respond to all model requests
         def save_and_respond(model)
             if model.save
+                yield if block_given?
                 respond_with :api, model
             else
                 render json: model.errors, status: :bad_request
