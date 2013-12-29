@@ -1,3 +1,5 @@
+require 'set'
+
 
 module Orchestrator
     module Api
@@ -24,8 +26,17 @@ module Orchestrator
             end
 
             def update
-                @mod.update_attributes(safe_params)
-                save_and_respond @mod
+                para = safe_params
+                @mod.update_attributes(para)
+                if @mod.save
+                    # Update the running module if anything other than settings is updated
+                    if para.keys.size > 2 || para[:settings].nil?
+                        control.update(id)
+                    end
+                    respond_with :api, model
+                else
+                    render json: model.errors, status: :bad_request
+                end
             end
 
             def create
@@ -34,8 +45,9 @@ module Orchestrator
             end
 
             def destroy
+                control.unload(id)
                 @mod.delete
-                head :ok
+                render nothing: true
             end
 
 
@@ -44,20 +56,22 @@ module Orchestrator
             ##
 
             def start
-                # It is possible that module start will fail
-                # TODO:: deal with case where module not loaded?
-                #  Would have to be a class load fail?
+                # It is possible that module class load can fail
                 mod = lookup_module
                 if mod
-                    mod.thread.next_tick do
-                        if mod.start
-                            env['async.callback'].call([200, {'Content-Length' => 0}, []])
-                        else
+                    start_module(mod)
+                else # attempt to load module
+                    config = ::Orchestrator::Module.find(mod_id)
+                    control.load(config).then(
+                        proc { |mod|
+                            start_module mod
+                        },
+                        proc { # Load failed
                             env['async.callback'].call([500, {'Content-Length' => 0}, []])
-                        end
-                    end
-                    throw :async
+                        }
+                    )
                 end
+                throw :async
             end
 
             def stop
@@ -104,6 +118,16 @@ module Orchestrator
                 @mod = ::Orchestrator::Module.find(id)
 
                 # Does the current user have permission to perform the current action?
+            end
+
+            def start_module(mod)
+                mod.thread.next_tick do
+                    if mod.start
+                        env['async.callback'].call([200, {'Content-Length' => 0}, []])
+                    else
+                        env['async.callback'].call([500, {'Content-Length' => 0}, []])
+                    end
+                end
             end
         end
     end

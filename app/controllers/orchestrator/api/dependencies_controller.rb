@@ -17,6 +17,8 @@ module Orchestrator
             end
 
             def update
+                # TODO:: limit updates to settings?
+                # Must destroy and re-add to maintain state
                 @dep.update_attributes(safe_params)
                 save_and_respond @dep
             end
@@ -28,7 +30,17 @@ module Orchestrator
 
             def destroy
                 @dep.delete
-                head :ok
+                # TODO:: delete modules that are based on this dependency
+                render :nothing => true
+            end
+
+
+            ##
+            # Additional Functions:
+            ##
+
+            def reload
+                
             end
 
 

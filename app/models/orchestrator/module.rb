@@ -40,6 +40,12 @@ module Orchestrator
         end
         view :by_module_type
 
+        # Finds all the modules belonging to the system specified
+        def self.belonging_to(sys_id)
+            by_system_owner({key: sys_id, stale: false})
+        end
+        view :by_system_owner
+
 
         protected
 

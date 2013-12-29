@@ -19,6 +19,7 @@ module Orchestrator
             def update
                 @cs.update_attributes(safe_params)
                 save_and_respond @cs
+                # TODO:: delete system cache
             end
 
             def create
@@ -28,7 +29,29 @@ module Orchestrator
 
             def destroy
                 @cs.delete
-                head :ok
+                # TODO:: delete system cache
+                render :nothing => true
+            end
+
+
+            ##
+            # Additional Functions:
+            ##
+
+            def start
+                # Start all modules in the system
+            end
+
+            def stop
+                # Stop all modules in the system
+            end
+
+            def request
+                # Run a function in a system module (async request)
+            end
+
+            def status
+                # Status defined as a system module
             end
 
 

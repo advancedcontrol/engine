@@ -17,6 +17,7 @@ module Orchestrator
             attr_reader :status, :stattrak, :logger
 
 
+            # Should always be called on the module thread
             def stop
                 return if @instance.nil?
                 begin

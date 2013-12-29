@@ -14,7 +14,7 @@ Orchestrator::Engine.routes.draw do
             end
         end
 
-        resources :systems do                    # systems have settings and define what zone they are in
+        resources :systems do       # systems have settings and define what zone they are in
             post 'start',   on: :member
             post 'stop',    on: :member
             post 'request', on: :member
@@ -22,7 +22,9 @@ Orchestrator::Engine.routes.draw do
 
             concerns :mods
         end
-        resources :dependencies     # dependencies have settings
+        resources :dependencies do  # dependencies have settings
+            post 'reload',  on: :member
+        end
         resources :groups           # users define the groups they are in
         resources :zones            # zones define what groups can access them
         

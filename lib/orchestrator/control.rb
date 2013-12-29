@@ -29,7 +29,11 @@ module Orchestrator
             @loop = ::Libuv::Loop.default
             @exceptions = method(:log_unhandled_exception)
 
-            logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
+            if Rails.env.production?
+                logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
+            else
+                logger = ::Logger.new(STDOUT)
+            end
             logger.formatter = proc { |severity, datetime, progname, msg|
                 "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{progname} - #{msg}\n"
             }
@@ -108,15 +112,64 @@ module Orchestrator
             @loaded[mod_id.to_sym]
         end
 
-        def update(mod_id)
-            # Stop the module gracefully
-            # Remove it from @loaded
-            # Get a fresh version of the settings from the database
-            # load the module
+        # Stops a module running
+        def start(mod_id)
+            defer = @loop.defer
+
+            mod = loaded? mod_id
+            if mod
+                mod.thread.schedule do
+                    mod.start
+                    defer.resolve(true)
+                end
+            else
+                defer.reject(:not_found)
+            end
+
+            defer.promise
         end
 
+        # Stops a module running
         def stop(mod_id)
+            defer = @loop.defer
 
+            mod = loaded? mod_id
+            if mod
+                mod.thread.schedule do
+                    mod.stop
+                    defer.resolve(true)
+                end
+            else
+                defer.reject(:not_found)
+            end
+
+            defer.promise
+        end
+
+        # Stop the module gracefully
+        # Then remove it from @loaded
+        def unload(mod_id)
+            stop(mod_id).then(proc {
+                @loaded.delete(mod_id.to_sym)
+                true # promise response
+            })
+        end
+
+        # Unload then
+        # Get a fresh version of the settings from the database
+        # load the module
+        def update(mod_id)
+            unload(mod_id).then(proc {
+                # Grab database model in the thread pool
+                res = @loop.work do
+                    ::Orchestrator::Module.find(mod_id)
+                end
+
+                # Load the module if model found
+                res.then(proc { |config|
+                    load(config)    # Promise chaining to here
+                })
+            })
         end
 
         def reload(dep_id)
@@ -159,8 +212,6 @@ module Orchestrator
             @loader.load(dep, :force)#.then(proc { |klass|
             
             # todo:: notify modules here
-
-            # TODO:: Logging system that logs to files and promises
         end
 
 

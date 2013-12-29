@@ -9,6 +9,7 @@ module Orchestrator
 
         # Allows us to lookup systems by names
         after_save :update_name
+        before_destroy :cleanup_modules
 
 
         attribute :name
@@ -49,6 +50,17 @@ module Orchestrator
                 ControlSystem.bucket.set("sysname-#{self.name}", self.id)
             end
             @old_name = nil
+        end
+
+        # TODO:: (Module.belonging_to may not be needed anymore)
+        # 1. Find logics and delete them (this is all we are doing now)
+        # 2. Find devices in the system that would be orphaned and delete them
+        # 3. Delete the system
+        def cleanup_modules
+            ::Orchestrator::Module.belonging_to(self.id).each do |mod|
+                ::Orchestrator::Control.instance.unload(mod.id)
+                mod.delete
+            end
         end
     end
 end
