@@ -83,7 +83,7 @@ module Orchestrator
 
             def status
                 lookup_module do |mod|
-                    render json: mod.status[params.permit(:status)[:status].to_sym]
+                    render json: mod.status[params.permit(:lookup)[:lookup].to_sym]
                 end
             end
 

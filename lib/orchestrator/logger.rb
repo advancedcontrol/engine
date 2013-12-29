@@ -15,7 +15,7 @@ module Orchestrator
 
         def initialize(loop, mod)
             @loop = loop
-            @mod_id = mod
+            @mod_id = mod.id
             @klass = mod.dependency.class_name
             @level = 3
             @listeners = Set.new
@@ -81,7 +81,7 @@ module Orchestrator
 
         def print_error(e, msg = '')
             msg << "\n#{e.message}"
-            msg << "\n#{e.backtrace}" if e.respond_to? :backtrace
+            msg << "\n#{e.backtrace.join("\n")}" if e.respond_to? :backtrace
             error(msg)
         end
 

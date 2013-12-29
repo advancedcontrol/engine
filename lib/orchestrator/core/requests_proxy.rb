@@ -2,14 +2,19 @@ module Orchestrator
     module Core
         class RequestsProxy
             def initialize(thread, modules)
-                @modules = modules.is_a?(Array) ? modules : [modules]
+                if modules.nil?
+                    @modules = []
+                else
+                    @modules = modules.is_a?(Array) ? modules : [modules]
+                end
                 @thread = thread
             end
 
             def method_missing(name, *args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
-                    ::Libuv::Q.reject(@thread, :protected)
-                    @mod.logger.warn("attempt to access a protected method '#{name}' in multiple modules")
+                    err = Error::ProtectedMethod.new "attempt to access a protected method '#{name}' in multiple modules"
+                    ::Libuv::Q.reject(@thread, err)
+                    # TODO:: log warning err.message
                 else
                     promises = @modules.map do |mod|
                         defer = mod.thread.defer

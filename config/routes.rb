@@ -17,7 +17,7 @@ Orchestrator::Engine.routes.draw do
         resources :systems do       # systems have settings and define what zone they are in
             post 'start',   on: :member
             post 'stop',    on: :member
-            post 'request', on: :member
+            post 'exec',    on: :member
             get  'status',  on: :member
 
             concerns :mods

@@ -36,7 +36,7 @@ module Orchestrator
         # Loads all the modules for this node
         def self.all
             # ascending order by default (device, service then logic)
-            by_module_type
+            by_module_type(stale: false)
         end
         view :by_module_type
 

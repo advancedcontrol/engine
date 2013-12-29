@@ -123,7 +123,9 @@ module Orchestrator
                     defer.resolve(true)
                 end
             else
-                defer.reject(:not_found)
+                err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
+                defer.reject(err)
+                # TODO:: logger warn err.message
             end
 
             defer.promise
@@ -140,7 +142,9 @@ module Orchestrator
                     defer.resolve(true)
                 end
             else
-                defer.reject(:not_found)
+                err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', not found"
+                defer.reject(err)
+                # TODO:: logger warn err.message
             end
 
             defer.promise

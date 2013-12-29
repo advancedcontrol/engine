@@ -11,6 +11,12 @@ module Orchestrator
         PROTECTED[:task] = true
         PROTECTED[:send] = true
 
+        # Callbacks
+        PROTECTED[:on_load] = true
+        PROTECTED[:on_unload] = true
+        PROTECTED[:received] = true
+
+
 
         class RequestProxy
             def initialize(thread, mod)
@@ -22,8 +28,13 @@ module Orchestrator
                 defer = @thread.defer
 
                 if ::Orchestrator::Core::PROTECTED[name]
-                    defer.reject(:protected)
-                    @mod.logger.warn("attempt to access module '#{@mod.settings.id}' protected method '#{name}'")
+                    err = Error::ProtectedMethod.new "attempt to access module '#{@mod.settings.id}' protected method '#{name}'"
+                    defer.reject(err)
+                    @mod.logger.warn(err.message)
+                elsif @mod.nil?
+                    err = Error::ModuleUnavailable.new "method '#{name}' request failed as the module is not available at this time"
+                    defer.reject(err)
+                    # TODO:: debug log here
                 else
                     @mod.thread.schedule do
                         begin

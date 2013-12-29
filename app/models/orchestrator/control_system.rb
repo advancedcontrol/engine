@@ -9,7 +9,7 @@ module Orchestrator
 
         # Allows us to lookup systems by names
         after_save :update_name
-        before_destroy :cleanup_modules
+        before_delete :cleanup_modules
 
 
         attribute :name

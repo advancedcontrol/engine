@@ -14,9 +14,6 @@ module Orchestrator
         end
 
 
-        class FileNotFound < StandardError; end
-
-
         def load(dependency, force = false)
             defer = @loop.defer
             
@@ -49,7 +46,7 @@ module Orchestrator
                     defer.reject(e)
                 end
             else
-                defer.reject(FileNotFound.new("could not find '#{file}'"))
+                defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
             end
 
             defer.promise
@@ -95,7 +92,7 @@ module Orchestrator
                 end
                 
                 if class_object.nil?
-                    defer.reject(FileNotFound.new("could not find '#{file}'"))
+                    defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
                 end
             rescue Exception => e
                 # TODO:: log the error at the request proxy level

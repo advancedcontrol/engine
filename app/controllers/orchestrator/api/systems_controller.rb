@@ -62,21 +62,54 @@ module Orchestrator
                 render :nothing => true
             end
 
-            def request
+            def exec
                 # Run a function in a system module (async request)
+                params.require(:module)
+                params.require(:method)
+                sys = System.get(id)
+                if sys
+                    para = params.permit(:module, :index, :method, {args: []})
+                    index = para[:index]
+                    mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
+                    if mod
+                        req = Core::RequestProxy.new(mod.thread, mod)
+                        args = para[:args] || []
+                        result = req.send(para[:method].to_sym, *args)
+                        result.then(proc { |res|
+                            output = res.to_json
+                            env['async.callback'].call([200, {
+                                'Content-Length' => output.bytesize,
+                                'Content-Type' => 'application/json'
+                            }, [output]])
+                        }, proc { |err|
+                            output = err.message
+                            env['async.callback'].call([500, {
+                                'Content-Length' => output.bytesize,
+                                'Content-Type' => 'text/plain'
+                            }, [output]])
+                        })
+                        throw :async
+                    else
+                        render nothing: true, status: :not_found
+                    end
+                else
+                    render nothing: true, status: :not_found
+                end
             end
 
             def status
                 # Status defined as a system module
+                params.require(:module)
+                params.require(:lookup)
                 sys = System.get(id)
                 if sys
-                    para = safe_status
+                    para = params.permit(:module, :index, :lookup)
                     index = para[:index]
-                    mod = sys.get(para[:module].to_sym, index.nil? ? 0 : index.to_sym)
+                    mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
                     if mod
-                        render json: mod.status[para[:status].to_sym]
+                        render json: mod.status[para[:lookup].to_sym]
                     else
-                        render json: nil
+                        render nothing: true, status: :not_found
                     end
                 else
                     render nothing: true, status: :not_found
@@ -93,10 +126,6 @@ module Orchestrator
                     {zones: []}, {modules: []},
                     {settings: []}
                 )
-            end
-
-            def safe_status
-                params.permit(:module, :index, :status)
             end
 
             def check_authorization
