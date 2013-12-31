@@ -76,7 +76,11 @@ module Orchestrator
                         args = para[:args] || []
                         result = req.send(para[:method].to_sym, *args)
                         result.then(proc { |res|
-                            output = res.to_json
+                            output = nil
+                            begin
+                                output = res.to_json
+                            rescue # respond with nil if object cannot be converted
+                            end
                             env['async.callback'].call([200, {
                                 'Content-Length' => output.bytesize,
                                 'Content-Type' => 'application/json'
@@ -123,8 +127,11 @@ module Orchestrator
             def safe_params
                 params.require(:control_system).permit(
                     :name, :description, :disabled,
-                    {zones: []}, {modules: []},
-                    {settings: []}
+                    {
+                        zones: [],
+                        modules: [],
+                        settings: []
+                    }
                 )
             end
 
