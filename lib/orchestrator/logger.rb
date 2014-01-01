@@ -13,11 +13,18 @@ module Orchestrator
             fatal: 4
         }.freeze
 
+        # TODO:: Make this a config item
+        DEFAULT_LEVEL = 2
+
         def initialize(loop, mod)
             @loop = loop
             @mod_id = mod.id
-            @klass = mod.dependency.class_name
-            @level = 3
+            if mod.respond_to? :dependency
+                @klass = mod.dependency.class_name
+            else
+                @klass = 'User' # Filter by user driven events and behavior
+            end
+            @level = DEFAULT_LEVEL
             @listeners = Set.new
             @logger = ::Orchestrator::Control.instance.logger
         end
@@ -31,7 +38,7 @@ module Orchestrator
             @loop.schedule do
                 @listeners.add listener
             end
-            listener.finally do
+            listener.promise.finally do
                 @loop.schedule do
                     @listeners.delete listener
                 end
@@ -43,7 +50,7 @@ module Orchestrator
             @loop.schedule do
                 @listeners.delete listener
                 if @listeners.size == 0
-                    level = 3   # back to efficient logging
+                    level = DEFAULT_LEVEL   # back to efficient logging
                 end
             end
         end
@@ -91,7 +98,7 @@ module Orchestrator
 
         def log(level, msg)
             @loop.schedule do
-                if LEVEL[level] >= 3
+                if LEVEL[level] >= DEFAULT_LEVEL
                     @loop.work do
                         @logger.tagged(@klass, @mod_id) {
                             @logger.send(level, msg)
@@ -99,7 +106,7 @@ module Orchestrator
                     end
                 end
                 @listeners.each do |listener|
-                    listener.notify(@mod_id, level, msg)
+                    listener.notify(@klass, @mod_id, level, msg)
                 end
             end
         end

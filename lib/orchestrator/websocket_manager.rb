@@ -1,26 +1,33 @@
 require 'set'
+require 'json'
+require 'ostruct' # Temp until user management implemented
 
 
 module Orchestrator
     class WebsocketManager
-        def initialize(ws, user = nil)
+        def initialize(ws, user = OpenStruct.new({id: 'anonymous'}))
             @ws = ws
             @user = user
             @loop = ws.socket.loop
 
-            @bindings = {}
+            @bindings = ::ThreadSafe::Cache.new
+            @stattrak = @loop.observer
+            @notify_update = method(:notify_update)
 
-            @ws.progress = method(:on_message)
+            @logger = ::Orchestrator::Logger.new(@loop, user)
+
+            @ws.progress method(:on_message)
             @ws.finally method(:on_shutdown)
         end
 
 
         DECODE_OPTIONS = {
-            symbolize_keys: true
+            symbolize_names: true
         }.freeze
 
         PARAMS = [:id, :cmd, :sys, :mod, :index, :name, {args: [].freeze}.freeze].freeze
-        REQUIRED = Set.new([:id, :cmd, :sys, :mod, :name]).freeze
+        REQUIRED = [:id, :cmd, :sys, :mod, :name].freeze
+        COMMANDS = Set.new([:exec, :bind, :unbind, :debug, :ignore])
 
         ERRORS = {
             parse_error: 0,
@@ -30,7 +37,8 @@ module Orchestrator
             unknown_command: 4,
 
             system_not_found: 5,
-            module_not_found: 6
+            module_not_found: 6,
+            unexpected_failure: 7
         }.freeze
 
 
@@ -39,11 +47,11 @@ module Orchestrator
 
         def on_message(data, ws)
             begin
-                raw_parameters = ::ActiveSupport::JSON.decode(data, DECODE_OPTIONS)
+                raw_parameters = ::JSON.parse(data, DECODE_OPTIONS)
                 parameters = ::ActionController::Parameters.new(raw_parameters)
                 params = parameters.permit(PARAMS)
             rescue => e
-                # TODO:: log error here with user information (possible hacking attempt)
+                @logger.print_error(e, 'error parsing websocket request')
                 error_response(nil, ERRORS[:parse_error], e.message)
                 return
             end
@@ -51,35 +59,35 @@ module Orchestrator
             if check_requirements(params)
                 if security_check(params)
                     begin
-                        case params[:cmd]
-                        when :exec
-                            exec(params)
-                        when :bind
-                            bind(params)
-                        when :unbind
-                            unbind(params)
-                        # TODO:: some kind of logger 
+                        cmd = params[:cmd].to_sym
+                        if COMMANDS.include?(cmd)
+                            self.__send__(cmd, params)
                         else
-                            # TODO:: log error here (possible probing attempt)
+                            @logger.warn("websocket requested unknown command '#{params[:cmd]}'")
                             error_response(params[:id], ERRORS[:unknown_command], "unknown command: #{params[:cmd]}")
                         end
                     rescue => e
-                        # TODO:: log error here - most likely an innocent failure however who knows
+                        @logger.print_error(e, "websocket request failed: #{data}")
                         error_response(params[:id], ERRORS[:request_failed], e.message)
                     end
                 else
-                    # TODO:: log access attempt here (possible hacking attempt)
+                    # log access attempt here (possible hacking attempt)
+                    @logger.warn('security check failed for websocket request')
                     error_response(params[:id], ERRORS[:access_denied], 'the access attempt has been recorded')
                 end
             else
-                # TODO:: log user information here (possible probing attempt)
-                error_response(params[:id], ERRORS[:bad_request], 'required parameters were missing from the request')
+                # log user information here (possible probing attempt)
+                reason = 'required parameters were missing from the request'
+                @logger.warn(reason)
+                error_response(params[:id], ERRORS[:bad_request], reason)
             end
         end
 
         def check_requirements(params)
-            keys = Set.new(params.keys)
-            REQUIRED.subset? keys
+            REQUIRED.each do |key|
+                return false if params[key].nil?
+            end
+            true
         end
 
         def security_check(params)
@@ -90,11 +98,8 @@ module Orchestrator
         end
 
 
+
         def exec(params)
-
-        end
-
-        def bind(params)
             id = params[:id]
             sys = params[:sys]
             mod = params[:mod].to_sym
@@ -102,33 +107,47 @@ module Orchestrator
             index_s = params[:index] || 1
             index = index_s.to_i
 
-            lookup = :"#{sys}_#{mod}_#{index}_#{name}"
-            binding = @bindings[lookup]
+            args = params[:args] || []
 
-            if binding.nil?
-                # perform binding on the thread pool
-                # return the binding object and save on the loop
-                @loop.work(proc {
-                    try_bind(id, sys, mod, index, name, lookup)
-                }).then(proc { |result|
-                    @bindings[lookup] = result
-                    @ws.text(::ActiveSupport::JSON.encode({
-                        id: id,
-                        type: :success,
-                        ref: lookup
-                    })
-                }, proc { |failure|
-                    error_response(id, ERRORS[:system_not_found], 'could not find system: #{sys}')
-                })
-            else
-                # binding already made - return success
-                @ws.text(::ActiveSupport::JSON.encode({
-                    id: id,
-                    type: :success,
-                    ref: lookup
-                })
+            @loop.work do
+                do_exec(id, sys, mod, index, name, args)
             end
         end
+
+        def do_exec(id, sys, mod, index, name, args)
+            sys = ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
+            system = System.get(sys)
+
+            if system
+                mod_man = system.get(mod, index - 1)
+                if mod_man
+                    req = Core::RequestProxy.new(@loop, mod_man)
+                    result = req.send(name, *args)
+                    result.then(proc { |res|
+                        output = nil
+                        begin
+                            output = res.to_json
+                        rescue # respond with nil if object cannot be converted
+                        end
+                        @ws.text(::JSON.generate({
+                            id: id,
+                            type: :success,
+                            value: output
+                        }))
+                    }, proc { |err|
+                        # Request proxy will log the error
+                        error_response(id, ERRORS[:request_failed], err.message)
+                    })
+                else
+                    @logger.debug("websocket exec could not find module: {sys: #{sys}, mod: #{mod}, index: #{index}, name: #{name}}")
+                    error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
+                end
+            else
+                @logger.debug("websocket exec could not find system: {sys: #{sys}, mod: #{mod}, index: #{index}, name: #{name}}")
+                error_response(id, ERRORS[:system_not_found], "could not find system: #{sys}")
+            end
+        end
+
 
         def unbind(params)
             id = params[:id]
@@ -142,15 +161,211 @@ module Orchestrator
             binding = @bindings.delete(lookup)
             do_unbind(binding) if binding
 
-            @ws.text(::ActiveSupport::JSON.encode({
+            @ws.text(::JSON.generate({
                 id: id,
                 type: :success
-            })
+            }))
+        end
+
+        def do_unbind(binding)
+            @stattrak.unsubscribe(binding)
+        end
+
+
+        def bind(params)
+            id = params[:id]
+            sys = params[:sys]
+            mod = params[:mod].to_sym
+            name = params[:name].to_sym
+            index_s = params[:index] || 1
+            index = index_s.to_i
+
+            # perform binding on the thread pool
+            @loop.work(proc {
+                check_binding(id, sys, mod, index, name)
+            }).catch do |err|
+                @logger.print_error(err, "websocket request failed: #{params}")
+                error_response(id, ERRORS[:unexpected_failure], err.message)
+            end
+        end
+
+        # Called from a worker thread
+        def check_binding(id, sys, mod, index, name)
+            sys = ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
+            system = System.get(sys)
+
+            if system
+                lookup = :"#{sys}_#{mod}_#{index}_#{name}"
+                binding = @bindings[lookup]
+
+                if binding.nil?
+                    try_bind(id, sys, system, mod, index, name, lookup)
+                else
+                    # binding already made - return success
+                    @ws.text(::JSON.generate({
+                        id: id,
+                        type: :success,
+                        meta: {
+                            sys: sys,
+                            mod: mod,
+                            index: index,
+                            name: name
+                        }
+                    }))
+                end
+            else
+                @logger.debug("websocket binding could not find system: {sys: #{sys}, mod: #{mod}, index: #{index}, name: #{name}}")
+                error_response(id, ERRORS[:system_not_found], "could not find system: #{sys}")
+            end
+        end
+
+        def try_bind(id, sys, system, mod_name, index, name, lookup)
+            options = {
+                sys_id: sys,
+                sys_name: system.config.name,
+                mod_name: mod_name,
+                index: index,
+                status: name,
+                callback: @notify_update,
+                on_thread: @loop
+            }
+
+            # if the module exists, subscribe on the correct thread
+            # use a bit of promise magic as required
+            mod_man = system.get(mod_name, index - 1)
+            defer = @loop.defer
+
+            # Ensure browser sees this before the first status update
+            # At this point subscription will be successful
+            @bindings[lookup] = defer.promise
+            @ws.text(::JSON.generate({
+                id: id,
+                type: :success,
+                meta: {
+                    sys: sys,
+                    mod: mod_name,
+                    index: index,
+                    name: name
+                }
+            }))
+
+            if mod_man
+                options[:mod_id] = mod_man.settings.id.to_sym
+                options[:mod] = mod_man
+                thread = mod_man.thread
+                thread.schedule do
+                    defer.resolve (
+                        thread.observer.subscribe(options)
+                    )
+                end
+            else
+                @loop.schedule do
+                    defer.resolve @stattrak.subscribe(options)
+                end
+            end
+        end
+
+        def notify_update(update)
+            @ws.text(::JSON.generate({
+                type: :notify,
+                value: update.value,
+                meta: {
+                    sys: update.sys_id,
+                    mod: update.mod_name,
+                    index: update.index,
+                    name: update.status
+                }
+            }))
+        end
+
+
+        def debug(params)
+            id = params[:id]
+            sys = params[:sys]
+            mod_s = params[:mod]
+            mod = mod_s.to_sym if mod_s
+
+            if @debug.nil?
+                @debug = @loop.defer
+                @inspecting = Set.new # modules
+                @debug.promise.progress method(:debug_update)
+            end
+
+            # Set sys to get errors occurring outside of the modules
+            if sys && !@inspecting.include?(:self)
+                @logger.add @debug
+                @logger.level = :debug
+                @inspecting.add :self
+            end
+
+            # Set mod to get module level errors
+            if mod && !@inspecting.include?(mod)
+                mod_man = ::Orchestrator::Control.instance.loaded?(mod)
+                if mod_man
+                    log = mod_man.logger
+                    log.add @debug
+                    log.level = :debug
+                    @inspecting.add mod
+                else
+                    @logger.info("websocket debug could not find module: #{mod}")
+                end
+            end
+
+            @ws.text(::JSON.generate({
+                id: id,
+                type: :success
+            }))
+        end
+
+        def debug_update(klass, id, level, msg)
+            @ws.text(::JSON.generate({
+                type: :debug,
+                mod: id,
+                klass: klass,
+                level: level,
+                msg: msg
+            }))
+        end
+
+
+        def ignore(params)
+            id = params[:id]
+            sys = params[:sys]
+            mod_s = params[:mod]
+            mod = mod_s.to_sym if mod_s
+
+            if @debug.nil?
+                @debug = @loop.defer
+                @inspecting = Set.new # modules
+                @debug.promise.progress method(:debug_update)
+            end
+
+            # Set sys to get errors occurring outside of the modules
+            if sys && @inspecting.include?(:self)
+                @logger.delete @debug
+                @inspecting.delete :self
+            end
+
+            # Set mod to get module level errors
+            if mod && @inspecting.include?(mod)
+                mod_man = ::Orchestrator::Control.instance.loaded?(mod)
+                if mod_man
+                    mod_man.logger.delete @debug
+                    @inspecting.delete mod
+                else
+                    @logger.info("websocket ignore could not find module: #{mod}")
+                end
+            end
+
+            @ws.text(::JSON.generate({
+                id: id,
+                type: :success
+            }))
         end
 
 
         def error_response(id, code, message)
-            @ws.text(::ActiveSupport::JSON.encode({
+            @ws.text(::JSON.generate({
                 id: id,
                 type: :error,
                 code: code,
@@ -159,33 +374,9 @@ module Orchestrator
         end
 
         def on_shutdown
-            @bindings.each_value method(:do_unbind)
-        end
-
-        def do_unbind(binding)
-            # TODO
-        end
-
-        # Called from a worker thread
-        def try_bind(id, sys, mod, index, name, lookup)
-            sys = ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
-            system = Core::SystemProxy.new(@loop, sys)
-            system.subscribe(mod, index - 1, name, curry_block(lookup))
-        end
-
-        # We don't want to save a bunch of variables in the proc scope
-        def curry_block(lookup)
-            proc { |value|
-                notify_update(lookup, value)
-            }
-        end
-
-        def notify_update(lookup, value)
-            @ws.text(::ActiveSupport::JSON.encode({
-                type: :notify,
-                binding: lookup,
-                value: value
-            })
+            @bindings.each_value &method(:do_unbind)
+            @bindings = nil
+            @debug.resolve(true) if @debug # detach debug listeners
         end
     end
 end

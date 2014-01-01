@@ -5,21 +5,11 @@ module Orchestrator
     class PersistenceController < ActionController::Metal
         include ActionController::Head
 
+
         def self.start(hijacked)
-            puts 'Websocket connected!'
-
             ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
-
-            ws.progress do |data|
-                puts "recieved #{data}"
-            end
+            WebsocketManager.new(ws)
             ws.start
-            ws.text('test send')
-            ws.then(proc { |e|
-                puts "closed with #{e.inspect}"
-            }, proc { |e|
-                puts "failed with #{e[:code]}: #{e[:reason]}"
-            })
         end
 
 
@@ -33,7 +23,7 @@ module Orchestrator
             hijack = request.env['rack.hijack']
             if hijack
                 promise = hijack.call
-                # TODO:: update env with any authentication information
+                # TODO:: grab user for authorization checks in the web socket
                 promise.then START_WS
 
                 head :ok     # to prevent rails from complaining 

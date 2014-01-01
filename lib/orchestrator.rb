@@ -8,8 +8,9 @@ require 'couchbase-id'
 require 'uv-rays'
 
 
-# System Core
+# System Main
 require 'orchestrator/dependency_manager'   # Manages code loading
+require 'orchestrator/websocket_manager'    # Websocket interface
 require 'orchestrator/control'              # Module control and system loader
 require 'orchestrator/request'              # request wrapper (user requests from web server)
 require 'orchestrator/version'              # orchestrator version
@@ -18,7 +19,7 @@ require 'orchestrator/status'               # Manages status subscriptions acros
 require 'orchestrator/logger'               # Logs events of interest as well as coordinating live log feedback
 require 'orchestrator/errors'               # A list of errors that can occur within the system
 
-# Common Abstractions
+# Core Abstractions
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers
 require 'orchestrator/core/schedule_proxy'  # Common proxy for all module schedules
 require 'orchestrator/core/requests_proxy'  # Sends a command to all modules of that type
