@@ -58,6 +58,7 @@ module Orchestrator
                             bind(params)
                         when :unbind
                             unbind(params)
+                        # TODO:: some kind of logger 
                         else
                             # TODO:: log error here (possible probing attempt)
                             error_response(params[:id], ERRORS[:unknown_command], "unknown command: #{params[:cmd]}")
@@ -68,7 +69,7 @@ module Orchestrator
                     end
                 else
                     # TODO:: log access attempt here (possible hacking attempt)
-                    error_response(params[:id], ERRORS[:access_denied], 'required parameters were missing from the request')
+                    error_response(params[:id], ERRORS[:access_denied], 'the access attempt has been recorded')
                 end
             else
                 # TODO:: log user information here (possible probing attempt)
@@ -94,15 +95,39 @@ module Orchestrator
         end
 
         def bind(params)
+            id = params[:id]
             sys = params[:sys]
-            mod = params[:mod]
-            name = params[:name]
+            mod = params[:mod].to_sym
+            name = params[:name].to_sym
             index_s = params[:index] || 1
             index = index_s.to_i
 
             lookup = :"#{sys}_#{mod}_#{index}_#{name}"
+            binding = @bindings[lookup]
 
-
+            if binding.nil?
+                # perform binding on the thread pool
+                # return the binding object and save on the loop
+                @loop.work(proc {
+                    try_bind(id, sys, mod, index, name, lookup)
+                }).then(proc { |result|
+                    @bindings[lookup] = result
+                    @ws.text(::ActiveSupport::JSON.encode({
+                        id: id,
+                        type: :success,
+                        ref: lookup
+                    })
+                }, proc { |failure|
+                    error_response(id, ERRORS[:system_not_found], 'could not find system: #{sys}')
+                })
+            else
+                # binding already made - return success
+                @ws.text(::ActiveSupport::JSON.encode({
+                    id: id,
+                    type: :success,
+                    ref: lookup
+                })
+            end
         end
 
         def unbind(params)
@@ -115,33 +140,52 @@ module Orchestrator
 
             lookup = :"#{sys}_#{mod}_#{index}_#{name}"
             binding = @bindings.delete(lookup)
-            if binding
-                # TODO:: Unbind logic here
-            end
+            do_unbind(binding) if binding
 
             @ws.text(::ActiveSupport::JSON.encode({
                 id: id,
-                result: :success
+                type: :success
             })
         end
-        
+
 
         def error_response(id, code, message)
             @ws.text(::ActiveSupport::JSON.encode({
                 id: id,
-                result: :error,
+                type: :error,
                 code: code,
                 msg: message
             }))
         end
 
         def on_shutdown
-            # TODO:: clean up bindings
-            @bindings.each method(:do_unbind)
+            @bindings.each_value method(:do_unbind)
         end
 
         def do_unbind(binding)
+            # TODO
+        end
 
+        # Called from a worker thread
+        def try_bind(id, sys, mod, index, name, lookup)
+            sys = ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
+            system = Core::SystemProxy.new(@loop, sys)
+            system.subscribe(mod, index - 1, name, curry_block(lookup))
+        end
+
+        # We don't want to save a bunch of variables in the proc scope
+        def curry_block(lookup)
+            proc { |value|
+                notify_update(lookup, value)
+            }
+        end
+
+        def notify_update(lookup, value)
+            @ws.text(::ActiveSupport::JSON.encode({
+                type: :notify,
+                binding: lookup,
+                value: value
+            })
         end
     end
 end
