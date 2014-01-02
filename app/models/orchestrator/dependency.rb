@@ -7,6 +7,9 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
+        before_delete :cleanup_modules
+
+
         ROLES = Set.new([:device, :service, :logic])
 
 
@@ -30,6 +33,12 @@ module Orchestrator
         attribute :created_at,      default: lambda { Time.now.to_i }
 
 
+        # Find the modules that rely on this dependency
+        def modules
+            ::Orchestrator::Module.dependent_on(self.id)
+        end
+
+
         protected
 
 
@@ -45,6 +54,13 @@ module Orchestrator
                 self.role = self.role.to_s
             else
                 errors.add(:role, 'is not valid')
+            end
+        end
+
+        # Delete all the module references relying on this dependency
+        def cleanup_modules
+            modules.each do |mod|
+                mod.delete
             end
         end
     end

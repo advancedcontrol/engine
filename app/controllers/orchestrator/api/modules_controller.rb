@@ -29,9 +29,16 @@ module Orchestrator
                 para = safe_params
                 @mod.update_attributes(para)
                 save_and_respond(@mod) do
-                   # Update the running module if anything other than settings is updated
-                   if para.keys.size > 2 || para[:settings].nil?
+                    # Update the running module if anything other than settings is updated
+                    if para.keys.size > 2 || para[:settings].nil?
                         control.update(id)
+                    end
+
+                    # If custom name is changed we need to expire any system caches
+                    if para[:custom_name]
+                        ::Orchestrator::ControlSystem.using_module(id).each do |sys|
+                            sys.expire_cache
+                        end
                     end
                 end
             end
@@ -95,7 +102,7 @@ module Orchestrator
                 params.require(:module).permit(
                     :dependency_id, :control_system_id,
                     :ip, :tls, :udp, :port, :makebreak,
-                    :uri, {settings: []}
+                    :uri, :custom_name, {settings: []}
                 )
             end
 

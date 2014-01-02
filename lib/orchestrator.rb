@@ -12,7 +12,6 @@ require 'uv-rays'
 require 'orchestrator/dependency_manager'   # Manages code loading
 require 'orchestrator/websocket_manager'    # Websocket interface
 require 'orchestrator/control'              # Module control and system loader
-require 'orchestrator/request'              # request wrapper (user requests from web server)
 require 'orchestrator/version'              # orchestrator version
 require 'orchestrator/system'               # This is the source of truth for all system information
 require 'orchestrator/status'               # Manages status subscriptions across threads

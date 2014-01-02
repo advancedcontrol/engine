@@ -15,8 +15,9 @@ module Orchestrator
 
         # Helper for extracting the id from the request
         def id
+            return @id if @id
             params.require(:id)
-            params.permit(:id)[:id]
+            @id = params.permit(:id)[:id]
         end
 
         # Used to save and respond to all model requests

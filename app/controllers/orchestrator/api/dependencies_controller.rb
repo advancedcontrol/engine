@@ -5,7 +5,7 @@ module Orchestrator
             respond_to :json
             # TODO:: check_authenticated should be in ApiController
             #before_action :check_authenticated, only: [:create, :update, :destroy]
-            before_action :check_authorization, only: [:show, :update, :destroy]
+            before_action :check_authorization, only: [:show, :update, :destroy, :reload]
 
 
             def index
@@ -17,9 +17,8 @@ module Orchestrator
             end
 
             def update
-                # TODO:: limit updates to settings?
-                # Must destroy and re-add to maintain state
-                @dep.update_attributes(safe_params)
+                # Must destroy and re-add to change class or module name
+                @dep.update_attributes(update_params)
                 save_and_respond @dep
             end
 
@@ -30,7 +29,6 @@ module Orchestrator
 
             def destroy
                 @dep.delete
-                # TODO:: delete modules that are based on this dependency
                 render :nothing => true
             end
 
@@ -40,7 +38,23 @@ module Orchestrator
             ##
 
             def reload
-                
+                depman = ::Orchestrator::DependencyManager.instance
+                depman.load(@dep, :force).then(proc {
+                    @dep.modules.each do |mod|
+                        manager = mod.manager
+                        manager.reloaded if manager
+                    end
+                    env['async.callback'].call([200, {
+                        'Content-Length' => 0
+                    }, []])
+                }, proc { |err|
+                    output = err.message
+                    env['async.callback'].call([500, {
+                        'Content-Length' => output.bytesize,
+                        'Content-Type' => 'text/plain'
+                    }, [output]])
+                })
+                throw :async
             end
 
 
@@ -53,6 +67,10 @@ module Orchestrator
                     :class_name, :module_name,
                     {settings: []}
                 )
+            end
+
+            def update_params
+                params.permit(:name, :description, {settings: []})
             end
 
             def check_authorization

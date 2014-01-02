@@ -53,7 +53,15 @@ module Orchestrator
             end
 
             def reloaded
-                @instance.on_update
+                if @instance.respond_to? :on_update
+                    @thread.schedule do
+                        begin
+                            @instance.on_update
+                        rescue Exeption => e
+                            @logger.print_error(e, 'error in module update callback')
+                        end
+                    end
+                end
             end
 
             def get_scheduler

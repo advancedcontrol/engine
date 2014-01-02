@@ -18,10 +18,7 @@ module Orchestrator
 
             def update
                 @cs.update_attributes(safe_params)
-                save_and_respond(@cs) do
-                   # delete system cache on success
-                   System.expire(@cs.id)
-                end
+                save_and_respond(@cs) # save deletes the system cache
             end
 
             def create
@@ -30,8 +27,7 @@ module Orchestrator
             end
 
             def destroy
-                @cs.delete
-                System.expire(@cs.id)
+                @cs.delete # expires the cache in after callback
                 render :nothing => true
             end
 
@@ -49,8 +45,7 @@ module Orchestrator
             end
 
             def stop
-                # Stop all modules in the system
-                # TODO:: should only stop modules that are not shared
+                # Stop all modules in the system (shared or not)
                 @cs.modules.each do |mod_id|
                     mod = control.loaded? mod_id
                     if mod

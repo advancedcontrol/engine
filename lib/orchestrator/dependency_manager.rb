@@ -11,6 +11,9 @@ module Orchestrator
             @load_mutex = Mutex.new
             @dependencies = ThreadSafe::Cache.new
             @loop = ::Libuv::Loop.default
+            @loop.next_tick do
+                @logger = ::Orchestrator::Control.instance.logger
+            end
         end
 
 
@@ -44,6 +47,7 @@ module Orchestrator
                     defer.resolve(file)
                 rescue Exception => e
                     defer.reject(e)
+                    print_error(e, 'force load failed')
                 end
             else
                 defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
@@ -95,8 +99,8 @@ module Orchestrator
                     defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
                 end
             rescue Exception => e
-                # TODO:: log the error at the request proxy level
                 defer.reject(e)
+                print_error(e, 'error loading dependency')
             end
         end
 
@@ -116,6 +120,12 @@ module Orchestrator
             klass.class_eval do
                 include ::Orchestrator::Service::Mixin
             end
+        end
+
+        def print_error(e, msg = '')
+            msg << "\n#{e.message}"
+            msg << "\n#{e.backtrace.join("\n")}" if e.respond_to? :backtrace
+            @logger.error(msg)
         end
     end
 end

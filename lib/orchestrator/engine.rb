@@ -29,7 +29,7 @@ module Orchestrator
 		end
 		
 		#
-		# Discover the possible module location paths after initialisation is complete
+		# Discover the possible module location paths after initialization is complete
 		#
 		config.after_initialize do |app|
 			
@@ -48,6 +48,7 @@ module Orchestrator
 			temp = ::Couchbase::Model::Configuration.design_documents_paths
 			::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/orchestrator'))]
         	::Orchestrator::Module.ensure_design_document!
+        	::Orchestrator::ControlSystem.ensure_design_document!
         	::Couchbase::Model::Configuration.design_documents_paths = temp
 
 			# Start the control system by initializing it
@@ -55,7 +56,9 @@ module Orchestrator
 
 			# Don't auto-load if running in the console
             if not defined?(Rails::Console)
-                ctrl.mount.then ctrl.method(:boot)
+            	ctrl.loop.next_tick do
+                	ctrl.mount.then ctrl.method(:boot)
+               	end
             end
 		end
 	end

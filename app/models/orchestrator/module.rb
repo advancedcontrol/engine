@@ -7,6 +7,9 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
+        before_delete :unload_module
+
+
         # The classes / files that this module requires to execute
         # Defines module type
         # Requires dependency_id to be set
@@ -16,7 +19,7 @@ module Orchestrator
 
         # Device module
         def hostname; ip; end
-        def hostname=(name); ip = name; end
+        def hostname=(host); ip = host; end
         attribute :ip
         attribute :tls
         attribute :udp
@@ -27,10 +30,17 @@ module Orchestrator
         attribute :uri
 
         # Custom module names (in addition to what is defined in the dependency)
+        attribute :custom_name
         attribute :settings,    default: lambda { {} }
 
         attribute :created_at,  default: lambda { Time.now.to_i }
         attribute :role         # cache the dependency role locally for load order
+
+
+        # helper method for looking up the manager
+        def manager
+            ::Orchestrator::Control.instance.loaded? self.id
+        end
 
 
         # Loads all the modules for this node
@@ -40,11 +50,11 @@ module Orchestrator
         end
         view :by_module_type
 
-        # Finds all the modules belonging to the system specified
-        def self.belonging_to(sys_id)
-            by_system_owner({key: sys_id, stale: false})
+        # Finds all the modules belonging to a particular dependency
+        def self.dependent_on(dep_id)
+            by_dependency({key: dep_id, stale: false})
         end
-        view :by_system_owner
+        view :by_dependency
 
 
         protected
@@ -77,6 +87,15 @@ module Orchestrator
                 if control_system.nil?
                     errors.add(:control_system, 'must be associated')
                 end
+            end
+        end
+
+        def unload_module
+            ::Orchestrator::Control.instance.unload(self.id)
+            # Find all the systems with this module ID and remove it
+            ControlSystem.using_module(self.id).each do |cs|
+                cs.modules.delete(self.id)
+                cs.save
             end
         end
     end

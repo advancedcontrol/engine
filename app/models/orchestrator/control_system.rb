@@ -8,8 +8,9 @@ module Orchestrator
 
 
         # Allows us to lookup systems by names
-        after_save :update_name
-        before_delete :cleanup_modules
+        after_save      :update_name
+        before_delete   :cleanup_modules
+        after_delete    :expire_cache
 
 
         attribute :name
@@ -28,6 +29,21 @@ module Orchestrator
             self.attributes[:name] = new_name
         end
 
+        def expire_cache
+            ::Orchestrator::System.expire(self.id || @old_id)
+        end
+
+
+        def self.using_module(mod_id)
+            by_modules({key: mod_id, stale: false})
+        end
+        view :by_modules
+
+        def self.in_zone(zone_id)
+            by_zones({key: zone_id, stale: false})
+        end
+        view :by_zones
+
 
         protected
 
@@ -45,6 +61,7 @@ module Orchestrator
         end
 
         def update_name
+            System.expire(self.id) # Expire the cache as we've updated
             if @old_name && @old_name != self.name
                 ControlSystem.bucket.delete("sysname-#{@old_name}", {quiet: true}) unless @old_name == true
                 ControlSystem.bucket.set("sysname-#{self.name}", self.id)
@@ -52,15 +69,19 @@ module Orchestrator
             @old_name = nil
         end
 
-        # TODO:: (Module.belonging_to may not be needed anymore)
-        # 1. Find logics and delete them (this is all we are doing now)
-        # 2. Find devices in the system that would be orphaned and delete them
-        # 3. Delete the system
+        # 1. Find systems that have each of the modules specified
+        # 2. If this is the last system we remove the modules
         def cleanup_modules
-            ::Orchestrator::Module.belonging_to(self.id).each do |mod|
-                ::Orchestrator::Control.instance.unload(mod.id)
-                mod.delete
+            self.modules.each do |mod_id|
+                systems = ControlSystem.using_module(mod_id).to_a
+
+                if systems.length <= 1
+                    # We don't use the model's delete method as it looks up control systems
+                    ::Orchestrator::Control.instance.unload(mod_id)
+                    ::Orchestrator::Module.bucket.delete(mod_id, {quiet: true})
+                end
             end
+            @old_id = self.id # not sure if required
         end
     end
 end

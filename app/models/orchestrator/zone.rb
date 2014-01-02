@@ -5,6 +5,9 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
+        before_delete :remove_zone
+
+
         attribute :name
         attribute :description
         attribute :settings,    default: lambda { {} }
@@ -14,5 +17,16 @@ module Orchestrator
 
 
         validates :name,  presence: true
+
+
+        protected
+
+
+        def remove_zone
+            ControlSystem.in_zone(self.id).each do |cs|
+                cs.zones.delete(self.id)
+                cs.save
+            end
+        end
     end
 end

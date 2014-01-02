@@ -41,7 +41,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger
+        attr_reader :logger, :loop
 
 
         # Start the control reactor
@@ -125,7 +125,7 @@ module Orchestrator
             else
                 err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
                 defer.reject(err)
-                # TODO:: logger warn err.message
+                @logger.warn err.message
             end
 
             defer.promise
@@ -144,7 +144,7 @@ module Orchestrator
             else
                 err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', not found"
                 defer.reject(err)
-                # TODO:: logger warn err.message
+                @logger.warn err.message
             end
 
             defer.promise
@@ -207,17 +207,6 @@ module Orchestrator
             modules = ::Orchestrator::Module.all
             modules.each &method(:load)  # modules are streamed in
         end
-
-        # called from the thread pool
-        def reload_dep(dep_id)
-            dep = ::Orchestrator::Dependency.find(dep_id)
-
-            # Reload file here
-            @loader.load(dep, :force)#.then(proc { |klass|
-            
-            # todo:: notify modules here
-        end
-
 
 
 
