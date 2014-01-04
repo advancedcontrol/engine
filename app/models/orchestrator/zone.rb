@@ -19,6 +19,12 @@ module Orchestrator
         validates :name,  presence: true
 
 
+        def self.in_group(group_id)
+            by_groups({key: group_id, stale: false})
+        end
+        view :by_groups
+
+
         protected
 
 

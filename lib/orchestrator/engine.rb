@@ -47,8 +47,9 @@ module Orchestrator
 			# Force design documents
 			temp = ::Couchbase::Model::Configuration.design_documents_paths
 			::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/orchestrator'))]
+			::Orchestrator::ControlSystem.ensure_design_document!
         	::Orchestrator::Module.ensure_design_document!
-        	::Orchestrator::ControlSystem.ensure_design_document!
+        	::Orchestrator::Zone.ensure_design_document!
         	::Couchbase::Model::Configuration.design_documents_paths = temp
 
 			# Start the control system by initializing it

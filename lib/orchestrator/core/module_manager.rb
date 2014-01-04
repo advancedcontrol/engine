@@ -21,7 +21,9 @@ module Orchestrator
             def stop
                 return if @instance.nil?
                 begin
-                    @instance.on_unload
+                    if @instance.respond_to? :on_load
+                        @instance.on_load
+                    end
                 rescue Exeption => e
                     @logger.print_error(e, 'error in module unload callback')
                 ensure
@@ -41,10 +43,12 @@ module Orchestrator
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
-                begin
-                    @instance.on_load
-                rescue Exeption => e
-                    @logger.print_error(e, 'error in module load callback')
+                if @instance.respond_to? :on_load
+                    begin
+                        @instance.on_load
+                    rescue Exeption => e
+                        @logger.print_error(e, 'error in module load callback')
+                    end
                 end
                 true
             rescue Exeption => e
