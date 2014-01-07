@@ -69,11 +69,12 @@ module Orchestrator
                 @loop = @man.thread
                 @logger = @man.logger
                 @defaults = SEND_DEFAULTS.dup
-                @config = SEND_DEFAULTS.dup
+                @config = CONFIG_DEFAULTS.dup
 
                 @queue = CommandQueue.new(@loop, method(:send_next))
                 @responses = []
                 @wait = false
+                @connected = false
                 @bonus = 0
 
                 # Used to indicate when we can start the next response processing
@@ -81,7 +82,6 @@ module Orchestrator
                 @tail = ::Libuv::Q::ResolvedPromise.new(@loop, true)
 
                 # Method variables
-                @timeout_trigger = method(:timeout_trigger)
                 @resp_success = method(:resp_success)
                 @resp_failure = method(:resp_failure)
                 @resolver = proc { |resp| @loop.schedule { resolve_callback(resp) } }
@@ -129,6 +129,7 @@ module Orchestrator
             ##
             # Callbacks -------------------------
             def connected
+                @connected = true
                 @man.notify_connected
                 if @config[:update_status]
                     @man.trak(:connected, true)
@@ -144,6 +145,7 @@ module Orchestrator
             end
 
             def disconnected
+                @connected = false
                 @man.notify_disconnected
                 if @config[:update_status]
                     @man.trak(:connected, false)
@@ -152,6 +154,10 @@ module Orchestrator
                     check_data(@buffer.flush)
                 end
                 @buffer = nil
+
+                if @queue.waiting
+                    resp_failure(:disconnected)
+                end
             end
 
             def buffer(data)
@@ -223,7 +229,7 @@ module Orchestrator
                 end
             end
 
-            def resp_failure(result)
+            def resp_failure(result, *args)
                 if @queue.waiting
                     @logger.debug 'command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}'
 
@@ -242,8 +248,8 @@ module Orchestrator
 
                 @wait = false
                 @queue.waiting = nil
-                check_next      # Process already received
-                @queue.shift    # Then send a new command
+                check_next                    # Process already received
+                @queue.shift if @connected    # Then send a new command
             end
 
             # We only care about queued commands here
@@ -355,19 +361,12 @@ module Orchestrator
 
                 if @queue.waiting
                     # Set up timers for command timeout
-                    @timeout = schedule.in(command[:timeout], @timeout_trigger)
+                    @timeout = schedule.in(command[:timeout], @resp_failure)
                 else
                     # resole the send promise early as we are not waiting for the response
                     command[:defer].resolve(:no_wait)
                 end
                 nil # ensure promise chain is not propagated
-            end
-
-            def timeout_trigger(time, sched)
-                if @defer
-                    @defer.reject(:timeout)
-                end
-                @timeout = nil
             end
 
             def clear_timers
