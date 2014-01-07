@@ -14,6 +14,13 @@ module Orchestrator
             include ::Orchestrator::Transcoder
 
 
+            # Any command that waits:
+            # send('power on?').then( execute after command complete )
+            # Named commands mean the promise may never resolve
+            # Totally replaces emit as we don't care and makes cross module request super easy
+            # -- non-wait commands resolve after they have been written to the socket!!
+
+
             SEND_DEFAULTS = {
                 wait: true,                 # wait for a response before continuing with sends
                 delay: 0,                   # make sure sends are separated by at least this (in milliseconds)
@@ -23,19 +30,18 @@ module Orchestrator
                 hex_string: false,          # Does the input need conversion
                 timeout: 5,                 # Time we will wait for a response
                 priority: 50,               # Priority of a send
-                retry_on_disconnect: true,  # Re-queue the command if disconnected?
                 force_disconnect: false     # Mainly for use with make and break
 
                 # Other options include:
-                # * emit (creates a promise and resolves with the desired status)
+                # * emit callback to occur once command complete
                 # * callback (alternative to received function)
             }
 
             CONFIG_DEFAULTS = {
                 tokenize: false,    # If replaced with a callback can define custom tokenizers
                 size_limit: 524288, # 512kb buffer max
-                clear_queue_on_disconnect: :unnamed,
-                flush_buffer_on_disconnect: true,
+                clear_queue_on_disconnect: false,
+                flush_buffer_on_disconnect: false,
                 priority_bonus: 20,  # give commands bonus priority under certain conditions
                 update_status: true  # auto update connected status?
 
@@ -47,12 +53,13 @@ module Orchestrator
             }
 
 
-            SUCCESS = Set.new([true, :success, nil, :ignore])
-            FAILURE = Set.new([false, :retry, :failed, :abort])
+            SUCCESS = Set.new([true, :success, :abort, nil, :ignore])
+            FAILURE = Set.new([false, :retry, :failed])
             DUMMY_RESOLVER = proc {}
 
 
             attr_reader :config, :queue
+            attr_accessor :transport
 
 
             # init -> mod.load -> post_init
@@ -66,6 +73,8 @@ module Orchestrator
                 @config = SEND_DEFAULTS.dup
 
                 @queue = CommandQueue(@loop, method(:send_next))
+                @responses = []
+                @wait = false
                 @bonus = 0
 
                 # Used to indicate when we can start the next response processing
@@ -73,13 +82,20 @@ module Orchestrator
                 @tail = ::Libuv::Q::ResolvedPromise.new(@loop, true)
 
                 # Method variables
+                @timeout_trigger = method(:timeout_trigger)
                 @resp_success = method(:resp_success)
                 @resp_failure = method(:resp_failure)
                 @resolver = proc { |resp| @loop.schedule { resolve_callback(resp) } }
             end
 
-            def post_init(transport)
-                @transport = transport
+            ##
+            # Helper functions ------------------
+            def send_options(options)
+                @defaults.merge!(options)
+            end
+
+            def config(options)
+                @config.merge!(options)
             end
 
             #
@@ -104,6 +120,7 @@ module Orchestrator
                 @queue.push(options, options[:priority] + @bonus)
 
             rescue Exception => e
+                options[:defer].reject(e)
                 @logger.print_error(e, 'error queuing command')
             end
 
@@ -136,36 +153,29 @@ module Orchestrator
             end
 
             def buffer(data)
+                @last_receive_at = @loop.now
+
                 if @buffer
-                    @buffer.extract(data).each &method(:check_data)
+                    @responses.concat @buffer.extract(data)
                 else
-                    check_data(data)
+                    @responses << data
                 end
-            end
 
-
-            ##
-            # Helper functions ------------------
-            def send_options(options)
-                @defaults.merge!(options)
-            end
-
-            def config(options)
-                @config.merge!(options)
+                # if we are waiting we don't want to process this data just yet
+                if !@wait
+                    check_next
+                end
             end
 
 
             protected
 
 
-            # Callback for queued commands
-            def send_next(command)
-                data = command[:data]
-                # TODO:: Check pre-send timer conditions
-                @transport.send(data)
-                # TODO:: Set checkpoints for any post-send timer conditions
-                if @queue.wait
-                    # TODO:: Set up timers using schedule for timeouts
+            def check_next
+                return unless @responses.length > 0
+                loop do
+                    check_data(@responses.shift)
+                    break if @wait || @responses.length == 0
                 end
             end
 
@@ -177,12 +187,13 @@ module Orchestrator
                 @bonus = @config[:priority_bonus]
 
                 begin
-                    if @queue.wait
+                    if @queue.waiting
+                        @wait = true
                         @defer = @loop.defer
                         @defer.then @resp_success, @resp_failure
 
                         # Send response, early resolver and command
-                        resp = @man.notify_received(data, @resolver, @queue.wait)
+                        resp = @man.notify_received(data, @resolver, @queue.waiting)
                     else
                         resp = @man.notify_received(data, DUMMY_RESOLVER)
                         # Don't need to trigger Queue next here as we are not waiting on anything
@@ -195,18 +206,41 @@ module Orchestrator
                 end
 
                 # Check if response is a success or failure
-                resolve_callback(resp)
+                resolve_callback(resp) unless resp == :async
             end
 
             def resolve_callback(resp)
                 if @defer
-                    if SUCCESS.include? resp
-                        @defer.resolve resp
-                    else
+                    if FAILURE.include? resp
                         @defer.reject resp
+                    else
+                        @defer.resolve resp
                     end
                     @defer = nil
                 end
+            end
+
+            def resp_failure(result)
+                if @queue.waiting
+                    @logger.debug 'command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}'
+
+                    cmd = @queue.waiting
+                    if cmd[:retries] == 0
+                        cmd[:defer].reject(result)
+                        @logger.warn 'command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}'
+                    else
+                        cmd[:retries] -= 1
+                        cmd[:wait] = 0      # reset our ignore count
+                        @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
+                    end
+                end
+
+                clear_timers
+
+                @wait = false
+                @queue.waiting = nil
+                check_next      # Process already received
+                @queue.shift    # Then send a new command
             end
 
             # We only care about queued commands here
@@ -214,15 +248,129 @@ module Orchestrator
             #  is guaranteed to have completed
             # Check for queue wait as we may have gone offline
             def resp_success(result)
-                if @queue.wait
+                if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
+                    if result == :abort
+                        @queue.waiting[:defer].reject(result)
+                    else
+                        @queue.waiting[:defer].resolve(result)
+                        callback = @queue.waiting[:emit]
+                        if callback
+                            @loop.next_tick do
+                                call_emit callback
+                            end
+                        end
+                    end
 
+                    clear_timers
+
+                    @wait = false
+                    @queue.waiting = nil
+                    check_next      # Process pending
+                    @queue.shift    # Send the next command
+
+                    # Else it must have been a nil or :ignore
+                elsif @queue.waiting
+                    cmd = @queue.waiting
+                    cmd[:wait] ||= 0
+                    cmd[:wait] += 1
+                    if cmd[:wait] > cmd[:max_waits]
+                        resp_failure(:max_waits_exceeded)
+                    else
+                        check_next
+                    end
+
+                else  # ensure consistent state (offline event may have occurred)
+
+                    clear_timers
+
+                    @wait = false
+                    check_next
                 end
             end
 
-            def resp_failure(result)
-                if @queue.wait
-
+            # If a callback was in place for the current
+            def call_emit(callback)
+                begin
+                    callback.call
+                rescue Exception => e
+                    @logger.print_error(e, 'error in emit callback')
                 end
+            end
+
+
+            # Callback for queued commands
+            def send_next(command)
+                # Check for any required delays between sends
+                if command[:delay] > 0
+                    gap = @last_sent_at + command[:delay] - @loop.now
+                    if gap > 0
+                        defer = @loop.defer
+                        @schedule ||= @man.get_scheduler
+                        sched = @schedule.in(gap / 1000) do
+                            defer.resolve(process_send(command))
+                        end
+                        # in case of shutdown we need to resolve this promise
+                        sched.catch do
+                            defer.reject(:shutdown)
+                        end
+                        defer.promise
+                    else
+                        process_send(command)
+                    end
+                else
+                    process_send(command)
+                end
+            end
+
+            def process_send(command)
+                # delay on receive
+                if command[:delay_on_receive] > 0
+                    gap = @last_receive_at + command[:delay_on_receive] - @loop.now
+
+                    if gap > 0
+                        defer = @loop.defer
+                        @schedule ||= @man.get_scheduler
+                        sched = @schedule.in(gap / 1000) do
+                            defer.resolve(process_send(command))
+                        end
+                        # in case of shutdown we need to resolve this promise
+                        sched.catch do
+                            defer.reject(:shutdown)
+                        end
+                        defer.promise
+                    else
+                        transport_send(command)
+                    end
+                else
+                    transport_send(command)
+                end
+            end
+
+            def transport_send(command)
+                data = command[:data]
+                @transport.send(data)
+                @last_sent_at = @loop.now
+
+                if @queue.waiting
+                    # Set up timers for command timeout
+                    @timeout = @schedule.in(command[:timeout], @timeout_trigger)
+                else
+                    # resole the send promise early as we are not waiting for the response
+                    command[:defer].resolve(:no_wait)
+                end
+                nil # ensure promise chain is not propagated
+            end
+
+            def timeout_trigger
+                if @defer
+                    @defer.reject(:timeout)
+                end
+                @timeout = nil
+            end
+
+            def clear_timers
+                @timeout.cancel if @timeout
+                @timeout = nil
             end
         end
     end

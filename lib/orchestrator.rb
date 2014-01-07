@@ -7,6 +7,9 @@ require 'couchbase-model'
 require 'couchbase-id'
 require 'uv-rays'
 
+# Optional utility modules
+require 'orchestrator/utilities/transcoder' # functions for data manipulation
+require 'orchestrator/utilities/constants'  # constants for readable code
 
 # System Main
 require 'orchestrator/dependency_manager'   # Manages code loading
@@ -30,10 +33,12 @@ require 'orchestrator/core/mixin'           # Common mixin functions for modules
 require 'orchestrator/logic/manager'        # control system manager for logic modules
 require 'orchestrator/logic/mixin'          # helper functions for logic module classes
 
-
-# Optional utility modules
-require 'orchestrator/utilities/transcoder' # functions for data manipulation
-require 'orchestrator/utilities/constants'  # constants for readable code
+# Device abstractions
+require 'orchestrator/device/command_queue'
+require 'orchestrator/device/transport_tcp'
+require 'orchestrator/device/processor'
+require 'orchestrator/device/manager'
+require 'orchestrator/device/mixin'
 
 
 module Orchestrator

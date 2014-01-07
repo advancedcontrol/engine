@@ -4,18 +4,38 @@ module Orchestrator
             def initialize(*args)
                 super(*args)
 
-                #
-                # Load UV-Rays abstraction here
-                @connection = 
-
                 # Do we want to start here?
                 # Should be ok.
                 @thread.next_tick method(:start)
             end
 
-            # Access to other modules in the same control system
-            def system
-                @system ||= ::Orchestrator::Core::SystemProxy.new(@thread, @settings.control_system_id)
+            attr_reader :processor
+
+            def start
+                @processor = Processor.new(self)
+
+                super # Calls on load (allows setting of tls certs)
+
+                # Load UV-Rays abstraction here
+                if @settings.udp
+                    # TODO
+                    # Next tick call connected
+                elsif @settings.makebreak
+                    # TODO
+                    # Next tick call connected
+                    # 2 x disconnected == disconnected
+                else
+                    @connection = UV.connect(@settings.ip, @settings.port, TcpConnection, self, @processor, @settings.tls)
+                end
+
+                @processor.transport = @connection
+            end
+
+            def stop
+                super
+                @processor = nil
+                @connection.terminate
+                @connection = nil
             end
 
             def notify_connected
