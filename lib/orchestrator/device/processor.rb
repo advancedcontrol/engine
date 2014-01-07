@@ -314,7 +314,7 @@ module Orchestrator
                     gap = @last_sent_at + command[:delay] - @loop.now
                     if gap > 0
                         defer = @loop.defer
-                        sched = schedule.in(gap / 1000) do
+                        sched = schedule.in(gap.to_f / 1000) do
                             defer.resolve(process_send(command))
                         end
                         # in case of shutdown we need to resolve this promise
@@ -338,7 +338,7 @@ module Orchestrator
                     if gap > 0
                         defer = @loop.defer
                         
-                        sched = schedule.in(gap / 1000) do
+                        sched = schedule.in(gap.to_f / 1000) do
                             defer.resolve(process_send(command))
                         end
                         # in case of shutdown we need to resolve this promise

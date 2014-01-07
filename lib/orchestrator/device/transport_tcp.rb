@@ -18,27 +18,43 @@ module Orchestrator
             end
 
             def on_connect(transport)
-                if @retries > 1
-                    @processor.queue.online
-                end
-                @retries = 0
                 use_tls(@config) if @tls
-                @processor.connected
+
+                # TODO:: need a slightly better way to do this
+                # Like a next tick that we can cancel
+                @connecting = @manager.get_scheduler.in(0.1) do
+                    @connecting = nil
+
+                    # We only have to mark a queue online if more than 1 retry was required
+                    if @retries > 1
+                        @processor.queue.online
+                    end
+                    @retries = 0
+                    @processor.connected
+                end
             end
 
             def on_close
                 # Prevent re-connect if terminated
-                @processor.disconnected
+                @processor.disconnected if @retries == 0
                 unless @terminated
                     @retries += 1
+
+                    @connecting.cancel if @connecting
+                    @connecting = nil
 
                     if @retries == 1
                         reconnect
                     else
                         @connecting = @manager.get_scheduler.in(3) do
+                            @connecting = nil
                             reconnect
                         end
-                        @processor.queue.offline(@config[:clear_queue_on_disconnect])
+
+                        # we mark the queue as offline if more than 1 reconnect fails
+                        if @retries == 2
+                            @processor.queue.offline(@config[:clear_queue_on_disconnect])
+                        end
                     end
                 end
             end
