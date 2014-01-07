@@ -27,7 +27,7 @@ module Orchestrator
                 max_waits: 3,               # number of times we will ignore valid tokens before retry
                 retries: 2,                 # Retry attempts before we give up on the command
                 hex_string: false,          # Does the input need conversion
-                timeout: 5,                 # Time we will wait for a response
+                timeout: 5000,              # Time we will wait for a response
                 priority: 50,               # Priority of a send
                 force_disconnect: false     # Mainly for use with make and break
 
@@ -314,7 +314,7 @@ module Orchestrator
                     gap = @last_sent_at + command[:delay] - @loop.now
                     if gap > 0
                         defer = @loop.defer
-                        sched = schedule.in(gap.to_f / 1000) do
+                        sched = schedule.in(gap) do
                             defer.resolve(process_send(command))
                         end
                         # in case of shutdown we need to resolve this promise
@@ -338,7 +338,7 @@ module Orchestrator
                     if gap > 0
                         defer = @loop.defer
                         
-                        sched = schedule.in(gap.to_f / 1000) do
+                        sched = schedule.in(gap) do
                             defer.resolve(process_send(command))
                         end
                         # in case of shutdown we need to resolve this promise

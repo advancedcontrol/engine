@@ -22,7 +22,7 @@ module Orchestrator
 
                 # TODO:: need a slightly better way to do this
                 # Like a next tick that we can cancel
-                @connecting = @manager.get_scheduler.in(0.1) do
+                @connecting = @manager.get_scheduler.in(100) do
                     @connecting = nil
 
                     # We only have to mark a queue online if more than 1 retry was required
@@ -46,7 +46,7 @@ module Orchestrator
                     if @retries == 1
                         reconnect
                     else
-                        @connecting = @manager.get_scheduler.in(3) do
+                        @connecting = @manager.get_scheduler.in(3000) do
                             @connecting = nil
                             reconnect
                         end
