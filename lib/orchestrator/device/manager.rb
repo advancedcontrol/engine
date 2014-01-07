@@ -9,7 +9,7 @@ module Orchestrator
                 @thread.next_tick method(:start)
             end
 
-            attr_reader :processor
+            attr_reader :processor, :connection
 
             def start
                 @processor = Processor.new(self)
@@ -39,21 +39,31 @@ module Orchestrator
             end
 
             def notify_connected
-                if @instance.respond_to? :connected
+                if @instance.respond_to? :connected, true
                     begin
-                        @instance.connected
-                    rescue Exeption => e
+                        @instance.__send__(:connected)
+                    rescue Exception => e
                         @logger.print_error(e, 'error in module connected callback')
                     end
                 end
             end
 
             def notify_disconnected
-                if @instance.respond_to? :disconnected
+                if @instance.respond_to? :disconnected, true
                     begin
-                        @instance.disconnected
-                    rescue Exeption => e
+                        @instance.__send__(:disconnected)
+                    rescue Exception => e
                         @logger.print_error(e, 'error in module disconnected callback')
+                    end
+                end
+            end
+
+            def notify_received(data, resolve, command = nil)
+                if @instance.respond_to? :received, true
+                    begin
+                        @instance.__send__(:received, data, resolve, command)
+                    rescue Exception => e
+                        @logger.print_error(e, 'error in module received callback')
                     end
                 end
             end

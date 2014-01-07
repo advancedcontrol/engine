@@ -9,12 +9,28 @@ module Orchestrator
         PROTECTED[:system] = true
         PROTECTED[:logger] = true
         PROTECTED[:task] = true
-        PROTECTED[:send] = true
+
+        # Object functions
+        PROTECTED[:__send__] = true
+        PROTECTED[:public_send] = true
+        PROTECTED[:taint] = true
+        PROTECTED[:untaint] = true
+        PROTECTED[:trust] = true
+        PROTECTED[:untrust] = true
+        PROTECTED[:freeze] = true
 
         # Callbacks
         PROTECTED[:on_load] = true
         PROTECTED[:on_unload] = true
+        PROTECTED[:connected] = true
+        PROTECTED[:disconnected] = true
         PROTECTED[:received] = true
+
+        # Device module
+        PROTECTED[:send] = true
+        PROTECTED[:defaults] = true
+        PROTECTED[:disconnect] = true
+        PROTECTED[:config] = true
 
 
 
@@ -39,7 +55,7 @@ module Orchestrator
                     @mod.thread.schedule do
                         begin
                             defer.resolve(
-                                @mod.instance.__send__(name, *args, &block)
+                                @mod.instance.public_send(name, *args, &block)
                             )
                         rescue Exception => e
                             @mod.logger.print_error(e)

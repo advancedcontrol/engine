@@ -21,10 +21,10 @@ module Orchestrator
             def stop
                 return if @instance.nil?
                 begin
-                    if @instance.respond_to? :on_load
-                        @instance.on_load
+                    if @instance.respond_to? :on_unload, true
+                        @instance.__send__(:on_unload)
                     end
-                rescue Exeption => e
+                rescue Exception => e
                     @logger.print_error(e, 'error in module unload callback')
                 ensure
                     # Clean up
@@ -43,25 +43,25 @@ module Orchestrator
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
-                if @instance.respond_to? :on_load
+                if @instance.respond_to? :on_load, true
                     begin
-                        @instance.on_load
-                    rescue Exeption => e
+                        @instance.__send__(:on_load)
+                    rescue Exception => e
                         @logger.print_error(e, 'error in module load callback')
                     end
                 end
                 true
-            rescue Exeption => e
+            rescue Exception => e
                 @logger.print_error(e, 'module failed to start')
                 false
             end
 
             def reloaded
-                if @instance.respond_to? :on_update
+                if @instance.respond_to? :on_update, true
                     @thread.schedule do
                         begin
-                            @instance.on_update
-                        rescue Exeption => e
+                            @instance.__send__(:on_update)
+                        rescue Exception => e
                             @logger.print_error(e, 'error in module update callback')
                         end
                     end

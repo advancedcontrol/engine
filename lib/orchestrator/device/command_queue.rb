@@ -1,4 +1,4 @@
-require 'uv-priority-queue'
+require 'algorithms'
 require 'bisect'
 
 

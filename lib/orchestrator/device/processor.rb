@@ -1,4 +1,3 @@
-require 'uv-priority-queue'
 require 'set'
 
 
@@ -72,7 +71,7 @@ module Orchestrator
                 @defaults = SEND_DEFAULTS.dup
                 @config = SEND_DEFAULTS.dup
 
-                @queue = CommandQueue(@loop, method(:send_next))
+                @queue = CommandQueue.new(@loop, method(:send_next))
                 @responses = []
                 @wait = false
                 @bonus = 0
@@ -94,7 +93,7 @@ module Orchestrator
                 @defaults.merge!(options)
             end
 
-            def config(options)
+            def config=(options)
                 @config.merge!(options)
             end
 
@@ -116,6 +115,9 @@ module Orchestrator
                 if options[:name].is_a? String
                     options[:name] = options[:name].to_sym
                 end
+
+                # merge in the defaults
+                options = SEND_DEFAULTS.merge(options)
 
                 @queue.push(options, options[:priority] + @bonus)
 
@@ -190,9 +192,10 @@ module Orchestrator
                     if @queue.waiting
                         @wait = true
                         @defer = @loop.defer
-                        @defer.then @resp_success, @resp_failure
+                        @defer.promise.then @resp_success, @resp_failure
 
                         # Send response, early resolver and command
+                        # TODO:: call callback if present
                         resp = @man.notify_received(data, @resolver, @queue.waiting)
                     else
                         resp = @man.notify_received(data, DUMMY_RESOLVER)
@@ -305,8 +308,7 @@ module Orchestrator
                     gap = @last_sent_at + command[:delay] - @loop.now
                     if gap > 0
                         defer = @loop.defer
-                        @schedule ||= @man.get_scheduler
-                        sched = @schedule.in(gap / 1000) do
+                        sched = schedule.in(gap / 1000) do
                             defer.resolve(process_send(command))
                         end
                         # in case of shutdown we need to resolve this promise
@@ -329,8 +331,8 @@ module Orchestrator
 
                     if gap > 0
                         defer = @loop.defer
-                        @schedule ||= @man.get_scheduler
-                        sched = @schedule.in(gap / 1000) do
+                        
+                        sched = schedule.in(gap / 1000) do
                             defer.resolve(process_send(command))
                         end
                         # in case of shutdown we need to resolve this promise
@@ -348,12 +350,12 @@ module Orchestrator
 
             def transport_send(command)
                 data = command[:data]
-                @transport.send(data)
+                @transport.write(data)
                 @last_sent_at = @loop.now
 
                 if @queue.waiting
                     # Set up timers for command timeout
-                    @timeout = @schedule.in(command[:timeout], @timeout_trigger)
+                    @timeout = schedule.in(command[:timeout], @timeout_trigger)
                 else
                     # resole the send promise early as we are not waiting for the response
                     command[:defer].resolve(:no_wait)
@@ -361,7 +363,7 @@ module Orchestrator
                 nil # ensure promise chain is not propagated
             end
 
-            def timeout_trigger
+            def timeout_trigger(time, sched)
                 if @defer
                     @defer.reject(:timeout)
                 end
@@ -371,6 +373,10 @@ module Orchestrator
             def clear_timers
                 @timeout.cancel if @timeout
                 @timeout = nil
+            end
+
+            def schedule
+                @schedule ||= @man.get_scheduler
             end
         end
     end

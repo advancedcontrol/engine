@@ -21,7 +21,7 @@ module Orchestrator
                         mod.thread.schedule do
                             begin
                                 defer.resolve(
-                                    mod.instance.__send__(name, *args, &block)
+                                    mod.instance.public_send(name, *args, &block)
                                 )
                             rescue Exception => e
                                 @mod.logger.print_error(e)
