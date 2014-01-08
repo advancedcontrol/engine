@@ -222,13 +222,14 @@ module Orchestrator
             end
         end
 
-        # TODO:: Should use spider gazelle exception handler here
         def log_unhandled_exception(*args)
+            msg = ''
             if args[0].respond_to? :backtrace
-                puts "unhandled exception: #{args[0]}\n #{args[0].backtrace}"
+                msg << "unhandled exception: #{args[0]}\n #{args[0].backtrace}"
             else
-                puts "unhandled exception: #{args}"
+                msg << "unhandled exception: #{args}"
             end
+            @logger.error msg
         end
     end
 end

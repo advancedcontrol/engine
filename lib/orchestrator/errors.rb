@@ -14,5 +14,9 @@ module Orchestrator
         # Called from:
         # * control
         class ModuleNotFound < Error; end
+
+        # Called from:
+        # * Device -> Processor
+        class CommandFailure < Error; end
     end
 end

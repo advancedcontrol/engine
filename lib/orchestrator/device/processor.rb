@@ -77,6 +77,10 @@ module Orchestrator
                 @connected = false
                 @bonus = 0
 
+                @last_sent_at = 0
+                @last_receive_at = 0
+
+
                 # Used to indicate when we can start the next response processing
                 @head = ::Libuv::Q::ResolvedPromise.new(@loop, true)
                 @tail = ::Libuv::Q::ResolvedPromise.new(@loop, true)
@@ -117,7 +121,7 @@ module Orchestrator
                 end
 
                 # merge in the defaults
-                options = SEND_DEFAULTS.merge(options)
+                options = @defaults.merge(options)
 
                 @queue.push(options, options[:priority] + @bonus)
 
@@ -231,12 +235,13 @@ module Orchestrator
 
             def resp_failure(result, *args)
                 if @queue.waiting
-                    @logger.debug 'command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}'
-
                     cmd = @queue.waiting
+                    @logger.debug "command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}"
+
                     if cmd[:retries] == 0
-                        cmd[:defer].reject(result)
-                        @logger.warn 'command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}'
+                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}"
+                        cmd[:defer].reject(err)
+                        @logger.warn err.message
                     else
                         cmd[:retries] -= 1
                         cmd[:wait] = 0      # reset our ignore count
@@ -259,7 +264,8 @@ module Orchestrator
             def resp_success(result)
                 if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
                     if result == :abort
-                        @queue.waiting[:defer].reject(result)
+                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}"
+                        @queue.waiting[:defer].reject(err)
                     else
                         @queue.waiting[:defer].resolve(result)
                         callback = @queue.waiting[:emit]
