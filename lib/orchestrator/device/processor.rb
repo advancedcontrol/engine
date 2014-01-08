@@ -233,18 +233,20 @@ module Orchestrator
                 end
             end
 
-            def resp_failure(result, *args)
+            def resp_failure(result_raw, *args)
                 if @queue.waiting
+                    result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
                     cmd = @queue.waiting
                     @logger.debug "command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}"
 
                     if cmd[:retries] == 0
+
                         err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}"
                         cmd[:defer].reject(err)
                         @logger.warn err.message
                     else
                         cmd[:retries] -= 1
-                        cmd[:wait] = 0      # reset our ignore count
+                        cmd[:wait_count] = 0      # reset our ignore count
                         @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
                     end
                 end
@@ -286,9 +288,9 @@ module Orchestrator
                     # Else it must have been a nil or :ignore
                 elsif @queue.waiting
                     cmd = @queue.waiting
-                    cmd[:wait] ||= 0
-                    cmd[:wait] += 1
-                    if cmd[:wait] > cmd[:max_waits]
+                    cmd[:wait_count] ||= 0
+                    cmd[:wait_count] += 1
+                    if cmd[:wait_count] > cmd[:max_waits]
                         resp_failure(:max_waits_exceeded)
                     else
                         check_next

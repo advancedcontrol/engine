@@ -20,18 +20,12 @@ module Orchestrator
             def on_connect(transport)
                 use_tls(@config) if @tls
 
-                # TODO:: need a slightly better way to do this
-                # Like a next tick that we can cancel
-                @connecting = @manager.get_scheduler.in(100) do
-                    @connecting = nil
-
-                    # We only have to mark a queue online if more than 1 retry was required
-                    if @retries > 1
-                        @processor.queue.online
-                    end
-                    @retries = 0
-                    @processor.connected
+                # We only have to mark a queue online if more than 1 retry was required
+                if @retries > 1
+                    @processor.queue.online
                 end
+                @retries = 0
+                @processor.connected
             end
 
             def on_close
@@ -39,9 +33,6 @@ module Orchestrator
                 @processor.disconnected if @retries == 0
                 unless @terminated
                     @retries += 1
-
-                    @connecting.cancel if @connecting
-                    @connecting = nil
 
                     if @retries == 1
                         reconnect

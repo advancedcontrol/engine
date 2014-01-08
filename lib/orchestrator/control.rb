@@ -18,7 +18,6 @@ module Orchestrator
         # This makes systems very loosely coupled to the modules
         #  which should make distributing the system slightly simpler
         #
-        # TODO:: we should have a general broadcast service
         #
 
         def initialize
@@ -60,6 +59,8 @@ module Orchestrator
 
                         cpus = ::Libuv.cpu_count || 1
                         cpus.times &method(:start_thread)
+
+                        @loop.signal :INT, method(:kill_workers)
                     end
 
                     @selector = @threads.cycle
@@ -212,7 +213,7 @@ module Orchestrator
 
         ##
         # Methods called when we manage the threads:
-        def start_thread
+        def start_thread(num)
             thread = Libuv::Loop.new
             @threads << thread
             Thread.new do
@@ -222,10 +223,18 @@ module Orchestrator
             end
         end
 
+        def kill_workers(*args)
+            @threads.each do |thread|
+                thread.stop
+            end
+            @loop.stop
+        end
+
         def log_unhandled_exception(*args)
             msg = ''
-            if args[0].respond_to? :backtrace
-                msg << "unhandled exception: #{args[0]}\n #{args[0].backtrace}"
+            if args[-1].respond_to? :backtrace
+                err = args[-1]
+                msg << "unhandled exception: #{args[0..-2]}\n#{err.message}\n#{err.backtrace.join("\n")}"
             else
                 msg << "unhandled exception: #{args}"
             end
