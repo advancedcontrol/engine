@@ -33,12 +33,11 @@ module Orchestrator
             end
 
             def on_close
-                # Prevent re-connect if terminated
-                @processor.disconnected if @retries == 0
                 unless @terminated
                     @retries += 1
 
                     if @retries == 1
+                        @processor.disconnected
                         reconnect
                     else
                         @connecting = @manager.get_scheduler.in(3000) do
@@ -60,8 +59,8 @@ module Orchestrator
 
             def terminate
                 @terminated = true
-                close_connection(:after_writing) if @transport.connected
                 @connecting.cancel if @connecting
+                close_connection(:after_writing) if @transport.connected
             end
         end
     end

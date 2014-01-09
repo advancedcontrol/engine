@@ -14,6 +14,7 @@ require 'orchestrator/utilities/constants'  # constants for readable code
 # System Main
 require 'orchestrator/dependency_manager'   # Manages code loading
 require 'orchestrator/websocket_manager'    # Websocket interface
+require 'orchestrator/datagram_server'      # UDP abstraction management
 require 'orchestrator/control'              # Module control and system loader
 require 'orchestrator/version'              # orchestrator version
 require 'orchestrator/system'               # This is the source of truth for all system information
@@ -37,6 +38,7 @@ require 'orchestrator/logic/mixin'          # helper functions for logic module 
 require 'orchestrator/device/transport_makebreak'
 require 'orchestrator/device/command_queue'
 require 'orchestrator/device/transport_tcp'
+require 'orchestrator/device/transport_udp'
 require 'orchestrator/device/processor'
 require 'orchestrator/device/manager'
 require 'orchestrator/device/mixin'

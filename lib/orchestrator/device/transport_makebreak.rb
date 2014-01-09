@@ -70,9 +70,7 @@ module Orchestrator
                 @changing_state = false
 
                 # Prevent re-connect if terminated
-                if @terminated
-                    @processor.disconnected if @retries == 0
-                else
+                unless @terminated
                     @retries += 1
 
                     @activity.cancel if @activity
@@ -108,12 +106,7 @@ module Orchestrator
                 @terminated = true
                 @connecting.cancel if @connecting
                 @activity.cancel if @activity
-
-                if @changing_state
-                    close_connection
-                elsif @transport.connected
-                    disconnect
-                end 
+                close_connection(:after_writing) if @transport.connected
             end
 
 

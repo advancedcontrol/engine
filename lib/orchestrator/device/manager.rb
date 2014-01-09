@@ -17,13 +17,12 @@ module Orchestrator
                 super # Calls on load (allows setting of tls certs)
 
                 # Load UV-Rays abstraction here
-                if @settings.udp
-                    # TODO
-                    # Next tick call connected
+                @connection = if @settings.udp
+                    UdpConnection.new(self, @processor)
                 elsif @settings.makebreak
-                    @connection = UV.connect(@settings.ip, @settings.port, MakebreakConnection, self, @processor, @settings.tls)
+                    ::UV.connect(@settings.ip, @settings.port, MakebreakConnection, self, @processor, @settings.tls)
                 else
-                    @connection = UV.connect(@settings.ip, @settings.port, TcpConnection, self, @processor, @settings.tls)
+                    ::UV.connect(@settings.ip, @settings.port, TcpConnection, self, @processor, @settings.tls)
                 end
 
                 @processor.transport = @connection
