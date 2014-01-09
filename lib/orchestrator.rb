@@ -34,6 +34,7 @@ require 'orchestrator/logic/manager'        # control system manager for logic m
 require 'orchestrator/logic/mixin'          # helper functions for logic module classes
 
 # Device abstractions
+require 'orchestrator/device/transport_makebreak'
 require 'orchestrator/device/command_queue'
 require 'orchestrator/device/transport_tcp'
 require 'orchestrator/device/processor'

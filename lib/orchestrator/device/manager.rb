@@ -21,9 +21,7 @@ module Orchestrator
                     # TODO
                     # Next tick call connected
                 elsif @settings.makebreak
-                    # TODO
-                    # Next tick call connected
-                    # 2 x disconnected == disconnected
+                    @connection = UV.connect(@settings.ip, @settings.port, MakebreakConnection, self, @processor, @settings.tls)
                 else
                     @connection = UV.connect(@settings.ip, @settings.port, TcpConnection, self, @processor, @settings.tls)
                 end

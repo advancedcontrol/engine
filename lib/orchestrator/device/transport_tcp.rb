@@ -2,23 +2,27 @@
 module Orchestrator
     module Device
         class TcpConnection < ::UV::OutboundConnection
-            # Config:
-            # * update_status: mark device as connected or disconnected
-            # * tokenize: use to break stream into tokens (see ::UV::BufferedTokenizer options)
-            # * 
-
-
             def post_init(manager, processor, tls)
                 @manager = manager
                 @processor = processor
                 @config = @processor.config
                 @tls = tls
-                @retries = 0
-                @connecting = nil
+
+                @retries = 0        # Connection retries
+                @connecting = nil   # Connection timer
             end
 
             def on_connect(transport)
-                use_tls(@config) if @tls
+                if @terminated
+                    close_connection(:after_writing)
+                    return
+                end
+
+                begin
+                    use_tls(@config) if @tls
+                rescue Exception => e
+                    @manager.logger.print_error(e, 'error starting tls')
+                end
 
                 # We only have to mark a queue online if more than 1 retry was required
                 if @retries > 1
