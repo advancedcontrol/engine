@@ -13,11 +13,20 @@ module Orchestrator
 
                 # One per loop unless port specified
                 @udp_server = @loop.udp_service
-                @udp_server.attach(@ip, @port, @on_read)
 
-                @loop.next_tick do
-                    # Call connected (we only need to do this once)
-                    @processor.connected
+                if IPAddress.valid? @ip
+                    @attached_ip = @ip
+                    @udp_server.attach(@attached_ip, @port, @on_read)
+                    @loop.next_tick do
+                        # Call connected (we only need to do this once)
+                        @processor.connected
+                    end
+                else
+                    variation = 1 + rand(60000 * 5)  # 5min
+                    @checker = @manager.get_scheduler.in(60000 * 5 + variation) do
+                        find_ip(@ip)
+                    end
+                    find_ip(@ip)
                 end
             end
 
@@ -34,7 +43,42 @@ module Orchestrator
 
             def terminate
                 #@processor.disconnected   # Disconnect should never be called
-                @udp_server.detach(@ip, @port)
+                if @searching
+                    @searching.cancel
+                    @searching = nil
+                else
+                    @udp_server.detach(@attached_ip, @port)
+                end
+
+                @checker.cancel if @checker
+            end
+
+
+            protected
+
+
+            def find_ip(hostname)
+                @loop.lookup(hostname).then(proc{ |result|
+                    update_ip(result[0][0])
+                }, proc { |failure|
+                    variation = 1 + rand(8000)
+                    @searching = @manager.get_scheduler.in(8000 + variation) do
+                        @searching = nil
+                        find_ip(hostname)
+                    end
+                })
+            end
+
+            def update_ip(ip)
+                if ip != @attached_ip
+                    if @attached_ip
+                        @udp_server.detach(@attached_ip, @port)
+                    else
+                        @processor.connected
+                    end
+                    @attached_ip = ip
+                    @udp_server.attach(@attached_ip, @port, @on_read)
+                end
             end
         end
     end

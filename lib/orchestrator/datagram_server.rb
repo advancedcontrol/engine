@@ -11,8 +11,8 @@ module Orchestrator
         
         def attach(ip, port, callback)
             @loop.schedule do
-                @callbacks[ip.to_sym] ||= {}
-                @callbacks[port.to_i] = callback
+                ports = @callbacks[ip.to_sym] ||= {}
+                ports[port.to_i] = callback
             end
         end
 
@@ -30,7 +30,7 @@ module Orchestrator
         def on_read(data, ip, port, transport)
             ip_ports = @callbacks[ip.to_sym]
             if ip_ports
-                callback = ip_ports[port]
+                callback = ip_ports[port.to_i]
                 if callback
                     callback.call(data)
                 end
@@ -71,11 +71,11 @@ module Libuv
                     port = Rails.configuration.orchestrator.datagram_port || 0
 
                     if port == 0
-                        @udp_service = ::UV.open_datagram_socket('0.0.0.0', port, ::Orchestrator::UdpService)
+                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService)
                     elsif defined? @@udp_service
                         @udp_service = @@udp_service
                     else # define a class variable at the specified port
-                        @udp_service = ::UV.open_datagram_socket('0.0.0.0', port, ::Orchestrator::UdpService)
+                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService, '0.0.0.0', port)
                         @@udp_service = @udp_service
                     end
                 }
@@ -92,11 +92,11 @@ module Libuv
                     port = Rails.configuration.orchestrator.broadcast_port || 0
 
                     if port == 0
-                        @udp_broadcast = ::UV.open_datagram_socket('0.0.0.0', port, ::Orchestrator::UdpBroadcast)
+                        @udp_broadcast = ::UV.open_datagram_socket(::Orchestrator::UdpBroadcast)
                     elsif defined? @@udp_broadcast
                         @udp_broadcast = @@udp_broadcast
                     else # define a class variable at the specified port
-                        @udp_broadcast = ::UV.open_datagram_socket('0.0.0.0', port, ::Orchestrator::UdpBroadcast)
+                        @udp_broadcast = ::UV.open_datagram_socket(::Orchestrator::UdpBroadcast, '0.0.0.0', port)
                         @@udp_broadcast = @udp_broadcast
                     end
 

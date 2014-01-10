@@ -84,7 +84,8 @@ module Orchestrator
                     else # retries > 1
                         @write_queue.clear
 
-                        @connecting = @manager.get_scheduler.in(3000) do
+                        variation = 1 + rand(2000)
+                        @connecting = @manager.get_scheduler.in(3000 + variation) do
                             @connecting = nil
                             reconnect
                         end
