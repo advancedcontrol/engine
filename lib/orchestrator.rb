@@ -43,6 +43,11 @@ require 'orchestrator/device/processor'
 require 'orchestrator/device/manager'
 require 'orchestrator/device/mixin'
 
+# Service abstractions
+require 'orchestrator/service/transport_http'
+require 'orchestrator/service/manager'
+require 'orchestrator/service/mixin'
+
 
 module Orchestrator
 end

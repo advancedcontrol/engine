@@ -12,6 +12,19 @@ module Orchestrator
                 @connecting = nil   # Connection timer
             end
 
+            def transmit(cmd)
+                return if @terminated
+                promise = write(cmd[:data])
+                if cmd[:wait]
+                    promise.catch do |err|
+                        if @processor.queue.waiting
+                            # Fail fast
+                            @processor.__send__(:resp_failure, err)
+                        end
+                    end
+                end
+            end
+
             def on_connect(transport)
                 if @terminated
                     close_connection(:after_writing)

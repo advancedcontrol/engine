@@ -1,5 +1,5 @@
 module Orchestrator
-    module Device
+    module Service
         class Manager < ::Orchestrator::Core::ModuleManager
             def initialize(*args)
                 super(*args)
@@ -12,19 +12,11 @@ module Orchestrator
             attr_reader :processor, :connection
 
             def start
-                @processor = Processor.new(self)
+                @processor = Orchestrator::Device::Processor.new(self)
 
                 super # Calls on load (allows setting of tls certs)
 
-                # Load UV-Rays abstraction here
-                @connection = if @settings.udp
-                    UdpConnection.new(self, @processor)
-                elsif @settings.makebreak
-                    ::UV.connect(@settings.ip, @settings.port, MakebreakConnection, self, @processor, @settings.tls)
-                else
-                    ::UV.connect(@settings.ip, @settings.port, TcpConnection, self, @processor, @settings.tls)
-                end
-
+                @connection = TransportHttp.new(self, @processor)
                 @processor.transport = @connection
             end
 
@@ -35,22 +27,14 @@ module Orchestrator
                 @connection = nil
             end
 
+            # NOTE:: Same as Device::Manager:-------
+
             def notify_connected
                 if @instance.respond_to? :connected, true
                     begin
                         @instance.__send__(:connected)
                     rescue Exception => e
                         @logger.print_error(e, 'error in module connected callback')
-                    end
-                end
-            end
-
-            def notify_disconnected
-                if @instance.respond_to? :disconnected, true
-                    begin
-                        @instance.__send__(:disconnected)
-                    rescue Exception => e
-                        @logger.print_error(e, 'error in module disconnected callback')
                     end
                 end
             end

@@ -30,8 +30,9 @@ module Orchestrator
                 end
             end
 
-            def write(data)
-                @udp_server.send(@ip, @port, data)
+            def transmit(cmd)
+                return if @terminated
+                @udp_server.send(@attached_ip, @port, cmd[:data])
             end
 
             def on_read(data)
@@ -43,6 +44,7 @@ module Orchestrator
 
             def terminate
                 #@processor.disconnected   # Disconnect should never be called
+                @terminated = true
                 if @searching
                     @searching.cancel
                     @searching = nil

@@ -32,8 +32,8 @@ module Orchestrator
                 force_disconnect: false     # Mainly for use with make and break
 
                 # Other options include:
-                # * emit callback to occur once command complete
-                # * callback (alternative to received function)
+                # * emit callback to occur once command complete (may be discarded if a named command)
+                # * on_receive (alternative to received function)
             }
 
             CONFIG_DEFAULTS = {
@@ -241,7 +241,7 @@ module Orchestrator
 
                     if cmd[:retries] == 0
 
-                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}"
+                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
                         cmd[:defer].reject(err)
                         @logger.warn err.message
                     else
@@ -270,12 +270,7 @@ module Orchestrator
                         @queue.waiting[:defer].reject(err)
                     else
                         @queue.waiting[:defer].resolve(result)
-                        callback = @queue.waiting[:emit]
-                        if callback
-                            @loop.next_tick do
-                                call_emit callback
-                            end
-                        end
+                        call_emit @queue.waiting
                     end
 
                     clear_timers
@@ -306,11 +301,16 @@ module Orchestrator
             end
 
             # If a callback was in place for the current
-            def call_emit(callback)
-                begin
-                    callback.call
-                rescue Exception => e
-                    @logger.print_error(e, 'error in emit callback')
+            def call_emit(cmd)
+                callback = cmd[:emit]
+                if callback
+                    @loop.next_tick do
+                        begin
+                            callback.call
+                        rescue Exception => e
+                            @logger.print_error(e, 'error in emit callback')
+                        end
+                    end
                 end
             end
 
@@ -363,8 +363,7 @@ module Orchestrator
             end
 
             def transport_send(command)
-                data = command[:data]
-                @transport.write(data)
+                @transport.transmit(command)
                 @last_sent_at = @loop.now
 
                 if @queue.waiting
@@ -373,6 +372,7 @@ module Orchestrator
                 else
                     # resole the send promise early as we are not waiting for the response
                     command[:defer].resolve(:no_wait)
+                    call_emit command   # the command has been sent
                 end
                 nil # ensure promise chain is not propagated
             end

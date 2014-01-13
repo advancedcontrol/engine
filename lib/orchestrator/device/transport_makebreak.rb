@@ -21,18 +21,19 @@ module Orchestrator
                 @reset_timeout = method(:reset_timeout)
             end
 
-            alias_method :do_write, :write
-            def write(data)
+            def transmit(cmd)
                 return if @terminated
 
+                data = cmd[:data]
+
                 if @connected
-                    do_write(data)
+                    write(data)
                     reset_timeout
                 elsif @retries < 2
                     @write_queue << data
                     reconnect
                 end
-                # discard data when officially disconnected
+                # discards data when officially disconnected
             end
 
             def on_connect(transport)
@@ -50,7 +51,7 @@ module Orchestrator
 
                     # Write pending directly
                     while @write_queue.length > 0
-                        do_write(@write_queue.shift)
+                        write(@write_queue.shift)
                     end
 
                     # Notify module
