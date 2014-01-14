@@ -22,6 +22,7 @@ module Orchestrator
         # Callbacks
         PROTECTED[:on_load] = true
         PROTECTED[:on_unload] = true
+        PROTECTED[:on_update] = true
         PROTECTED[:connected] = true
         PROTECTED[:disconnected] = true
         PROTECTED[:received] = true
@@ -31,6 +32,15 @@ module Orchestrator
         PROTECTED[:defaults] = true
         PROTECTED[:disconnect] = true
         PROTECTED[:config] = true
+
+        # Service module
+        PROTECTED[:get] = true
+        PROTECTED[:put] = true
+        PROTECTED[:post] = true
+        PROTECTED[:delete] = true
+        PROTECTED[:request] = true
+        PROTECTED[:clear_cookies] = true
+        PROTECTED[:use_middleware] = true
 
 
 

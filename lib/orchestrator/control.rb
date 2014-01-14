@@ -234,7 +234,8 @@ module Orchestrator
             msg = ''
             if args[-1].respond_to? :backtrace
                 err = args[-1]
-                msg << "unhandled exception: #{args[0..-2]}\n#{err.message}\n#{err.backtrace.join("\n")}"
+                msg << "unhandled exception: #{args[0..-2]}\n#{err.message}"
+                msg << "\n#{err.backtrace.join("\n")}" if err.respond_to?(:backtrace) && err.backtrace
             else
                 msg << "unhandled exception: #{args}"
             end

@@ -53,7 +53,7 @@ module Orchestrator
 
 
             SUCCESS = Set.new([true, :success, :abort, nil, :ignore])
-            FAILURE = Set.new([false, :retry, :failed])
+            FAILURE = Set.new([false, :retry, :failed, :fail])
             DUMMY_RESOLVER = proc {}
 
 
