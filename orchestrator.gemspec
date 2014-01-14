@@ -1,24 +1,27 @@
 # -*- encoding: utf-8 -*-
-$:.push File.expand_path("../lib", __FILE__)
-require "orchestrator/version"
+$:.push File.expand_path('../lib', __FILE__)
+require 'orchestrator/version'
 
 Gem::Specification.new do |s|
-    s.name        = "orchestrator"
+    s.name        = 'orchestrator'
     s.version     = Orchestrator::VERSION
-    s.authors     = ["Stephen von Takach"]
-    s.email       = ["steve@cotag.me"]
+    s.authors     = ['Stephen von Takach']
+    s.email       = ['steve@cotag.me']
     s.license     = 'MIT'
-    s.homepage    = "https://bitbucket.org/aca/control"
-    s.summary     = "A distributed system for building automation"
-    s.description = "A building automation system."
+    s.homepage    = 'https://bitbucket.org/aca/control'
+    s.summary     = 'A distributed system for building automation'
+    s.description = 'A building automation system.'
 
     s.add_dependency 'rake'
     s.add_dependency 'libuv'              # High performance IO reactor for ruby
     s.add_dependency 'uv-rays'            # Evented networking library
     s.add_dependency 'addressable'        # IP address utilities
     s.add_dependency 'algorithms'         # Priority queue
-    s.add_dependency 'couchbase'          # ruby couchbase connector
-    s.add_dependency 'couchbase-model'    # couchbase active model orm
+    if RUBY_PLATFORM == 'java'
+        s.add_dependency 'couchbase-jruby-model'    # couchbase active model orm
+    else
+        s.add_dependency 'couchbase-model'          # couchbase active model orm
+    end
     s.add_dependency 'couchbase-id'       # ID generation
 
     s.add_development_dependency 'rspec'    # Testing framework
@@ -26,8 +29,8 @@ Gem::Specification.new do |s|
     
 
     s.files = Dir["{lib,app,config}/**/*"] + %w(Rakefile orchestrator.gemspec README.md LICENSE)
-    s.test_files = Dir["spec/**/*"]
-    s.extra_rdoc_files = ["README.md"]
+    s.test_files = Dir['spec/**/*']
+    s.extra_rdoc_files = ['README.md']
 
-    s.require_paths = ["lib"]
+    s.require_paths = ['lib']
 end
