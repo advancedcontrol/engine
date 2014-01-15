@@ -2,8 +2,6 @@ require 'orchestrator/engine'
 
 
 # Gems
-require 'couchbase'
-require 'couchbase-model'
 require 'couchbase-id'
 require 'uv-rays'
 
