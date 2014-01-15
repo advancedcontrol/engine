@@ -76,13 +76,15 @@ module Orchestrator
 
         def index_module(mod_id)
             manager = @controller.loaded?(mod_id)
-            mod_name = if manager.settings.custom_name.nil?
-                manager.settings.dependency.module_name.to_sym
-            else
-                manager.settings.custom_name.to_sym
+            if manager
+                mod_name = if manager.settings.custom_name.nil?
+                    manager.settings.dependency.module_name.to_sym
+                else
+                    manager.settings.custom_name.to_sym
+                end
+                @modules[mod_name] ||= []
+                @modules[mod_name] << manager
             end
-            @modules[mod_name] ||= []
-            @modules[mod_name] << manager
         end
     end
 end

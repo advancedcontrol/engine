@@ -65,6 +65,7 @@ module Orchestrator
 
 
         def configuration
+            return unless dependency
             case dependency.role
             when :device
                 self.role = 1

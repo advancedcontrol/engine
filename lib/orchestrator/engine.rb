@@ -34,7 +34,7 @@ module Orchestrator
         #
         config.after_initialize do |app|
             
-            app.config.assets.paths.each do |path|
+            ActiveSupport::Dependencies.autoload_paths.each do |path|
                 Pathname.new(path).ascend do |v|
                     if ['app', 'vendor'].include?(v.basename.to_s)
                         app.config.orchestrator.module_paths << "#{v.to_s}/modules"

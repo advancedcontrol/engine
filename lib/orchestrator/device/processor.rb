@@ -86,9 +86,10 @@ module Orchestrator
                 @tail = ::Libuv::Q::ResolvedPromise.new(@loop, true)
 
                 # Method variables
-                @resp_success = method(:resp_success)
-                @resp_failure = method(:resp_failure)
                 @resolver = proc { |resp| @loop.schedule { resolve_callback(resp) } }
+
+                @resp_success = proc { |result| @loop.schedule { resp_success(result) } }
+                @resp_failure = proc { |reason| @loop.schedule { resp_failure(reason) } }
             end
 
             ##
@@ -233,14 +234,13 @@ module Orchestrator
                 end
             end
 
-            def resp_failure(result_raw, *args)
+            def resp_failure(result_raw)
                 if @queue.waiting
                     result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
                     cmd = @queue.waiting
                     @logger.debug "command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}"
 
                     if cmd[:retries] == 0
-
                         err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
                         cmd[:defer].reject(err)
                         @logger.warn err.message
