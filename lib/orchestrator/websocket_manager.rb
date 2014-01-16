@@ -291,13 +291,6 @@ module Orchestrator
                 @debug.promise.progress method(:debug_update)
             end
 
-            # Set sys to get errors occurring outside of the modules
-            if sys && !@inspecting.include?(:self)
-                @logger.add @debug
-                @logger.level = :debug
-                @inspecting.add :self
-            end
-
             # Set mod to get module level errors
             if mod && !@inspecting.include?(mod)
                 mod_man = ::Orchestrator::Control.instance.loaded?(mod)
@@ -306,15 +299,28 @@ module Orchestrator
                     log.add @debug
                     log.level = :debug
                     @inspecting.add mod
+
+                    # Set sys to get errors occurring outside of the modules
+                    if !@inspecting.include?(:self)
+                        @logger.add @debug
+                        @logger.level = :debug
+                        @inspecting.add :self
+                    end
+
+                    @ws.text(::JSON.generate({
+                        id: id,
+                        type: :success
+                    }))
                 else
                     @logger.info("websocket debug could not find module: #{mod}")
+                    error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
                 end
+            else
+                @ws.text(::JSON.generate({
+                    id: id,
+                    type: :success
+                }))
             end
-
-            @ws.text(::JSON.generate({
-                id: id,
-                type: :success
-            }))
         end
 
         def debug_update(klass, id, level, msg)
@@ -340,27 +346,33 @@ module Orchestrator
                 @debug.promise.progress method(:debug_update)
             end
 
-            # Set sys to get errors occurring outside of the modules
-            if sys && @inspecting.include?(:self)
-                @logger.delete @debug
-                @inspecting.delete :self
-            end
-
-            # Set mod to get module level errors
+            # Remove module level errors
             if mod && @inspecting.include?(mod)
                 mod_man = ::Orchestrator::Control.instance.loaded?(mod)
                 if mod_man
                     mod_man.logger.delete @debug
                     @inspecting.delete mod
+
+                    # Stop logging all together if no more modules being watched
+                    if @inspecting.empty?
+                        @logger.delete @debug
+                        @inspecting.delete :self
+                    end
+
+                    @ws.text(::JSON.generate({
+                        id: id,
+                        type: :success
+                    }))
                 else
                     @logger.info("websocket ignore could not find module: #{mod}")
+                    error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
                 end
+            else
+                @ws.text(::JSON.generate({
+                    id: id,
+                    type: :success
+                }))
             end
-
-            @ws.text(::JSON.generate({
-                id: id,
-                type: :success
-            }))
         end
 
 
