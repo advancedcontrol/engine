@@ -18,5 +18,6 @@ module Orchestrator
         # Called from:
         # * Device -> Processor
         class CommandFailure < Error; end
+        class CommandCanceled < Error; end
     end
 end

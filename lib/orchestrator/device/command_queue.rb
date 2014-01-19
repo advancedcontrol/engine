@@ -13,10 +13,7 @@ module Orchestrator
         class CommandQueue
 
 
-            # TODO:: Don't shift again until the last shift has been sent
-            # Use promises! Send is a promise and wait timer is a promise
-            # This will prevent commands being queued via timers if we are waiting
-            # and allow for more commands to be entered into the queue
+            OFFLINE_MSG = Error::CommandCanceled.new 'command canceled due as module went offline'
 
 
             attr_accessor :waiting
@@ -123,9 +120,8 @@ module Orchestrator
                 @state = :offline
 
                 if clear
-                    @pending_commands.clear
-                    @named_commands.clear
-
+                    @waiting[:defer].reject(OFFLINE_MSG) if @waiting
+                    cancel_all(OFFLINE_MSG)
                     @waiting = nil
                 else
                     # Keep named commands
@@ -138,12 +134,31 @@ module Orchestrator
                             pri = res.shift
                             res << pri
                             queue_push(new_queue, cmd, pri)
+                        else
+                            cmd[:defer].reject(OFFLINE_MSG)
                         end
                     end
                     @pending_commands = new_queue
                     
+                    # clear waiting if it is not a named command.
+                    # The processor will re-queue it if retry on disconnect is set
                     if @waiting && @waiting[:name].nil?
                         @waiting = nil
+                    end
+                end
+            end
+
+            def cancel_all(msg)
+                while length > 0
+                    cmd = @pending_commands.pop
+                    if cmd.is_a? Symbol
+                        res = @named_commands[cmd]
+                        if res
+                            res[1][:defer].reject(msg)
+                            @named_commands.delete(cmd)
+                        end
+                    else
+                        cmd[:defer].reject(msg)
                     end
                 end
             end

@@ -30,6 +30,7 @@ module Orchestrator
 
             def stop
                 super
+                @processor.terminate
                 @processor = nil
                 @connection.terminate
                 @connection = nil

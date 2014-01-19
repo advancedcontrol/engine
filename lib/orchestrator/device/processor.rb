@@ -55,6 +55,7 @@ module Orchestrator
             SUCCESS = Set.new([true, :success, :abort, nil, :ignore])
             FAILURE = Set.new([false, :retry, :failed, :fail])
             DUMMY_RESOLVER = proc {}
+            TERMINATE_MSG = Error::CommandCanceled.new 'command canceled due to module shutdown'
 
 
             attr_reader :config, :queue
@@ -180,9 +181,20 @@ module Orchestrator
                 end
             end
 
+            def terminate
+                @loop.schedule method(:do_terminate)
+            end
+
 
             protected
 
+
+            def do_terminate
+                if @queue.waiting
+                    @queue.waiting[:defer].reject(TERMINATE_MSG)
+                end
+                @queue.cancel_all(TERMINATE_MSG)
+            end
 
             def check_next
                 return unless @responses.length > 0

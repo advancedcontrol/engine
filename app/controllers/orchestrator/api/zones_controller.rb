@@ -28,7 +28,7 @@ module Orchestrator
 
             def destroy
                 @zone.delete
-                head :ok
+                render :nothing => true
             end
 
 

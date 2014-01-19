@@ -28,7 +28,7 @@ module Orchestrator
 
             def destroy
                 @group.delete
-                head :ok
+                render :nothing => true
             end
 
 
