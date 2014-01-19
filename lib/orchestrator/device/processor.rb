@@ -250,7 +250,7 @@ module Orchestrator
                 if @queue.waiting
                     result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
                     cmd = @queue.waiting
-                    @logger.debug "command failed with #{result}: #{cmd[:name]}- #{cmd[:data]}"
+                    @logger.debug "command failed with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
 
                     if cmd[:retries] == 0
                         err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
@@ -278,7 +278,7 @@ module Orchestrator
             def resp_success(result)
                 if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
                     if result == :abort
-                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data]}"
+                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
                         @queue.waiting[:defer].reject(err)
                     else
                         @queue.waiting[:defer].resolve(result)
