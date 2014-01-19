@@ -56,6 +56,7 @@ module Orchestrator
             FAILURE = Set.new([false, :retry, :failed, :fail])
             DUMMY_RESOLVER = proc {}
             TERMINATE_MSG = Error::CommandCanceled.new 'command canceled due to module shutdown'
+            UNNAMED = 'unnamed'
 
 
             attr_reader :config, :queue
@@ -250,10 +251,10 @@ module Orchestrator
                 if @queue.waiting
                     result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
                     cmd = @queue.waiting
-                    @logger.debug "command failed with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
+                    @logger.debug "command failed with #{result}: <#{cmd[:name] || UNNAMED}> #{cmd[:data] || cmd[:path]}"
 
                     if cmd[:retries] == 0
-                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
+                        err = Error::CommandFailure.new "command aborted with #{result}: <#{cmd[:name] || UNNAMED}> #{cmd[:data] || cmd[:path]}"
                         cmd[:defer].reject(err)
                         @logger.warn err.message
                     else
@@ -278,7 +279,7 @@ module Orchestrator
             def resp_success(result)
                 if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
                     if result == :abort
-                        err = Error::CommandFailure.new "command aborted with #{result}: #{cmd[:name]}- #{cmd[:data] || cmd[:path]}"
+                        err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{cmd[:data] || cmd[:path]}"
                         @queue.waiting[:defer].reject(err)
                     else
                         @queue.waiting[:defer].resolve(result)
