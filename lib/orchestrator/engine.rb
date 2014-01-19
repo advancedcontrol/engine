@@ -6,9 +6,10 @@ module Orchestrator
         isolate_namespace Orchestrator
         
         
-        rake_tasks do
-            load "tasks/orchestrator_tasks.rake"
-        end
+        # TODO:: if we ever have any tasks
+        #rake_tasks do
+        #    load "tasks/orchestrator_tasks.rake"
+        #end
         
         #
         # Define the application configuration
@@ -56,11 +57,11 @@ module Orchestrator
             # Start the control system by initializing it
             ctrl = ::Orchestrator::Control.instance
 
-            # Don't auto-load if running in the console
-            if not defined?(Rails::Console)
+            # Don't auto-load if running in the console or as a rake task
+            unless defined?(Rails::Console) || Rails.env.test? || defined?(Rake)
                 ctrl.loop.next_tick do
                     ctrl.mount.then ctrl.method(:boot)
-                   end
+                end
             end
         end
     end

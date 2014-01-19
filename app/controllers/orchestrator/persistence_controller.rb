@@ -3,7 +3,7 @@ require 'spider-gazelle/upgrades/websocket'
 
 module Orchestrator
     class PersistenceController < ActionController::Metal
-        include ActionController::Head
+        include ActionController::Rendering
 
 
         def self.start(hijacked)
@@ -12,11 +12,7 @@ module Orchestrator
             ws.start
         end
 
-
         START_WS = self.method(:start)
-        HEADERS = {
-            'Content-Length' => '0'
-        }.freeze
 
 
         def websocket
@@ -26,9 +22,9 @@ module Orchestrator
                 # TODO:: grab user for authorization checks in the web socket
                 promise.then START_WS
 
-                head :ok     # to prevent rails from complaining 
+                throw :async     # to prevent rails from complaining 
             else
-                head :method_not_allowed, HEADERS.dup
+                render nothing: true, status: :method_not_allowed
             end
         end
     end
