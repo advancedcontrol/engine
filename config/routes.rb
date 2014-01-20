@@ -1,5 +1,7 @@
 Orchestrator::Engine.routes.draw do
 
+    match '/*path' => 'api#options', :via => :options
+
     # Trusted Sessions - Create Trust (returns id), Update Session and Destroy Trust
     resources :trusts
 

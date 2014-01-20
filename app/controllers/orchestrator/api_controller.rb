@@ -5,8 +5,25 @@ module Orchestrator
         rescue_from Couchbase::Error::NotFound, :with => :entry_not_found
 
 
+        # If this is a preflight OPTIONS request, then short-circuit the
+        # request, return only the necessary headers
+        before_filter :allow_cors
+
+        def options
+            render :nothing => true
+        end
+
+
         protected
-    
+
+
+        def allow_cors
+            headers['Access-Control-Allow-Origin'] = '*'
+            headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, Authorization, X-Frame-Options'
+            headers['Access-Control-Max-Age'] = '1728000'
+            head(:ok) if request.method == :options
+        end
     
         # Couchbase catch all
         def entry_not_found
