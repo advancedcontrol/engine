@@ -9,6 +9,7 @@ module Orchestrator
         PROTECTED[:system] = true
         PROTECTED[:logger] = true
         PROTECTED[:task] = true
+        PROTECTED[:wake_device] = true
 
         # Object functions
         PROTECTED[:__send__] = true

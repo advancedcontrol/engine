@@ -74,6 +74,12 @@ module Orchestrator
                 set = name.to_sym
                 @__config__.setting(set)
             end
+
+            def wake_device(mac, ip = '<broadcast>')
+                @__config__.thread.schedule do
+                    @__config__.thread.wake_device(mac, ip)
+                end
+            end
         end
     end
 end
