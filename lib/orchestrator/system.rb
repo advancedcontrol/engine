@@ -33,11 +33,16 @@ module Orchestrator
         end
 
         def get(mod, index)
-            @modules[mod][index]
+            mods = @modules[mod]
+            if mods
+                mods[index]
+            else
+                nil # As subscriptions can be made to modules that don't exist
+            end
         end
 
         def all(mod)
-            @modules[mod]
+            @modules[mod] || []
         end
 
         def count(name)
