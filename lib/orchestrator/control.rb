@@ -113,7 +113,7 @@ module Orchestrator
             @loaded[mod_id.to_sym]
         end
 
-        # Stops a module running
+        # Starts a module running
         def start(mod_id)
             defer = @loop.defer
 
@@ -189,9 +189,7 @@ module Orchestrator
 
         # This will always be called on the thread reactor here
         def start_module(thread, klass, settings)
-            # TODO:: 
             # Initialize the connection / logic / service handler here
-            # We need a special case for UDP devices
             case settings.dependency.role
             when :device
                 Device::Manager.new(thread, klass, settings)

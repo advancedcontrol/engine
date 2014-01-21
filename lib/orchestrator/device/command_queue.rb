@@ -55,8 +55,8 @@ module Orchestrator
                         result = @named_commands[next_cmd]
                         result[0].shift
                         cmd = result[1]
-                        if cmd.nil? && length > 0
-                            shift_next_tick
+                        if cmd.nil?
+                            shift_next_tick if length > 0
                             return  # command already executed, this is a no-op
                         else
                             result[1] = nil
@@ -70,7 +70,9 @@ module Orchestrator
 
                     if shift_promise.is_a? ::Libuv::Q::Promise
                         @pause += 1
-                        shift_promise.finally @move_forward
+                        shift_promise.finally do # NOTE:: This schedule may not be required...
+                            @loop.schedule @move_forward
+                        end
                     end
                 end
             end
