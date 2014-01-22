@@ -21,5 +21,9 @@ module Orchestrator
         def is_affirmative?(val)
             On_vars.include?(val)
         end
+
+        def is_negatory?(val)
+            Off_vars.include?(val)
+        end
     end
 end
