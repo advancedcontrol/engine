@@ -37,6 +37,9 @@ module Orchestrator
                     @manager.logger.print_error(e, 'error starting tls')
                 end
 
+                # Enable keep alive every 30 seconds
+                keepalive(30)
+
                 # We only have to mark a queue online if more than 1 retry was required
                 if @retries > 1
                     @processor.queue.online
