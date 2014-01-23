@@ -16,6 +16,7 @@ module Orchestrator
         attribute :name
         attribute :role
         attribute :description
+        attribute :default # default data (port or URI)
 
         # Override default role accessors
         def role
