@@ -18,12 +18,25 @@ module Orchestrator
             # Provides a proxy to a module for a safe way to communicate across threads
             #
             # @param module [String, Symbol] the name of the module in the system
+            # @param index [Integer] the index of the desired module (starting at 1)
             # @return [::Orchestrator::Core::RequestsProxy] proxies requests to a single module
             def get(mod, index = 1)
                 index -= 1  # Get the real index
                 name = mod.to_sym
 
                 RequestProxy.new(@thread, system.get(name, index))
+            end
+
+            # Checks for the existence of a particular module
+            #
+            # @param module [String, Symbol] the name of the module in the system
+            # @param index [Integer] the index of the desired module (starting at 1)
+            # @return [true, false] does the module exist?
+            def exists?(mod, index = 1)
+                index -= 1  # Get the real index
+                name = mod.to_sym
+
+                !system.get(name, index).nil?
             end
 
             # Provides a proxy to multiple modules. A simple way to send commands to multiple devices

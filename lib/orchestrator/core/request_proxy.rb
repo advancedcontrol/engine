@@ -51,6 +51,16 @@ module Orchestrator
                 @thread = thread
             end
 
+            # Simplify access to status variables as they are thread safe
+            def [](name)
+                @mod.instance[name]
+            end
+
+            def []=(status, value)
+                @mod.instance[status] = value
+            end
+
+            # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
                 defer = @thread.defer
 
