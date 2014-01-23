@@ -118,7 +118,7 @@ module Orchestrator
 
                             # Check for existing status to send to subscriber
                             value = mod.status[sub.status]
-                            sub.notify(value) if value
+                            sub.notify(value) unless value.nil?
                         end
 
                         # Perform any required cleanup
@@ -188,7 +188,7 @@ module Orchestrator
 
                 # Check for existing status to send to subscriber
                 value = opt[:mod].status[sub.status]
-                sub.notify(value) if value
+                sub.notify(value) unless value.nil?
             end
 
             # return the subscription
