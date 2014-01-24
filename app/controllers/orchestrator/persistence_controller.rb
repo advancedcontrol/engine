@@ -13,11 +13,12 @@ module Orchestrator
         end
 
         START_WS = self.method(:start)
+        CONTROL = Control.instance
 
 
         def websocket
             hijack = request.env['rack.hijack']
-            if hijack
+            if hijack && CONTROL.ready
                 promise = hijack.call
                 # TODO:: grab user for authorization checks in the web socket
                 promise.then START_WS

@@ -19,6 +19,12 @@ module Orchestrator
             @@systems.delete(id.to_sym)
         end
 
+        def self.clear_cache
+            @@critical.synchronize {
+                @@systems = ThreadSafe::Cache.new
+            }
+        end
+
 
         attr_reader :zones, :config
 

@@ -72,6 +72,8 @@ module Orchestrator
         # 1. Find systems that have each of the modules specified
         # 2. If this is the last system we remove the modules
         def cleanup_modules
+            ControlSystem.bucket.delete("sysname-#{self.name}", {quiet: true})
+
             self.modules.each do |mod_id|
                 systems = ControlSystem.using_module(mod_id).to_a
 
@@ -81,6 +83,7 @@ module Orchestrator
                     ::Orchestrator::Module.bucket.delete(mod_id, {quiet: true})
                 end
             end
+            
             @old_id = self.id # not sure if required
         end
     end

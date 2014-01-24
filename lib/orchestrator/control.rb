@@ -28,6 +28,8 @@ module Orchestrator
             @loop = ::Libuv::Loop.default
             @exceptions = method(:log_unhandled_exception)
 
+            @ready = false
+
             if Rails.env.production?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
             else
@@ -40,7 +42,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger, :loop
+        attr_reader :logger, :loop, :ready
 
 
         # Start the control reactor
@@ -183,6 +185,12 @@ module Orchestrator
             end
         end
 
+        def notify_ready
+            # Clear the system cache (in case it has been populated at all)
+            System.clear_cache
+            @ready = true
+        end
+
 
         protected
 
@@ -203,8 +211,45 @@ module Orchestrator
 
         # Grab the modules from the database and load them
         def load_all
+            loading = []
+            wait = nil
+
             modules = ::Orchestrator::Module.all
-            modules.each &method(:load)  # modules are streamed in
+            modules.each do |mod|
+                if mod.role < 3
+                    loading << load(mod)  # modules are streamed in
+                else
+                    if wait.nil?
+                        wait = ::Libuv::Q.finally(@loop, *loading)
+                        loading.clear
+                    end
+
+                    loading << mod
+                end
+            end
+
+            # In case there were no logic modules
+            if wait.nil?
+                wait = ::Libuv::Q.finally(@loop, *loading)
+                loading.clear
+            end
+
+            # Mark system as ready
+            wait.finally do
+                continue_loading(loading)
+            end
+        end
+
+        # Load all the logic modules after the device modules are complete
+        def continue_loading(modules)
+            loading = []
+
+            modules.each do |mod|
+                loading << load(mod)  # grab the load promises
+            end
+
+            # Once load is complete we'll accept websockets
+            ::Libuv::Q.finally(@loop, *loading).finally method(:notify_ready)
         end
 
 
