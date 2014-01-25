@@ -70,7 +70,7 @@ module Orchestrator
             when :device
                 self.role = 1
                 begin
-                    port ||= dependency.default || 'no port'
+                    self.port ||= dependency.default || 'no port'
                     url = Addressable::URI.parse("http://#{self.ip}:#{self.port}/")
                     url.scheme && url.host && url
                 rescue
@@ -79,7 +79,7 @@ module Orchestrator
             when :service
                 self.role = 2
                 begin
-                    uri ||= dependency.default
+                    self.uri ||= dependency.default
                     url = Addressable::URI.parse(self.uri)
                     url.scheme && url.host && url
                 rescue
