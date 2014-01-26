@@ -127,7 +127,7 @@ module Orchestrator
                     result.then(proc { |res|
                         output = nil
                         begin
-                            ::JSON.generate(res)
+                            ::JSON.generate([res])
                             output = res
                         rescue Exception => e
                             # respond with nil if object cannot be converted
@@ -273,7 +273,7 @@ module Orchestrator
         def notify_update(update)
             output = nil
             begin
-                ::JSON.generate(update.value)
+                ::JSON.generate([update.value])
                 output = update.value
             rescue Exception => e
                 # respond with nil if object cannot be converted

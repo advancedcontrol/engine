@@ -73,7 +73,7 @@ module Orchestrator
                         result.then(proc { |res|
                             output = ''
                             begin
-                                output = ::JSON.generate(res)
+                                output = ::JSON.generate([res])
                             rescue Exception => e
                                 # respond with nil if object cannot be converted
                                 # TODO:: need a better way of dealing with this
