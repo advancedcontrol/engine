@@ -87,7 +87,11 @@ module Orchestrator
                 subscribed = mod[status]
                 if subscribed
                     subscribed.each do |subscription|
-                        subscription.notify(value)
+                        begin
+                            subscription.notify(value)
+                        rescue Exception => e
+                            @controller.log_unhandled_exception(e)
+                        end
                     end
                 end
             end

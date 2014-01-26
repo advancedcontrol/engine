@@ -191,6 +191,19 @@ module Orchestrator
             @ready = true
         end
 
+        def log_unhandled_exception(*args)
+            msg = ''
+            err = args[-1]
+            if err && err.respond_to?(:backtrace)
+                msg << "exception: #{err.message} (#{args[0..-2]})"
+                msg << "\n#{err.backtrace.join("\n")}" if err.respond_to?(:backtrace) && err.backtrace
+            else
+                msg << "unhandled exception: #{args}"
+            end
+            @logger.error msg
+            ::Libuv::Q.reject(@loop, msg)
+        end
+
 
         protected
 
@@ -271,19 +284,6 @@ module Orchestrator
                 thread.stop
             end
             @loop.stop
-        end
-
-        def log_unhandled_exception(*args)
-            msg = ''
-            err = args[-1]
-            if err && err.respond_to?(:backtrace)
-                msg << "exception: #{err.message} (#{args[0..-2]})"
-                msg << "\n#{err.backtrace.join("\n")}" if err.respond_to?(:backtrace) && err.backtrace
-            else
-                msg << "unhandled exception: #{args}"
-            end
-            @logger.error msg
-            ::Libuv::Q.reject(@loop, msg)
         end
     end
 end
