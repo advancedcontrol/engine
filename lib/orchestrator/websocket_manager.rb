@@ -129,7 +129,10 @@ module Orchestrator
                         begin
                             ::JSON.generate(res)
                             output = res
-                        rescue # respond with nil if object cannot be converted
+                        rescue Exception => e
+                            # respond with nil if object cannot be converted
+                            # TODO:: need a better way of dealing with this
+                            # ALSO in systems controller
                         end
                         @ws.text(::JSON.generate({
                             id: id,
@@ -272,7 +275,9 @@ module Orchestrator
             begin
                 ::JSON.generate(update.value)
                 output = update.value
-            rescue # respond with nil if object cannot be converted
+            rescue Exception => e
+                # respond with nil if object cannot be converted
+                # TODO:: need a better way of dealing with this
             end
             @ws.text(::JSON.generate({
                 type: :notify,

@@ -71,10 +71,13 @@ module Orchestrator
                         args = para[:args] || []
                         result = req.send(para[:method].to_sym, *args)
                         result.then(proc { |res|
-                            output = nil
+                            output = ''
                             begin
-                                output = res.to_json
-                            rescue # respond with nil if object cannot be converted
+                                output = ::JSON.generate(res)
+                            rescue Exception => e
+                                # respond with nil if object cannot be converted
+                                # TODO:: need a better way of dealing with this
+                                # ALSO in websocket manager
                             end
                             env['async.callback'].call([200, {
                                 'Content-Length' => output.bytesize,
