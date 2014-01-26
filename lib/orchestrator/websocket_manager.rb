@@ -127,7 +127,8 @@ module Orchestrator
                     result.then(proc { |res|
                         output = nil
                         begin
-                            output = res.to_json
+                            ::JSON.generate(res)
+                            output = res
                         rescue # respond with nil if object cannot be converted
                         end
                         @ws.text(::JSON.generate({
@@ -267,9 +268,15 @@ module Orchestrator
         end
 
         def notify_update(update)
+            output = nil
+            begin
+                ::JSON.generate(update.value)
+                output = update.value
+            rescue # respond with nil if object cannot be converted
+            end
             @ws.text(::JSON.generate({
                 type: :notify,
-                value: update.value,
+                value: output,
                 meta: {
                     sys: update.sys_id,
                     mod: update.mod_name,
