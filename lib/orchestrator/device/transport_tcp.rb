@@ -17,9 +17,11 @@ module Orchestrator
                 promise = write(cmd[:data])
                 if cmd[:wait]
                     promise.catch do |err|
-                        if @processor.queue.waiting
+                        if @processor.queue.waiting == cmd
                             # Fail fast
                             @processor.__send__(:resp_failure, err)
+                        else
+                            cmd[:defer].reject(err)
                         end
                     end
                 end
@@ -28,28 +30,24 @@ module Orchestrator
             def on_connect(transport)
                 if @terminated
                     close_connection(:after_writing)
-                    return
-                end
+                else
+                    begin
+                        use_tls(@config) if @tls
+                    rescue Exception => e
+                        @manager.logger.print_error(e, 'error starting tls')
+                    end
 
-                begin
-                    use_tls(@config) if @tls
-                rescue Exception => e
-                    @manager.logger.print_error(e, 'error starting tls')
+                    if @config[:wait_ready]
+                        @delaying = ''
+                    else
+                        init_connection
+                    end
                 end
-
-                # Enable keep alive every 30 seconds
-                keepalive(30)
-
-                # We only have to mark a queue online if more than 1 retry was required
-                if @retries > 1
-                    @processor.queue.online
-                end
-                @retries = 0
-                @processor.connected
             end
 
             def on_close
                 unless @terminated
+                    @delaying = false if @delaying
                     @retries += 1
 
                     if @retries == 1
@@ -71,13 +69,39 @@ module Orchestrator
             end
 
             def on_read(data, *args)
-                @processor.buffer(data)
+                if @delaying
+                    @delaying << data
+                    result = @delaying.split(@config[:wait_ready], 2)
+                    if result.length > 1
+                        @delaying = false
+                        init_connection
+                        @processor.buffer(result[-1])
+                    end
+                else
+                    @processor.buffer(data)
+                end
             end
 
             def terminate
                 @terminated = true
                 @connecting.cancel if @connecting
                 close_connection(:after_writing) if @transport.connected
+            end
+
+
+            protected
+
+
+            def init_connection
+                # Enable keep alive every 30 seconds
+                keepalive(30)
+
+                # We only have to mark a queue online if more than 1 retry was required
+                if @retries > 1
+                    @processor.queue.online
+                end
+                @retries = 0
+                @processor.connected
             end
         end
     end

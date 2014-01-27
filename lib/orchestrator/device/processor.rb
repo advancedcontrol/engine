@@ -49,6 +49,7 @@ module Orchestrator
                 # * delimiter (string or regex to match message end)
                 # * indicator (string or regex to match message start)
                 # * verbose (throw errors or silently recover)
+                # * wait_ready (wait for some signal before signaling connected)
             }
 
 
@@ -213,14 +214,17 @@ module Orchestrator
                 @bonus = @config[:priority_bonus]
 
                 begin
-                    if @queue.waiting
+                    cmd = @queue.waiting
+                    if cmd
                         @wait = true
                         @defer = @loop.defer
                         @defer.promise.then @resp_success, @resp_failure
 
+                        # Disconnect before processing the response
+                        transport.close_connection(:after_writing) if cmd[:force_disconnect]
+
                         # Send response, early resolver and command
-                        # TODO:: call callback if present
-                        resp = @man.notify_received(data, @resolver, @queue.waiting)
+                        resp = @man.notify_received(data, @resolver, cmd)
                     else
                         resp = @man.notify_received(data, DUMMY_RESOLVER)
                         # Don't need to trigger Queue next here as we are not waiting on anything

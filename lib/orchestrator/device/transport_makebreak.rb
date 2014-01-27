@@ -27,8 +27,18 @@ module Orchestrator
                 data = cmd[:data]
 
                 if @connected
-                    write(data)
+                    promise = write(data)
                     reset_timeout
+                    if cmd[:wait]
+                        promise.catch do |err|
+                            if @processor.queue.waiting == cmd
+                                # Fail fast
+                                @processor.__send__(:resp_failure, err)
+                            else
+                                cmd[:defer].reject(err)
+                            end
+                        end
+                    end
                 elsif @retries < 2
                     @write_queue << data
                     reconnect
@@ -49,17 +59,11 @@ module Orchestrator
                         @manager.logger.print_error(e, 'error starting tls')
                     end
 
-                    # Write pending directly
-                    while @write_queue.length > 0
-                        write(@write_queue.shift)
+                    if @config[:wait_ready]
+                        @delaying = ''
+                    else
+                        init_connection
                     end
-
-                    # Notify module
-                    if @retries > 1
-                        @processor.queue.online
-                        @processor.connected
-                    end
-                    @retries = 0
 
                     # Start inactivity timeout
                     reset_timeout
@@ -67,6 +71,7 @@ module Orchestrator
             end
 
             def on_close
+                @delaying = false if @delaying
                 @connected = false
                 @changing_state = false
 
@@ -101,7 +106,17 @@ module Orchestrator
             end
 
             def on_read(data, *args)
-                @processor.buffer(data)
+                if @delaying
+                    @delaying << data
+                    result = @delaying.split(@config[:wait_ready], 2)
+                    if result.length > 1
+                        @delaying = false
+                        init_connection
+                        @processor.buffer(result[-1])
+                    end
+                else
+                    @processor.buffer(data)
+                end
             end
 
             def terminate
@@ -154,6 +169,20 @@ module Orchestrator
                 return if @changing_state || @connected
                 @changing_state = true
                 super
+            end
+
+            def init_connection
+                # Write pending directly
+                while @write_queue.length > 0
+                    write(@write_queue.shift)
+                end
+
+                # Notify module
+                if @retries > 1
+                    @processor.queue.online
+                    @processor.connected
+                end
+                @retries = 0
             end
         end
     end
