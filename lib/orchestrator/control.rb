@@ -235,6 +235,9 @@ module Orchestrator
                     if wait.nil?
                         wait = ::Libuv::Q.finally(@loop, *loading)
                         loading.clear
+
+                        # Clear here in case rest api calls have built the cache
+                        System.clear_cache
                     end
 
                     loading << mod
