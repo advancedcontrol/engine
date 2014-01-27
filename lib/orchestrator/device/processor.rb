@@ -60,7 +60,7 @@ module Orchestrator
             UNNAMED = 'unnamed'
 
 
-            attr_reader :config, :queue, :loop
+            attr_reader :config, :queue, :thread
             attr_accessor :transport
 
 
@@ -69,12 +69,12 @@ module Orchestrator
             def initialize(man)
                 @man = man
 
-                @loop = @man.thread
+                @thread = @man.thread
                 @logger = @man.logger
                 @defaults = SEND_DEFAULTS.dup
                 @config = CONFIG_DEFAULTS.dup
 
-                @queue = CommandQueue.new(@loop, method(:send_next))
+                @queue = CommandQueue.new(@thread, method(:send_next))
                 @responses = []
                 @wait = false
                 @connected = false
@@ -85,14 +85,14 @@ module Orchestrator
 
 
                 # Used to indicate when we can start the next response processing
-                @head = ::Libuv::Q::ResolvedPromise.new(@loop, true)
-                @tail = ::Libuv::Q::ResolvedPromise.new(@loop, true)
+                @head = ::Libuv::Q::ResolvedPromise.new(@thread, true)
+                @tail = ::Libuv::Q::ResolvedPromise.new(@thread, true)
 
                 # Method variables
-                @resolver = proc { |resp| @loop.schedule { resolve_callback(resp) } }
+                @resolver = proc { |resp| @thread.schedule { resolve_callback(resp) } }
 
-                @resp_success = proc { |result| @loop.schedule { resp_success(result) } }
-                @resp_failure = proc { |reason| @loop.schedule { resp_failure(reason) } }
+                @resp_success = proc { |result| @thread.schedule { resp_success(result) } }
+                @resp_failure = proc { |reason| @thread.schedule { resp_failure(reason) } }
             end
 
             ##
@@ -169,7 +169,7 @@ module Orchestrator
             end
 
             def buffer(data)
-                @last_receive_at = @loop.now
+                @last_receive_at = @thread.now
 
                 if @buffer
                     @responses.concat @buffer.extract(data)
@@ -184,7 +184,7 @@ module Orchestrator
             end
 
             def terminate
-                @loop.schedule method(:do_terminate)
+                @thread.schedule method(:do_terminate)
             end
 
 
@@ -217,7 +217,7 @@ module Orchestrator
                     cmd = @queue.waiting
                     if cmd
                         @wait = true
-                        @defer = @loop.defer
+                        @defer = @thread.defer
                         @defer.promise.then @resp_success, @resp_failure
 
                         # Disconnect before processing the response
@@ -327,7 +327,7 @@ module Orchestrator
             def call_emit(cmd)
                 callback = cmd[:emit]
                 if callback
-                    @loop.next_tick do
+                    @thread.next_tick do
                         begin
                             callback.call
                         rescue Exception => e
@@ -342,9 +342,9 @@ module Orchestrator
             def send_next(command)
                 # Check for any required delays between sends
                 if command[:delay] > 0
-                    gap = @last_sent_at + command[:delay] - @loop.now
+                    gap = @last_sent_at + command[:delay] - @thread.now
                     if gap > 0
-                        defer = @loop.defer
+                        defer = @thread.defer
                         sched = schedule.in(gap) do
                             defer.resolve(process_send(command))
                         end
@@ -364,10 +364,10 @@ module Orchestrator
             def process_send(command)
                 # delay on receive
                 if command[:delay_on_receive] > 0
-                    gap = @last_receive_at + command[:delay_on_receive] - @loop.now
+                    gap = @last_receive_at + command[:delay_on_receive] - @thread.now
 
                     if gap > 0
-                        defer = @loop.defer
+                        defer = @thread.defer
                         
                         sched = schedule.in(gap) do
                             defer.resolve(process_send(command))
@@ -387,7 +387,7 @@ module Orchestrator
 
             def transport_send(command)
                 @transport.transmit(command)
-                @last_sent_at = @loop.now
+                @last_sent_at = @thread.now
 
                 if @queue.waiting
                     # Set up timers for command timeout

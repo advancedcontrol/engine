@@ -33,7 +33,7 @@ module Orchestrator
                         promise.catch do |err|
                             if @processor.queue.waiting == cmd
                                 # Fail fast
-                                @processor.loop.next_tick do
+                                @processor.thread.next_tick do
                                     @processor.__send__(:resp_failure, err)
                                 end
                             else
