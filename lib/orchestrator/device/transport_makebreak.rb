@@ -129,6 +129,12 @@ module Orchestrator
                 close_connection(:after_writing) if @transport.connected
             end
 
+            def disconnect
+                @connected = false
+                @changing_state = true
+                close_connection(:after_writing)
+            end
+
 
             protected
 
@@ -160,12 +166,6 @@ module Orchestrator
                         disconnect
                     end
                 end
-            end
-
-            def disconnect
-                @connected = false
-                @changing_state = true
-                close_connection(:after_writing)
             end
 
             def reconnect
