@@ -55,6 +55,8 @@ module Orchestrator
                 @checker.cancel if @checker
             end
 
+            def disconnect; end
+
 
             protected
 

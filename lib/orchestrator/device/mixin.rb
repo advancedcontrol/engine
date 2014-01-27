@@ -15,7 +15,7 @@ module Orchestrator
 
             def disconnect
                 @__config__.thread.schedule do
-                    @__config__.connection.close_connection(:after_writing)
+                    @__config__.connection.disconnect
                 end
             end
 

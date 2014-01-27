@@ -33,7 +33,9 @@ module Orchestrator
                         promise.catch do |err|
                             if @processor.queue.waiting == cmd
                                 # Fail fast
-                                @processor.__send__(:resp_failure, err)
+                                @processor.loop.next_tick do
+                                    @processor.__send__(:resp_failure, err)
+                                end
                             else
                                 cmd[:defer].reject(err)
                             end
@@ -112,7 +114,8 @@ module Orchestrator
                     if result.length > 1
                         @delaying = false
                         init_connection
-                        @processor.buffer(result[-1])
+                        rem = result[-1]
+                        @processor.buffer(rem) unless rem.empty?
                     end
                 else
                     @processor.buffer(data)

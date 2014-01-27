@@ -60,7 +60,7 @@ module Orchestrator
             UNNAMED = 'unnamed'
 
 
-            attr_reader :config, :queue
+            attr_reader :config, :queue, :loop
             attr_accessor :transport
 
 
@@ -221,7 +221,7 @@ module Orchestrator
                         @defer.promise.then @resp_success, @resp_failure
 
                         # Disconnect before processing the response
-                        transport.close_connection(:after_writing) if cmd[:force_disconnect]
+                        transport.disconnect if cmd[:force_disconnect]
 
                         # Send response, early resolver and command
                         resp = @man.notify_received(data, @resolver, cmd)

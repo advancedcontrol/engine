@@ -19,7 +19,9 @@ module Orchestrator
                     promise.catch do |err|
                         if @processor.queue.waiting == cmd
                             # Fail fast
-                            @processor.__send__(:resp_failure, err)
+                            @processor.loop.next_tick do
+                                @processor.__send__(:resp_failure, err)
+                            end
                         else
                             cmd[:defer].reject(err)
                         end
@@ -47,6 +49,7 @@ module Orchestrator
 
             def on_close
                 unless @terminated
+                    # Clear the connection delay if in use
                     @delaying = false if @delaying
                     @retries += 1
 
@@ -75,7 +78,8 @@ module Orchestrator
                     if result.length > 1
                         @delaying = false
                         init_connection
-                        @processor.buffer(result[-1])
+                        rem = result[-1]
+                        @processor.buffer(rem) unless rem.empty?
                     end
                 else
                     @processor.buffer(data)
@@ -86,6 +90,11 @@ module Orchestrator
                 @terminated = true
                 @connecting.cancel if @connecting
                 close_connection(:after_writing) if @transport.connected
+            end
+
+            def disconnect
+                # Shutdown quickly
+                close_connection
             end
 
 
