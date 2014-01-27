@@ -251,10 +251,16 @@ module Orchestrator
                 if @queue.waiting
                     result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
                     cmd = @queue.waiting
-                    @logger.debug "command failed with #{result}: <#{cmd[:name] || UNNAMED}> #{cmd[:data] || cmd[:path]}"
+                    debug = "with #{result}: <#{cmd[:name] || UNNAMED}> "
+                    if cmd[:data]
+                        debug << "#{cmd[:data].inspect}" 
+                    else
+                        debug << cmd[:path]
+                    end
+                    @logger.debug "command failed #{debug}"
 
                     if cmd[:retries] == 0
-                        err = Error::CommandFailure.new "command aborted with #{result}: <#{cmd[:name] || UNNAMED}> #{cmd[:data] || cmd[:path]}"
+                        err = Error::CommandFailure.new "command aborted #{debug}"
                         cmd[:defer].reject(err)
                         @logger.warn err.message
                     else
@@ -279,7 +285,7 @@ module Orchestrator
             def resp_success(result)
                 if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
                     if result == :abort
-                        err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{cmd[:data] || cmd[:path]}"
+                        err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{(cmd[:data] || cmd[:path]).inspect}"
                         @queue.waiting[:defer].reject(err)
                     else
                         @queue.waiting[:defer].resolve(result)
