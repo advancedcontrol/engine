@@ -13,7 +13,7 @@ module Orchestrator
         class CommandQueue
 
 
-            OFFLINE_MSG = Error::CommandCanceled.new 'command canceled due as module went offline'
+            OFFLINE_MSG = Error::CommandCanceled.new 'command canceled as module went offline'
 
 
             attr_accessor :waiting
