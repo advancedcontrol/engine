@@ -41,7 +41,7 @@ module Orchestrator
                             end
                         end
                     end
-                elsif @retries == 0
+                elsif @retries < 2
                     @write_queue << cmd
                     reconnect
                 else
