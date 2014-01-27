@@ -41,9 +41,11 @@ module Orchestrator
                             end
                         end
                     end
-                elsif @retries < 2
-                    @write_queue << data
+                elsif @retries == 0
+                    @write_queue << cmd
                     reconnect
+                else
+                    cmd[:defer].reject(Error::CommandFailure.new "transmit aborted as disconnected")
                 end
                 # discards data when officially disconnected
             end
@@ -51,6 +53,11 @@ module Orchestrator
             def on_connect(transport)
                 @connected = true
                 @changing_state = false
+
+                if @connecting
+                    @connecting.cancel
+                    @connecting = nil
+                end
 
                 if @terminated
                     close_connection(:after_writing)
@@ -66,9 +73,6 @@ module Orchestrator
                     else
                         init_connection
                     end
-
-                    # Start inactivity timeout
-                    reset_timeout
                 end
             end
 
@@ -76,6 +80,11 @@ module Orchestrator
                 @delaying = false if @delaying
                 @connected = false
                 @changing_state = false
+
+                if @connecting
+                    @connecting.cancel
+                    @connecting = nil
+                end
 
                 # Prevent re-connect if terminated
                 unless @terminated
@@ -176,8 +185,10 @@ module Orchestrator
 
             def init_connection
                 # Write pending directly
-                while @write_queue.length > 0
-                    write(@write_queue.shift)
+                queue = @write_queue
+                @write_queue = []
+                while queue.length > 0
+                    transmit(queue.shift)
                 end
 
                 # Notify module
@@ -186,6 +197,9 @@ module Orchestrator
                     @processor.connected
                 end
                 @retries = 0
+
+                # Start inactivity timeout
+                reset_timeout
             end
         end
     end
