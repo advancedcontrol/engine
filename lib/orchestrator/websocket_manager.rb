@@ -8,7 +8,7 @@ module Orchestrator
         def initialize(ws, user = OpenStruct.new({id: 'anonymous'}))
             @ws = ws
             @user = user
-            @loop = ws.socket.loop
+            @loop = ws.loop
 
             @bindings = ::ThreadSafe::Cache.new
             @stattrak = @loop.observer
@@ -18,7 +18,7 @@ module Orchestrator
 
             @ws.progress method(:on_message)
             @ws.finally method(:on_shutdown)
-            @ws.driver.on(:open, &method(:on_open))
+            @ws.on_open method(:on_open)
         end
 
 
@@ -411,14 +411,14 @@ module Orchestrator
 
         # Maintain the connection if ping frames are supported
         def on_open(evt)
-            if @ws.driver.ping('pong')
+            if @ws.ping('pong')
                 variation = 1 + rand(20000)
                 @pingger = @loop.scheduler.every(40000 + variation, method(:do_ping))
             end
         end
 
         def do_ping(time1, time2)
-            @ws.driver.ping('pong')
+            @ws.ping('pong')
         end
     end
 end
