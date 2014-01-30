@@ -140,7 +140,6 @@ module Orchestrator
 
             def disconnect
                 @connected = false
-                @changing_state = true
                 close_connection(:after_writing)
             end
 
