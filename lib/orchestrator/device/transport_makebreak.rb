@@ -10,6 +10,7 @@ module Orchestrator
 
                 @connected = false
                 @changing_state = true
+                @disconnecting = false
 
 
                 @activity = nil     # Activity timer
@@ -43,7 +44,7 @@ module Orchestrator
                     end
                 elsif @retries < 2
                     @write_queue << cmd
-                    reconnect
+                    reconnect unless @disconnecting
                 else
                     cmd[:defer].reject(Error::CommandFailure.new "transmit aborted as disconnected")
                 end
@@ -80,6 +81,8 @@ module Orchestrator
                 @delaying = false if @delaying
                 @connected = false
                 @changing_state = false
+                @disconnecting = false
+
 
                 if @connecting
                     @connecting.cancel
@@ -140,6 +143,7 @@ module Orchestrator
 
             def disconnect
                 @connected = false
+                @disconnecting = true
                 close_connection(:after_writing)
             end
 
