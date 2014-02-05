@@ -2,9 +2,6 @@ Orchestrator::Engine.routes.draw do
 
     match '/*path' => 'api#options', :via => :options
 
-    # Trusted Sessions - Create Trust (returns id), Update Session and Destroy Trust
-    resources :trusts
-
     # Restful access to services
     namespace :api do
         # Allows multiple routes to resolve to the one controller
@@ -15,6 +12,9 @@ Orchestrator::Engine.routes.draw do
                 get  'status',  on: :member
             end
         end
+
+        # Trusted Sessions - Create Trust (returns id), Update Session and Destroy Trust
+        resources :trusts
 
         resources :systems do       # systems have settings and define what zone they are in
             post 'start',   on: :member

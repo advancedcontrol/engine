@@ -17,11 +17,6 @@ Gem::Specification.new do |s|
     s.add_dependency 'uv-rays'            # Evented networking library
     s.add_dependency 'addressable'        # IP address utilities
     s.add_dependency 'algorithms'         # Priority queue
-    if RUBY_PLATFORM == 'java'
-        s.add_dependency 'couchbase-jruby-model'    # couchbase active model orm
-    else
-        s.add_dependency 'couchbase-model'          # couchbase active model orm
-    end
     s.add_dependency 'couchbase-id'       # ID generation
 
     s.add_development_dependency 'rspec'    # Testing framework

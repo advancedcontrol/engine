@@ -3,8 +3,7 @@ module Orchestrator
     module Api
         class DependenciesController < ApiController
             respond_to :json
-            # TODO:: check_authenticated should be in ApiController
-            #before_action :check_authenticated, only: [:create, :update, :destroy]
+            #doorkeeper_for :all
             before_action :check_authorization, only: [:show, :update, :destroy, :reload]
 
 

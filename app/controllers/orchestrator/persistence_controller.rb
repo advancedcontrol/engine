@@ -2,15 +2,16 @@ require 'spider-gazelle/upgrades/websocket'
 
 
 module Orchestrator
-    class PersistenceController < ActionController::Metal
-        include ActionController::Rendering
-
+    class PersistenceController < ApiController
+        #doorkeeper_for :all
+        
 
         def self.start(hijacked)
             ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
             WebsocketManager.new(ws)
             ws.start
         end
+
 
         START_WS = self.method(:start)
         CONTROL = Control.instance
