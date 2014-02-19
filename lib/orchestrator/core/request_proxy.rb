@@ -64,14 +64,14 @@ module Orchestrator
             def method_missing(name, *args, &block)
                 defer = @thread.defer
 
-                if ::Orchestrator::Core::PROTECTED[name]
-                    err = Error::ProtectedMethod.new "attempt to access module '#{@mod.settings.id}' protected method '#{name}'"
-                    defer.reject(err)
-                    @mod.logger.warn(err.message)
-                elsif @mod.nil?
+                if @mod.nil?
                     err = Error::ModuleUnavailable.new "method '#{name}' request failed as the module is not available at this time"
                     defer.reject(err)
                     # TODO:: debug log here
+                elsif ::Orchestrator::Core::PROTECTED[name]
+                    err = Error::ProtectedMethod.new "attempt to access module '#{@mod.settings.id}' protected method '#{name}'"
+                    defer.reject(err)
+                    @mod.logger.warn(err.message)
                 else
                     @mod.thread.schedule do
                         begin
