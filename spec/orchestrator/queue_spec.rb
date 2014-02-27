@@ -2,9 +2,7 @@ require 'rails'
 require 'orchestrator'
 
 describe "command queue" do
-    before :each do
-        @loop = ::Libuv::Loop.default
-    end
+    @loop = ::Libuv::Loop.default
 
     # Uses promises to pause shifts until any timers
     # have been resolved
@@ -130,10 +128,12 @@ describe "command queue" do
         })
 
         @loop.run do
+            dummy_defer = @loop.defer
+
             queue.push({name: :first, wait: true, data: :first}, 50)
-            queue.push({data: :second}, 50)
+            queue.push({data: :second, defer: dummy_defer}, 50)
             queue.push({name: :third, data: :third}, 50)
-            queue.push({data: :fourth}, 50)
+            queue.push({data: :fourth, defer: dummy_defer}, 50)
 
             queue.offline
 
@@ -169,10 +169,12 @@ describe "command queue" do
         })
 
         @loop.run do
-            queue.push({name: :first, wait: true, data: :first}, 50)
-            queue.push({data: :second}, 50)
-            queue.push({name: :third, data: :third}, 50)
-            queue.push({data: :fourth}, 50)
+            dummy_defer = @loop.defer
+            
+            queue.push({name: :first, defer: dummy_defer, wait: true, data: :first}, 50)
+            queue.push({data: :second, defer: dummy_defer}, 50)
+            queue.push({name: :third, defer: dummy_defer, data: :third}, 50)
+            queue.push({data: :fourth, defer: dummy_defer}, 50)
 
             queue.offline(:clear)
 
