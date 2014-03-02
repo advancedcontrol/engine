@@ -50,7 +50,9 @@ module Orchestrator
             begin
                 raw_parameters = ::JSON.parse(data, DECODE_OPTIONS)
                 parameters = ::ActionController::Parameters.new(raw_parameters)
-                params = parameters.permit(PARAMS)
+                params = parameters.permit(PARAMS).tap do |whitelist|
+                    whitelist[:args] = parameters[:args]
+                end
             rescue => e
                 @logger.print_error(e, 'error parsing websocket request')
                 error_response(nil, ERRORS[:parse_error], e.message)
