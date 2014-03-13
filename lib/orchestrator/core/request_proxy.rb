@@ -60,6 +60,13 @@ module Orchestrator
                 @mod.instance[status] = value
             end
 
+            # Returns true if the module responds to the given method
+            #
+            # @return [true|false]
+            def respond_to?(symbol, include_all = false)
+                @mod.respond_to?(symbol, include_all)
+            end
+
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
                 defer = @thread.defer

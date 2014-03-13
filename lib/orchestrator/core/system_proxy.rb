@@ -64,6 +64,13 @@ module Orchestrator
                 system.modules
             end
 
+            # Returns the system name as defined in the database
+            #
+            # @return [String] the name of the system 
+            def name
+                system.config.name
+            end
+
             # Used to be notified when an update to a status value occurs
             #
             # @param module [String, Symbol] the name of the module in the system
