@@ -131,7 +131,7 @@ module Orchestrator
                         begin
                             ::JSON.generate([res])
                             output = res
-                        rescue Exception => e
+                        rescue => e
                             # respond with nil if object cannot be converted
                             # TODO:: need a better way of dealing with this
                             # ALSO in systems controller
@@ -277,7 +277,7 @@ module Orchestrator
             begin
                 ::JSON.generate([update.value])
                 output = update.value
-            rescue Exception => e
+            rescue => e
                 # respond with nil if object cannot be converted
                 # TODO:: need a better way of dealing with this
             end

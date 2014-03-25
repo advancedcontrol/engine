@@ -40,7 +40,7 @@ module Orchestrator
                 if @instance.respond_to? :connected, true
                     begin
                         @instance.__send__(:connected)
-                    rescue Exception => e
+                    rescue => e
                         @logger.print_error(e, 'error in module connected callback')
                     end
                 end
@@ -50,7 +50,7 @@ module Orchestrator
                 if @instance.respond_to? :disconnected, true
                     begin
                         @instance.__send__(:disconnected)
-                    rescue Exception => e
+                    rescue => e
                         @logger.print_error(e, 'error in module disconnected callback')
                     end
                 end
@@ -67,7 +67,7 @@ module Orchestrator
                         @logger.warn('no received function provided')
                         :abort
                     end
-                rescue Exception => e
+                rescue => e
                     @logger.print_error(e, 'error in received callback')
                 end
             end

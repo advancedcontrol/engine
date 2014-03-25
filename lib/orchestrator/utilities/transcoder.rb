@@ -6,13 +6,13 @@ module Orchestrator
         # @return [String]
         def hex_to_byte(data)
             # Removes invalid characters
-            data.gsub!(/(0x|[^0-9A-Fa-f])*/, "")
-            output = ""
+            data = data.gsub(/(0x|[^0-9A-Fa-f])*/, "")
 
             # Ensure we have an even number of characters
             data.prepend('0') if data.length % 2 > 0
 
             # Breaks string into an array of characters
+            output = ""
             data.scan(/.{2}/) { |byte| output << byte.hex}
             return output
         end

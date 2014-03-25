@@ -24,7 +24,7 @@ module Orchestrator
                     if @instance.respond_to? :on_unload, true
                         @instance.__send__(:on_unload)
                     end
-                rescue Exception => e
+                rescue => e
                     @logger.print_error(e, 'error in module unload callback')
                 ensure
                     # Clean up
@@ -46,12 +46,12 @@ module Orchestrator
                 if @instance.respond_to? :on_load, true
                     begin
                         @instance.__send__(:on_load)
-                    rescue Exception => e
+                    rescue => e
                         @logger.print_error(e, 'error in module load callback')
                     end
                 end
                 true
-            rescue Exception => e
+            rescue => e
                 @logger.print_error(e, 'module failed to start')
                 false
             end
@@ -61,7 +61,7 @@ module Orchestrator
                     @thread.schedule do
                         begin
                             @instance.__send__(:on_update)
-                        rescue Exception => e
+                        rescue => e
                             @logger.print_error(e, 'error in module update callback')
                         end
                     end

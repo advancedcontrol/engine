@@ -85,7 +85,7 @@ module Orchestrator
                             defer.resolve(
                                 @mod.instance.public_send(name, *args, &block)
                             )
-                        rescue Exception => e
+                        rescue => e
                             @mod.logger.print_error(e)
                             defer.reject(e)
                         end

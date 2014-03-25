@@ -89,7 +89,7 @@ module Orchestrator
                     subscribed.each do |subscription|
                         begin
                             subscription.notify(value)
-                        rescue Exception => e
+                        rescue => e
                             @controller.log_unhandled_exception(e)
                         end
                     end

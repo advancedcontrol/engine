@@ -50,6 +50,7 @@ module Orchestrator
                 # * indicator (string or regex to match message start)
                 # * verbose (throw errors or silently recover)
                 # * wait_ready (wait for some signal before signaling connected)
+                # * encoding (BINARY) (force encoding on incoming data)
             }
 
 
@@ -103,6 +104,8 @@ module Orchestrator
 
             def config=(options)
                 @config.merge!(options)
+                # use tokenize to signal a buffer update
+                new_buffer if options.include?(:tokenize)
             end
 
             #
@@ -129,7 +132,7 @@ module Orchestrator
 
                 @queue.push(options, options[:priority] + @bonus)
 
-            rescue Exception => e
+            rescue => e
                 options[:defer].reject(e)
                 @logger.print_error(e, 'error queuing command')
             end
@@ -142,14 +145,7 @@ module Orchestrator
                 if @config[:update_status]
                     @man.trak(:connected, true)
                 end
-                tokenize = @config[:tokenize]
-                if tokenize
-                    if tokenize.respond_to? :call
-                        @buffer = tokenize.call
-                    else
-                        @buffer = ::UV::BufferedTokenizer.new(@config)
-                    end
-                end
+                new_buffer
             end
 
             def disconnected
@@ -158,7 +154,7 @@ module Orchestrator
                 if @config[:update_status]
                     @man.trak(:connected, false)
                 end
-                if @config[:flush_buffer_on_disconnect]
+                if @buffer && @config[:flush_buffer_on_disconnect]
                     check_data(@buffer.flush)
                 end
                 @buffer = nil
@@ -170,6 +166,10 @@ module Orchestrator
 
             def buffer(data)
                 @last_receive_at = @thread.now
+
+                if @config[:encoding]
+                    data.force_encoding(@config[:encoding])
+                end
 
                 if @buffer
                     @responses.concat @buffer.extract(data)
@@ -190,6 +190,17 @@ module Orchestrator
 
             protected
 
+
+            def new_buffer
+                tokenize = @config[:tokenize]
+                if tokenize
+                    if tokenize.respond_to? :call
+                        @buffer = tokenize.call
+                    else
+                        @buffer = ::UV::BufferedTokenizer.new(@config)
+                    end
+                end
+            end
 
             def do_terminate
                 if @queue.waiting
@@ -229,7 +240,7 @@ module Orchestrator
                         resp = @man.notify_received(data, DUMMY_RESOLVER)
                         # Don't need to trigger Queue next here as we are not waiting on anything
                     end
-                rescue Exception => e
+                rescue => e
                     @logger.print_error(e, 'error processing response data')
                     @defer.reject :abort if @defer
                 ensure
@@ -330,7 +341,7 @@ module Orchestrator
                     @thread.next_tick do
                         begin
                             callback.call
-                        rescue Exception => e
+                        rescue => e
                             @logger.print_error(e, 'error in emit callback')
                         end
                     end

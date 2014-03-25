@@ -35,7 +35,7 @@ module Orchestrator
                 else
                     begin
                         use_tls(@config) if @tls
-                    rescue Exception => e
+                    rescue => e
                         @manager.logger.print_error(e, 'error starting tls')
                     end
 
