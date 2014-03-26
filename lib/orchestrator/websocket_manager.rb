@@ -18,7 +18,7 @@ module Orchestrator
 
             @ws.progress method(:on_message)
             @ws.finally method(:on_shutdown)
-            @ws.on_open method(:on_open)
+            #@ws.on_open method(:on_open)
         end
 
 
@@ -47,6 +47,11 @@ module Orchestrator
 
 
         def on_message(data, ws)
+            if data == 'ping'
+                @ws.text('pong')
+                return
+            end
+
             begin
                 raw_parameters = ::JSON.parse(data, DECODE_OPTIONS)
                 parameters = ::ActionController::Parameters.new(raw_parameters)
@@ -401,26 +406,9 @@ module Orchestrator
         end
 
         def on_shutdown
-            @pingger.cancel if @pingger
             @bindings.each_value &method(:do_unbind)
             @bindings = nil
             @debug.resolve(true) if @debug # detach debug listeners
-        end
-
-
-        protected
-
-
-        # Maintain the connection if ping frames are supported
-        def on_open(evt)
-            if @ws.ping('pong')
-                variation = 1 + rand(20000)
-                @pingger = @loop.scheduler.every(40000 + variation, method(:do_ping))
-            end
-        end
-
-        def do_ping(time1, time2)
-            @ws.ping('pong')
         end
     end
 end

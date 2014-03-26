@@ -79,6 +79,7 @@ module Orchestrator
                 @responses = []
                 @wait = false
                 @connected = false
+                @checking = Mutex.new
                 @bonus = 0
 
                 @last_sent_at = 0
@@ -92,8 +93,8 @@ module Orchestrator
                 # Method variables
                 @resolver = proc { |resp| @thread.schedule { resolve_callback(resp) } }
 
-                @resp_success = proc { |result| @thread.schedule { resp_success(result) } }
-                @resp_failure = proc { |reason| @thread.schedule { resp_failure(reason) } }
+                @resp_success = proc { |result| @thread.next_tick { resp_success(result) } }
+                @resp_failure = proc { |reason| @thread.next_tick { resp_failure(reason) } }
             end
 
             ##
@@ -210,11 +211,13 @@ module Orchestrator
             end
 
             def check_next
-                return unless @responses.length > 0
-                loop do
-                    check_data(@responses.shift)
-                    break if @wait || @responses.length == 0
-                end
+                return if @checking.locked? || @responses.length <= 0
+                @checking.synchronize {
+                    loop do
+                        check_data(@responses.shift)
+                        break if @wait || @responses.length == 0
+                    end
+                }
             end
 
             # Check transport response data

@@ -1,6 +1,6 @@
 
 module Orchestrator
-    class ApiController < ApplicationController
+    class ApiController < ::ActionController::Base
         layout nil
         rescue_from Couchbase::Error::NotFound, with: :entry_not_found
 
@@ -61,6 +61,13 @@ module Orchestrator
         # Access to the control system controller
         def control
             @@__control__ ||= ::Orchestrator::Control.instance
+        end
+
+
+
+        # current user using doorkeeper
+        def current_user
+            @current_user ||= User.find(doorkeeper_token.resource_owner_id) if doorkeeper_token
         end
     end
 end
