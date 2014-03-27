@@ -93,8 +93,10 @@ module Orchestrator
                 # Method variables
                 @resolver = proc { |resp| @thread.schedule { resolve_callback(resp) } }
 
-                @resp_success = proc { |result| @thread.next_tick { resp_success(result) } }
-                @resp_failure = proc { |reason| @thread.next_tick { resp_failure(reason) } }
+                @bonus_reset = method(:reset_bonus)
+                @resp_success = proc { |result| @thread.schedule { resp_success(result) } }
+                @resp_failure = proc { |reason| @thread.schedule { resp_failure(reason) } }
+                @resp_finally = proc { @thread.schedule @bonus_reset }
             end
 
             ##
@@ -232,26 +234,24 @@ module Orchestrator
                     if cmd
                         @wait = true
                         @defer = @thread.defer
-                        @defer.promise.then @resp_success, @resp_failure
+                        @defer.promise.then @resp_success, @resp_failure, @resp_finally
 
                         # Disconnect before processing the response
                         transport.disconnect if cmd[:force_disconnect]
 
                         # Send response, early resolver and command
-                        resp = @man.notify_received(data, @resolver, cmd)
+                        @man.notify_received(data, @resolver, cmd)
                     else
-                        resp = @man.notify_received(data, DUMMY_RESOLVER)
+                        @man.notify_received(data, DUMMY_RESOLVER)
                         # Don't need to trigger Queue next here as we are not waiting on anything
                     end
                 rescue => e
                     @logger.print_error(e, 'error processing response data')
                     @defer.reject :abort if @defer
-                ensure
-                    @bonus = 0
                 end
 
                 # Check if response is a success or failure
-                resolve_callback(resp) unless resp == :async
+                #resolve_callback(resp) unless resp == :async
             end
 
             def resolve_callback(resp)
@@ -421,6 +421,10 @@ module Orchestrator
 
             def schedule
                 @schedule ||= @man.get_scheduler
+            end
+
+            def reset_bonus
+                @bonus = 0
             end
         end
     end

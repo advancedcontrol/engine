@@ -57,18 +57,22 @@ module Orchestrator
             end
 
             def notify_received(data, resolve, command = nil)
-                begin
-                    blk = command.nil? ? nil : command[:on_receive]
-                    if blk.respond_to? :call
-                        blk.call(data, resolve, command)
-                    elsif @instance.respond_to? :received, true
-                        @instance.__send__(:received, data, resolve, command)
-                    else
-                        @logger.warn('no received function provided')
-                        :abort
+                @thread.next_tick do
+                    begin
+                        blk = command.nil? ? nil : command[:on_receive]
+                        resp = if blk.respond_to? :call
+                            blk.call(data, resolve, command)
+                        elsif @instance.respond_to? :received, true
+                            @instance.__send__(:received, data, resolve, command)
+                        else
+                            @logger.warn('no received function provided')
+                            :abort
+                        end
+                        resolve.call(resp)
+                    rescue => e
+                        @logger.print_error(e, 'error in received callback')
+                        resolve.call(:abort)
                     end
-                rescue => e
-                    @logger.print_error(e, 'error in received callback')
                 end
             end
         end
