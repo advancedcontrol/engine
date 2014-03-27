@@ -303,6 +303,7 @@ module Orchestrator
             def resp_success(result)
                 if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
                     if result == :abort
+                        cmd = @queue.waiting
                         err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{(cmd[:data] || cmd[:path]).inspect}"
                         @queue.waiting[:defer].reject(err)
                     else

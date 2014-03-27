@@ -70,8 +70,8 @@ module Orchestrator
                         end
                         resolve.call(resp)
                     rescue => e
-                        @logger.print_error(e, 'error in received callback')
                         resolve.call(:abort)
+                        @logger.print_error(e, 'error in received callback')
                     end
                 end
             end
