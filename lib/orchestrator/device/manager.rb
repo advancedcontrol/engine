@@ -57,22 +57,21 @@ module Orchestrator
             end
 
             def notify_received(data, resolve, command = nil)
-                @thread.next_tick do
-                    begin
-                        blk = command.nil? ? nil : command[:on_receive]
-                        resp = if blk.respond_to? :call
-                            blk.call(data, resolve, command)
-                        elsif @instance.respond_to? :received, true
-                            @instance.__send__(:received, data, resolve, command)
-                        else
-                            @logger.warn('no received function provided')
-                            :abort
-                        end
-                        resolve.call(resp)
-                    rescue => e
-                        resolve.call(:abort)
-                        @logger.print_error(e, 'error in received callback')
+                begin
+                    blk = command.nil? ? nil : command[:on_receive]
+                    if blk.respond_to? :call
+                        blk.call(data, resolve, command)
+                    elsif @instance.respond_to? :received, true
+                        @instance.__send__(:received, data, resolve, command)
+                    else
+                        @logger.warn('no received function provided')
+                        :abort
                     end
+                rescue #=> e
+                    # TODO:: work out why print_error here hits memory so hard
+                    @logger.error('error processing received callback')
+                    #@logger.print_error(e, 'error in received callback')
+                    return :abort
                 end
             end
         end
