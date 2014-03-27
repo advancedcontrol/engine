@@ -142,11 +142,11 @@ module Orchestrator
             # Callbacks -------------------------
             def connected
                 @connected = true
+                new_buffer
                 @man.notify_connected
                 if @config[:update_status]
                     @man.trak(:connected, true)
                 end
-                new_buffer
             end
 
             def disconnected
@@ -200,6 +200,9 @@ module Orchestrator
                     else
                         @buffer = ::UV::BufferedTokenizer.new(@config)
                     end
+                elsif @buffer
+                    # remove the buffer if none
+                    @buffer = nil
                 end
             end
 
