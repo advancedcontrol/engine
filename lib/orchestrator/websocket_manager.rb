@@ -123,8 +123,8 @@ module Orchestrator
         end
 
         def do_exec(id, sys, mod, index, name, args)
-            sys = ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
-            system = System.get(sys)
+            sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
+            system = ::Orchestrator::System.get(sys)
 
             if system
                 mod_man = system.get(mod, index - 1)
@@ -203,8 +203,8 @@ module Orchestrator
 
         # Called from a worker thread
         def check_binding(id, sys, mod, index, name)
-            sys = ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
-            system = System.get(sys)
+            sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
+            system = ::Orchestrator::System.get(sys)
 
             if system
                 lookup = :"#{sys}_#{mod}_#{index}_#{name}"

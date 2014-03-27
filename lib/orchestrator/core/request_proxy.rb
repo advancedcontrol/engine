@@ -45,6 +45,12 @@ module Orchestrator
 
 
 
+        # TODO:: investigate JRUBY:: Err bug
+        # Basically when jRuby catches an error here it blows its stack..
+        # Doesn't happen with regular ruby
+
+
+
         class RequestProxy
             def initialize(thread, mod)
                 @mod = mod

@@ -32,6 +32,7 @@ module Orchestrator
         def level=(level)
             @level = LEVEL[level] || level
         end
+        attr_reader :level
 
         # Add listener
         def add(listener)
