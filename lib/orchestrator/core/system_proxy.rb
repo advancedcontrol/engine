@@ -48,6 +48,20 @@ module Orchestrator
                 RequestsProxy.new(@thread, system.all(name))
             end
 
+            # Iterates over the modules in the system. Can also specify module types.
+            # 
+            # @param mod_name [String, Symbol] the optional names of modules to iterate over
+            # @yield [Module Instance, Symbol, Integer] yields the modules with their name and index
+            def each(*args)
+                mods = args.empty? ? modules : args
+                mods.each do |mod|
+                    number = count(mod)
+                    (1..number).each do |index|
+                        yield(get(mod, index), mod, index)
+                    end
+                end
+            end
+
             # Grabs the number of a particular device type
             #
             # @param module [String, Symbol] the name of the module in the system
