@@ -36,7 +36,6 @@ module Orchestrator
                 # * on_receive (alternative to received function)
             }
 
-            # TODO:: Consider using variable struct here for speed?
             CONFIG_DEFAULTS = {
                 tokenize: false,    # If replaced with a callback can define custom tokenizers
                 size_limit: 524288, # 512kb buffer max
