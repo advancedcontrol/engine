@@ -30,9 +30,9 @@ module Orchestrator
 
             def stop
                 super
-                @processor.terminate
+                @processor.terminate unless @processor.nil?
                 @processor = nil
-                @connection.terminate
+                @connection.terminate unless @connection.nil?
                 @connection = nil
             end
 
