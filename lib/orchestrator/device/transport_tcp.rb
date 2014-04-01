@@ -10,6 +10,8 @@ module Orchestrator
 
                 @retries = 0        # Connection retries
                 @connecting = nil   # Connection timer
+
+                @last_retry = @processor.thread.now
             end
 
             def transmit(cmd)
@@ -52,8 +54,18 @@ module Orchestrator
                     # Clear the connection delay if in use
                     @delaying = false if @delaying
                     @retries += 1
+                    the_time = @processor.thread.now
+                    boundry = @last_retry + @config[:thrashing_threshold]
+
+                    # ensure we are not thrashing (rapid connect then disconnect)
+                    # This equals a disconnect and requires a warning
+                    if boundry >= the_time
+                        @retries += 1
+                        @manager.logger.warn('possible connection thrashing. Disconnecting')
+                    end
 
                     if @retries == 1
+                        @last_retry = the_time
                         @processor.disconnected
                         reconnect
                     else

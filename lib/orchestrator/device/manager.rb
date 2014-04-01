@@ -12,6 +12,7 @@ module Orchestrator
             attr_reader :processor, :connection
 
             def start
+                return unless @processor.nil?
                 @processor = Processor.new(self)
 
                 super # Calls on load (allows setting of tls certs)

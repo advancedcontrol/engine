@@ -11,6 +11,7 @@ module Orchestrator
                 @connected = false
                 @changing_state = true
                 @disconnecting = false
+                @last_retry = @processor.thread.now
 
 
                 @activity = nil     # Activity timer
@@ -78,7 +79,7 @@ module Orchestrator
             end
 
             def on_close
-                @delaying = false if @delaying
+                @delaying = false
                 @connected = false
                 @changing_state = false
                 @disconnecting = false
@@ -92,6 +93,15 @@ module Orchestrator
                 # Prevent re-connect if terminated
                 unless @terminated
                     @retries += 1
+                    the_time = @processor.thread.now
+                    boundry = @last_retry + @config[:thrashing_threshold]
+
+                    # ensure we are not thrashing (rapid connect then disconnect)
+                    # This equals a disconnect and requires a warning
+                    if boundry >= the_time
+                        @retries += 1
+                        @manager.logger.warn('possible connection thrashing. Disconnecting')
+                    end
 
                     @activity.cancel if @activity
                     @activity = nil
@@ -99,6 +109,7 @@ module Orchestrator
                     if @retries == 1
                         if @write_queue.length > 0
                             # We reconnect here as there are pending writes
+                            @last_retry = the_time
                             reconnect
                         end
                     else # retries > 1

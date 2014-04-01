@@ -36,13 +36,15 @@ module Orchestrator
                 # * on_receive (alternative to received function)
             }
 
+            # TODO:: Consider using variable struct here for speed?
             CONFIG_DEFAULTS = {
                 tokenize: false,    # If replaced with a callback can define custom tokenizers
                 size_limit: 524288, # 512kb buffer max
                 clear_queue_on_disconnect: false,
                 flush_buffer_on_disconnect: false,
                 priority_bonus: 20,  # give commands bonus priority under certain conditions
-                update_status: true  # auto update connected status?
+                update_status: true, # auto update connected status?
+                thrashing_threshold: 1500  # min milliseconds between connection retries
 
                 # Other options include:
                 # * inactivity_timeout (used with make and break)
