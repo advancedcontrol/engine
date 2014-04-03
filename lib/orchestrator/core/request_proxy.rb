@@ -66,6 +66,13 @@ module Orchestrator
                 @mod.instance[status] = value
             end
 
+            # Returns true if there is no object to proxy
+            #
+            # @return [true|false]
+            def nil?
+                @mod.nil?
+            end
+
             # Returns true if the module responds to the given method
             #
             # @return [true|false]
