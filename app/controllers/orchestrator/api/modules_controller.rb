@@ -9,14 +9,27 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy]
 
 
+            @@elastic ||= Elastic.new('mod')
+
+
             def index
-                if params[:system_id]
-                    # TODO:: Should use cs.modules as the elastic search filter
-                    cs = ControlSystem.find(params.permit(:system_id)[:system_id])
-                    render json: ::Orchestrator::Module.find_by_id(cs.modules)
+                filters = params.permit(:system_id, :dependency_id)
+                if filters[:system_id]
+                    cs = ControlSystem.find(filters[:system_id])
+                    render json: ::Orchestrator::Module.find_by_id(cs.modules) 
                 else
-                    # TODO:: Elastic search
-                    render json: []
+                    query = @@elastic.query(params)
+
+                    if filters[:dependency_id]
+                        query.filter({
+                            dependency_id: [filters[:dependency_id]]
+                        })
+                    end
+
+                    results = @@elastic.search(query)
+
+                    # Find by id doesn't raise errors
+                    respond_with Module.find_by_id(results) || results
                 end
             end
 

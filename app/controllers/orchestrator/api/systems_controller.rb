@@ -7,8 +7,18 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy, :start, :stop]
 
 
+            @@elastic ||= Elastic.new('sys')
+
+
             def index
-                # TODO:: Elastic search filter
+                query = @@elastic.query(params)
+                results = @@elastic.search(query)
+
+                # TODO:: Filter by zone-id
+                # Requires some experimentation
+
+                # Find by id doesn't raise errors
+                respond_with ControlSystem.find_by_id(results) || results
             end
 
             def show

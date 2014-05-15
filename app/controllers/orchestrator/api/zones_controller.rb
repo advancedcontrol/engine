@@ -7,8 +7,15 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy]
 
 
+            @@elastic ||= Elastic.new('zone')
+
+
             def index
-                # TODO:: Elastic search filter
+                query = @@elastic.query(params)
+                results = @@elastic.search(query)
+
+                # Find by id doesn't raise errors
+                respond_with Zone.find_by_id(results) || results
             end
 
             def show

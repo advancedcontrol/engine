@@ -7,8 +7,23 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy, :reload]
 
 
+            @@elastic ||= Elastic.new('dep')
+
+
             def index
-                # TODO:: Elastic search filter
+                role = params.permit(:role)[:role]
+                query = @@elastic.query(params)
+
+                if role && Dependency::ROLES.include?(role.to_sym)
+                    query.filter({
+                        role: [role]
+                    })
+                end
+
+                results = @@elastic.search(query)
+
+                # Find by id doesn't raise errors
+                respond_with Dependency.find_by_id(results) || results
             end
 
             def show
