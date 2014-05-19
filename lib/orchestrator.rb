@@ -6,6 +6,7 @@ require 'couchbase-id'
 require 'uv-rays'
 
 # Optional utility modules
+require 'helpers/elastic'                   # elastic search abstractions
 require 'orchestrator/utilities/transcoder' # functions for data manipulation
 require 'orchestrator/utilities/constants'  # constants for readable code
 
