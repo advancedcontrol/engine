@@ -79,7 +79,7 @@ module Orchestrator
                 params.require(:dependency).permit(
                     :name, :description, :role,
                     :class_name, :module_name,
-                    {settings: []}
+                    :default, {settings: []}
                 )
             end
 
