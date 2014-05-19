@@ -9,14 +9,19 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy]
 
 
-            @@elastic ||= Elastic.new('mod')
+            @@elastic ||= Elastic.new(Module)
 
 
             def index
                 filters = params.permit(:system_id, :dependency_id)
                 if filters[:system_id]
                     cs = ControlSystem.find(filters[:system_id])
-                    render json: ::Orchestrator::Module.find_by_id(cs.modules) 
+
+                    results = ::Orchestrator::Module.find_by_id(cs.modules) || [];
+                    render json: {
+                        total: results.length,
+                        results: results
+                    }
                 else
                     query = @@elastic.query(params)
 
@@ -29,7 +34,7 @@ module Orchestrator
                     results = @@elastic.search(query)
 
                     # Find by id doesn't raise errors
-                    respond_with Module.find_by_id(results) || results
+                    respond_with results
                 end
             end
 

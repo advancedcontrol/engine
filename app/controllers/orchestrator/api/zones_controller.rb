@@ -7,7 +7,7 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy]
 
 
-            @@elastic ||= Elastic.new('zone')
+            @@elastic ||= Elastic.new(Zone)
 
 
             def index
@@ -15,7 +15,7 @@ module Orchestrator
                 results = @@elastic.search(query)
 
                 # Find by id doesn't raise errors
-                respond_with Zone.find_by_id(results) || results
+                respond_with results
             end
 
             def show

@@ -111,12 +111,14 @@ class Elastic
     end
 
     HITS = 'hits'.freeze
+    TOTAL = 'total'.freeze
     ID = '_id'.freeze
     SCORE = '_score'.freeze
     INDEX = (ENV['ELASTIC_INDEX'] || 'default').freeze
 
-    def initialize(filter, index = INDEX)
-        @filter = filter
+    def initialize(klass, index = INDEX)
+        @klass = klass
+        @filter = klass.design_document
         @index = index
     end
 
@@ -162,6 +164,10 @@ class Elastic
             }
         }
 
-        Elastic.search(query)[HITS][HITS].map {|entry| entry[ID]}
+        result = Elastic.search(query)
+        {
+            total: result[HITS][TOTAL] || 0,
+            results: @klass.find_by_id(result[HITS][HITS].map {|entry| entry[ID]}) || []
+        }
     end
 end

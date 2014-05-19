@@ -7,7 +7,7 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy, :reload]
 
 
-            @@elastic ||= Elastic.new('dep')
+            @@elastic ||= Elastic.new(Dependency)
 
 
             def index
@@ -23,7 +23,7 @@ module Orchestrator
                 results = @@elastic.search(query)
 
                 # Find by id doesn't raise errors
-                respond_with Dependency.find_by_id(results) || results
+                respond_with results
             end
 
             def show

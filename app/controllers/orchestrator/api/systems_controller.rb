@@ -7,7 +7,7 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy, :start, :stop]
 
 
-            @@elastic ||= Elastic.new('sys')
+            @@elastic ||= Elastic.new(ControlSystem)
 
 
             def index
@@ -18,7 +18,7 @@ module Orchestrator
                 # Requires some experimentation
 
                 # Find by id doesn't raise errors
-                respond_with ControlSystem.find_by_id(results) || results
+                respond_with results
             end
 
             def show
