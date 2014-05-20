@@ -53,7 +53,7 @@ class Elastic
                                 })
                             else
                                 fieldfilter[:or].push({
-                                    missing: { field: field }
+                                    missing: { field: key }
                                 })
                             end
                         }
