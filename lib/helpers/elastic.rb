@@ -45,15 +45,15 @@ class Elastic
                 @filters.each do |key, value|
                     fieldfilter = { :or => [] }
                         value.each { |var|
-                            if var
+                            if var.nil?
+                                fieldfilter[:or].push({
+                                    missing: { field: key }
+                                })
+                            else
                                 fieldfilter[:or].push({
                                     :term => {
                                         key => var
                                     }
-                                })
-                            else
-                                fieldfilter[:or].push({
-                                    missing: { field: key }
                                 })
                             end
                         }
