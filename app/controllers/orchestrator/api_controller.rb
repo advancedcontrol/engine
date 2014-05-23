@@ -24,7 +24,7 @@ module Orchestrator
         ALLOW_HEADERS = 'Access-Control-Allow-Headers'.freeze
         MAX_AGE = 'Access-Control-Max-Age'.freeze
         ANY_ORIGIN = '*'.freeze
-        ANY_METHOD = 'GET, POST, PUT, DELETE, OPTIONS'.freeze
+        ANY_METHOD = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'.freeze
         COMMON_HEADERS = 'Origin, Accept, Content-Type, X-Requested-With, Authorization, X-Frame-Options'.freeze
         ONE_DAY = '1728000'.freeze
 
