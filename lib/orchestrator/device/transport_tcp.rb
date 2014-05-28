@@ -63,6 +63,7 @@ module Orchestrator
                     # This equals a disconnect and requires a warning
                     if @retries == 1 && boundry >= the_time
                         @retries += 1
+                        @processor.disconnected
                         @manager.logger.warn('possible connection thrashing. Disconnecting')
                     end
 
