@@ -9,7 +9,7 @@ module Orchestrator
             before_action :check_authorization, only: [:show, :update, :destroy]
 
 
-            @@elastic ||= Elastic.new(Module)
+            @@elastic ||= Elastic.new(::Orchestrator::Module)
 
 
             def index
