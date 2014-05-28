@@ -278,6 +278,10 @@ module Orchestrator
             Thread.new do
                 thread.run do |promise|
                     promise.progress @exceptions
+
+                    thread.async do
+                        p 'noop'
+                    end
                 end
             end
         end
