@@ -8,10 +8,12 @@ module Orchestrator
                 @config = @processor.config
                 @tls = tls
 
-                @retries = 0        # Connection retries
+                # Delay retry by default if connection fails on load
+                @retries = 1        # Connection retries
                 @connecting = nil   # Connection timer
 
-                @last_retry = @processor.thread.now
+                # Last retry shouldn't break any thresholds
+                @last_retry = @processor.thread.now - 50000
             end
 
             def transmit(cmd)
@@ -59,7 +61,7 @@ module Orchestrator
 
                     # ensure we are not thrashing (rapid connect then disconnect)
                     # This equals a disconnect and requires a warning
-                    if boundry >= the_time
+                    if @retries == 1 && boundry >= the_time
                         @retries += 1
                         @manager.logger.warn('possible connection thrashing. Disconnecting')
                     end

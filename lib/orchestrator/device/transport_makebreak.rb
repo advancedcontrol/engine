@@ -11,7 +11,7 @@ module Orchestrator
                 @connected = false
                 @changing_state = true
                 @disconnecting = false
-                @last_retry = @processor.thread.now
+                @last_retry = @processor.thread.now - 50000
 
 
                 @activity = nil     # Activity timer
@@ -98,7 +98,7 @@ module Orchestrator
 
                     # ensure we are not thrashing (rapid connect then disconnect)
                     # This equals a disconnect and requires a warning
-                    if boundry >= the_time
+                    if @retries == 1 && boundry >= the_time
                         @retries += 1
                         @manager.logger.warn('possible connection thrashing. Disconnecting')
                     end
