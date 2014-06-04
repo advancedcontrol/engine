@@ -44,13 +44,6 @@ module Orchestrator
         PROTECTED[:use_middleware] = true
 
 
-
-        # TODO:: investigate JRUBY:: Err bug
-        # Basically when jRuby catches an error here it blows its stack..
-        # Doesn't happen with regular ruby
-
-
-
         class RequestProxy
             def initialize(thread, mod)
                 @mod = mod
@@ -77,7 +70,11 @@ module Orchestrator
             #
             # @return [true|false]
             def respond_to?(symbol, include_all = false)
-                @mod.respond_to?(symbol, include_all)
+                if @mod
+                    @mod.instance.respond_to?(symbol, include_all)
+                else
+                    false
+                end
             end
 
             # All other method calls are wrapped in a promise

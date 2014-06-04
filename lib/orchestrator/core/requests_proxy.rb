@@ -10,6 +10,14 @@ module Orchestrator
                 @thread = thread
             end
 
+            # Returns true if there is no object to proxy
+            #
+            # @return [true|false]
+            def nil?
+                @modules.empty?
+            end
+            alias_method :empty?, :nil?
+
             def method_missing(name, *args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
                     err = Error::ProtectedMethod.new "attempt to access a protected method '#{name}' in multiple modules"
