@@ -79,6 +79,16 @@ module Orchestrator
                 @__config__.setting(set)
             end
 
+            # Updates a setting that will effect the local module only
+            #
+            # @param name [String|Symbol] the setting name
+            # @param value [String|Symbol|Numeric|Array|Hash] the setting value
+            # @return [::Libuv::Q::Promise] Promise that will resolve once the setting is persisted
+            def define_setting(name, value)
+                set = name.to_sym
+                @__config__.define_setting(set, value)
+            end
+
             def wake_device(mac, ip = '<broadcast>')
                 @__config__.thread.schedule do
                     @__config__.thread.wake_device(mac, ip)

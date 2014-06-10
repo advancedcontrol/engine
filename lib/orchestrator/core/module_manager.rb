@@ -158,6 +158,28 @@ module Orchestrator
                 end
                 res
             end
+
+            # Called from Core::Mixin on any thread
+            #
+            # Settings updates are done on the thread pool
+            # We have to replace the structure as other threads may be
+            # reading from the old structure and the settings hash is not
+            # thread safe
+            def define_setting(name, value)
+                defer = thread.defer
+                thread.schedule do
+                    defer.resolve(thread.work(proc {
+                        mod = Orchestrator::Module.find(@settings.id)
+                        mod.settings[name] = value
+                        mod.save!
+                        mod
+                    }))
+                end
+                defer.promise.then do |db_model|
+                    @settings = db_model
+                    value # Don't leak direct access to the database model
+                end
+            end
         end
     end
 end
