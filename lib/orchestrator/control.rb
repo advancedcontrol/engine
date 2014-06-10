@@ -24,6 +24,7 @@ module Orchestrator
             # critical sections
             @critical = ::Mutex.new
             @loaded = ::ThreadSafe::Cache.new
+            @zones = ::ThreadSafe::Cache.new
             @loader = DependencyManager.instance
             @loop = ::Libuv::Loop.default
             @exceptions = method(:log_unhandled_exception)
@@ -42,7 +43,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger, :loop, :ready
+        attr_reader :logger, :loop, :ready, :zones
 
 
         # Start the control reactor
@@ -51,6 +52,12 @@ module Orchestrator
 
             @critical.synchronize {
                 return if @server   # Protect against multiple mounts
+
+                # Cache all the zones in the system
+                ::Orchestrator::Zone.all do |zone|
+                    @zones[zone.id] = zone
+                end
+
                 @server = ::SpiderGazelle::Spider.instance
                 @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)

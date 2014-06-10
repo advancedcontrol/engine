@@ -24,15 +24,22 @@ module Orchestrator
 
             def update
                 @zone.update_attributes(safe_params)
-                save_and_respond @zone
+                save_and_respond @zone do
+                    # Update self in zone cache
+                    expire_cache(@zone)
+                end
             end
 
             def create
                 zone = Zone.new(safe_params)
-                save_and_respond zone
+                save_and_respond zone do
+                    # Add self to zone cache
+                    expire_cache(zone)
+                end
             end
 
             def destroy
+                # delete will update CS and zone caches
                 @zone.delete
                 render :nothing => true
             end
@@ -53,6 +60,13 @@ module Orchestrator
                 @zone = Zone.find(id)
 
                 # Does the current user have permission to perform the current action?
+            end
+
+            def expire_cache(zone)
+                ::Orchestrator::Control.instance.zones[zone.id] = zone
+                ::Orchestrator::ControlSystem.in_zone(zone.id).each do |cs|
+                    ::Orchestrator::System.expire(cs.id)
+                end
             end
         end
     end

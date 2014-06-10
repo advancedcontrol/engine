@@ -35,7 +35,14 @@ module Orchestrator
 
             @modules = {}
             @config.modules.each &method(:index_module)
-            @zones = Set.new(Zone.find_by_id(@config.zones))
+
+            # Build an ordered zone cache for setting lookup
+            zones = ::Orchestrator::Control.instance.zones
+            @zones = []
+            @config.zones.each do |zone_id|
+                zone = zones[zone_id]
+                @zones << zone unless zone.nil?
+            end
         end
 
         def get(mod, index)

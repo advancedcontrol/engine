@@ -24,12 +24,19 @@ module Orchestrator
         end
         view :by_groups
 
+        # Loads all the zones
+        def self.all
+            all(stale: false)
+        end
+        view :all
+
 
         protected
 
 
         def remove_zone
-            ControlSystem.in_zone(self.id).each do |cs|
+            ::Orchestrator::Control.instance.zones.delete(self.id)
+            ::Orchestrator::ControlSystem.in_zone(self.id).each do |cs|
                 cs.zones.delete(self.id)
                 cs.save
             end
