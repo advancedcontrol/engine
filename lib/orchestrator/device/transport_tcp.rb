@@ -13,7 +13,7 @@ module Orchestrator
                 @connecting = nil   # Connection timer
 
                 # Last retry shouldn't break any thresholds
-                @last_retry = @processor.thread.now - 50000
+                @last_retry = 0
             end
 
             def transmit(cmd)
@@ -78,8 +78,11 @@ module Orchestrator
                             reconnect
                         end
 
-                        # we mark the queue as offline if more than 1 reconnect fails
                         if @retries == 2
+                            # NOTE:: edge case if disconnected on first connect
+                            @processor.disconnected if @last_retry == 0
+
+                            # we mark the queue as offline if more than 1 reconnect fails
                             @processor.queue.offline(@config[:clear_queue_on_disconnect])
                         end
                     end
@@ -88,6 +91,10 @@ module Orchestrator
 
             def on_read(data, *args)
                 if @delaying
+                    # Update last retry so we don't trigger multiple
+                    # calls to disconnected as connection is working
+                    @last_retry += 1
+
                     @delaying << data
                     result = @delaying.split(@config[:wait_ready], 2)
                     if result.length > 1

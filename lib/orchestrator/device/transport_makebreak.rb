@@ -11,7 +11,7 @@ module Orchestrator
                 @connected = false
                 @changing_state = true
                 @disconnecting = false
-                @last_retry = @processor.thread.now - 50000
+                @last_retry = 0
 
 
                 @activity = nil     # Activity timer
