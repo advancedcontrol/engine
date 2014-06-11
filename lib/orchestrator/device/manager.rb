@@ -68,15 +68,8 @@ module Orchestrator
                         @logger.warn('no received function provided')
                         :abort
                     end
-                rescue #=> e
-                    # TODO:: work out why print_error here hits memory so hard
-                    # NOTE:: as long as the e variable is not interacted with there 
-                    #  is no performance penalty so build in a flag on a per-module
-                    #  basis for inspecting the message?
-                    # PS:: if we are to incur significant processing times to inspect
-                    #  an error we should use resolve before inspecting the error
-                    @logger.error('an error occurred in the received callback')
-                    #@logger.print_error(e, 'error in received callback')
+                rescue => e
+                    @logger.print_error(e, 'error in received callback')
                     return :abort
                 end
             end
