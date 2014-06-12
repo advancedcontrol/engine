@@ -1,6 +1,6 @@
 
-function(doc) {
+function(doc, meta) {
     if(doc.type == "zone") {
-        emit(doc.id, null);
+        emit(meta.id, null);
     }
 }

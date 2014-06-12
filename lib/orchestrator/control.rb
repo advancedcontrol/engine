@@ -54,7 +54,7 @@ module Orchestrator
                 return if @server   # Protect against multiple mounts
 
                 # Cache all the zones in the system
-                ::Orchestrator::Zone.all do |zone|
+                ::Orchestrator::Zone.all.each do |zone|
                     @zones[zone.id] = zone
                 end
 
