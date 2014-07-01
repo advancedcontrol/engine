@@ -39,6 +39,16 @@ module Orchestrator
             ::Orchestrator::Module.dependent_on(self.id)
         end
 
+        def default_port=(port)
+            self.role = :device
+            self.default = port
+        end
+
+        def default_uri=(uri)
+            self.role = :service
+            self.default = uri
+        end
+
 
         protected
 

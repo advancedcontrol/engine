@@ -69,5 +69,10 @@ module Orchestrator
         def current_user
             @current_user ||= User.find(doorkeeper_token.resource_owner_id) if doorkeeper_token
         end
+
+        # Is the user authenticated?
+        def check_authenticated
+            render(nothing: true, status: :unauthorized) if current_user.nil?
+        end
     end
 end
