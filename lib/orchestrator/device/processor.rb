@@ -65,6 +65,9 @@ module Orchestrator
             attr_reader :config, :queue, :thread
             attr_accessor :transport
 
+            # For statistics only
+            attr_reader :last_sent_at, :last_receive_at
+
 
             # init -> mod.load -> post_init
             # So config can be set in on_load if desired
