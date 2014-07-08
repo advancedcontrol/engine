@@ -14,7 +14,7 @@ module Orchestrator
         }.freeze
 
         # TODO:: Make this a config item
-        DEFAULT_LEVEL = 2
+        DEFAULT_LEVEL = 1
 
         def initialize(loop, mod)
             @loop = loop

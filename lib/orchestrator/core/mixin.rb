@@ -94,6 +94,24 @@ module Orchestrator
                     @__config__.thread.wake_device(mac, ip)
                 end
             end
+
+            # Outputs any statistics collected on the module
+            def __STATS__
+                stats = {}
+                if @__config__.respond_to? :processor
+                    stats[:queue_size] = @__config__.processor.queue.length
+                    stats[:queue_paused] = !@__config__.processor.queue.waiting.nil?
+                    stats[:queue_state] = @__config__.processor.queue.state
+
+                    stats[:last_send] = @__config__.processor.last_sent_at
+                    stats[:last_receive] = @__config__.processor.last_receive_at
+
+                    # both http and device modules also respond to connection
+                    stats[:using_tls] = @__config__.connection.using_tls
+                end
+
+                logger.debug JSON.generate(stats)
+            end
         end
     end
 end

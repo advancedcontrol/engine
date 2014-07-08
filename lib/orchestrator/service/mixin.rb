@@ -4,14 +4,15 @@ module Orchestrator
             include ::Orchestrator::Core::Mixin
 
             def request(method, path, options = {}, &blk)
+                defer = @__config__.thread.defer
                 options[:method] = method
                 options[:path] = path
-                options[:defer] = @__config__.thread.defer
+                options[:defer] = defer
                 options[:on_receive] = blk if blk     # on command success
                 @__config__.thread.schedule do
                     @__config__.processor.queue_command(options)
                 end
-                options[:defer].promise
+                defer.promise
             end
 
             def get(path, options = {}, &blk)
