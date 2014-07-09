@@ -92,10 +92,15 @@ module Orchestrator
                     cmd = current[1]
                     cmd[:defer].resolve(command[:defer].promise) if cmd
 
-                    current[0] << priority
+                    
                     current[1] = command   # replace the old command
+                    priors = current[0]
 
-                    queue_push(@pending_commands, name, priority)
+                    # Only add commands of higher priority to the queue
+                    if priors[-1] < priority
+                        priors << priority
+                        queue_push(@pending_commands, name, priority)
+                    end
                 else
                     queue_push(@pending_commands, command, priority)
                 end
