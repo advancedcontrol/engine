@@ -1,0 +1,58 @@
+{
+    "template": "*",
+    "order": 10,
+    "mappings": {
+        "couchbaseDocument": {
+            "properties": {
+                "doc": {
+                    "properties" : {
+                        "_id"            : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "id"             : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "user_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "application_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+
+
+                        "group_id"       : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "article_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "authority_id"   : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "in_reply_to_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+
+
+                        "role"              : {"type": "string", "store": false, "index": "not_analyzed" },
+                        "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "ip"      : {"type": "ip", "store": true }
+                    }
+                }
+            }
+        },
+        "couchbaseCheckpoint": {
+            "_source": {
+                "includes": ["doc.*"]
+            },
+            "dynamic_templates": [
+                {
+                    "store_no_index": {
+                        "match": "*",
+                        "mapping": {
+                            "store": "no",
+                            "index": "no",
+                            "include_in_all": false
+                        }
+                    }
+                }
+            ]
+        },
+        "_default_": {
+            "_source": {
+                "includes": ["meta.*"]
+            },
+            "properties": {
+                "meta": {
+                    "type": "object",
+                    "include_in_all": false
+                }
+            }
+        }
+    }
+}
