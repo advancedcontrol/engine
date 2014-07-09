@@ -97,7 +97,7 @@ module Orchestrator
                     priors = current[0]
 
                     # Only add commands of higher priority to the queue
-                    if priors[-1] < priority
+                    if priors.empty? || priors[-1] < priority
                         priors << priority
                         queue_push(@pending_commands, name, priority)
                     end
