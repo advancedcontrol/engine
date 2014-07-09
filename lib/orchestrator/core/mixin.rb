@@ -105,9 +105,6 @@ module Orchestrator
 
                     stats[:last_send] = @__config__.processor.last_sent_at
                     stats[:last_receive] = @__config__.processor.last_receive_at
-
-                    # both http and device modules also respond to connection
-                    stats[:using_tls] = @__config__.connection.using_tls
                 end
 
                 logger.debug JSON.generate(stats)
