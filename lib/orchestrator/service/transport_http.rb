@@ -31,7 +31,7 @@ module Orchestrator
                     },
                     proc { |failure|
                         # Fail fast (no point waiting for the timeout)
-                        if cmd[:wait] && @processor.queue.waiting
+                        if @processor.queue.waiting == cmd
                             @processor.__send__(:resp_failure, failure)
                         end
                     }
