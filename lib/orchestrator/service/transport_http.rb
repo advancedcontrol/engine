@@ -31,11 +31,11 @@ module Orchestrator
                     },
                     proc { |failure|
                         @server.close_connection
-                        @server = UV::HttpEndpoint.new @settings.uri, @processor.config
+                        #@server = UV::HttpEndpoint.new @settings.uri, @processor.config
 
                         # Fail fast (no point waiting for the timeout)
                         if @processor.queue.waiting #== cmd
-                            #@processor.__send__(:resp_failure, failure)
+                            @processor.__send__(:resp_failure, failure)
                             @processor.check_next
                         end
                     }
