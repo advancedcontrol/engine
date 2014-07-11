@@ -192,6 +192,16 @@ module Orchestrator
                 @thread.schedule method(:do_terminate)
             end
 
+            def check_next
+                return if @checking.locked? || @responses.length <= 0
+                @checking.synchronize {
+                    loop do
+                        check_data(@responses.shift)
+                        break if @wait || @responses.length == 0
+                    end
+                }
+            end
+
 
             protected
 
@@ -215,16 +225,6 @@ module Orchestrator
                     @queue.waiting[:defer].reject(TERMINATE_MSG)
                 end
                 @queue.cancel_all(TERMINATE_MSG)
-            end
-
-            def check_next
-                return if @checking.locked? || @responses.length <= 0
-                @checking.synchronize {
-                    loop do
-                        check_data(@responses.shift)
-                        break if @wait || @responses.length == 0
-                    end
-                }
             end
 
             # Check transport response data

@@ -30,9 +30,13 @@ module Orchestrator
                         @processor.buffer(result)
                     },
                     proc { |failure|
+                        @server.close_connection
+                        @server = UV::HttpEndpoint.new @settings.uri, config
+
                         # Fail fast (no point waiting for the timeout)
-                        if @processor.queue.waiting == cmd
-                            @processor.__send__(:resp_failure, failure)
+                        if @processor.queue.waiting #== cmd
+                            #@processor.__send__(:resp_failure, failure)
+                            @processor.check_next
                         end
                     }
                 )
