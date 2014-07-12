@@ -23,6 +23,8 @@ module Orchestrator
             def transmit(cmd)
                 return if @terminated
 
+                # TODO:: Support multiple simultaneous requests (multiple servers)
+
                 @server.request(cmd[:method], cmd).then(
                     proc { |result|
                         # Make sure the request information is always available
@@ -30,7 +32,7 @@ module Orchestrator
                         @processor.buffer(result)
                     },
                     proc { |failure|
-                        @server.close_connection
+                        @server.close_connection(:after_writing)
                         @server = UV::HttpEndpoint.new @settings.uri, @processor.config
 
                         # Fail fast (no point waiting for the timeout)
@@ -40,6 +42,8 @@ module Orchestrator
                         end
                     }
                 )
+
+                nil
             end
 
             def terminate
