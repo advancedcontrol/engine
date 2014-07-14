@@ -8,6 +8,7 @@ module Orchestrator
                 options[:method] = method
                 options[:path] = path
                 options[:defer] = defer
+                options[:max_waits] = 0  # HTTP will only ever respond to a request
                 options[:on_receive] = blk if blk     # on command success
                 @__config__.thread.schedule do
                     @__config__.processor.queue_command(options)

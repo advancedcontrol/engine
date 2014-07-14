@@ -74,6 +74,8 @@ module Orchestrator
                         shift_promise.finally do # NOTE:: This schedule may not be required...
                             @loop.schedule @move_forward
                         end
+                    else
+                        shift_next_tick if length > 0
                     end
                 end
             end

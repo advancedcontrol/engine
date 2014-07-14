@@ -30,6 +30,7 @@ module Orchestrator
                         # Make sure the request information is always available
                         result[:request] = cmd
                         @processor.buffer(result)
+                        nil
                     },
                     proc { |failure|
                         @server.close_connection(:after_writing)
@@ -38,8 +39,8 @@ module Orchestrator
                         # Fail fast (no point waiting for the timeout)
                         if @processor.queue.waiting #== cmd
                             @processor.__send__(:resp_failure, failure)
-                            @processor.check_next
                         end
+                        nil
                     }
                 )
 

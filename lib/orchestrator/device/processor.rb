@@ -247,7 +247,7 @@ module Orchestrator
                         # Send response, early resolver and command
                         resp = @man.notify_received(data, @resolver, cmd)
                     else
-                        resp = @man.notify_received(data, DUMMY_RESOLVER)
+                        resp = @man.notify_received(data, DUMMY_RESOLVER, nil)
                         # Don't need to trigger Queue next here as we are not waiting on anything
                     end
                 rescue => e
