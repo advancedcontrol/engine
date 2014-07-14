@@ -38,8 +38,10 @@ module Orchestrator
 
                         # Fail fast (no point waiting for the timeout)
                         if @processor.queue.waiting #== cmd
-                            @processor.__send__(:resp_failure, failure)
+                            @processor.__send__(:resp_failure, :failed)
                         end
+
+                        # TODO:: Log failure with more detail
                         nil
                     }
                 )
