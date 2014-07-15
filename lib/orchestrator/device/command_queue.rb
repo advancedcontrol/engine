@@ -18,6 +18,7 @@ module Orchestrator
 
             attr_accessor :waiting
             attr_reader :state
+            attr_reader :pause
 
 
             # init -> mod.load -> post_init

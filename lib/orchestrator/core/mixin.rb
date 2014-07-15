@@ -100,7 +100,8 @@ module Orchestrator
                 stats = {}
                 if @__config__.respond_to? :processor
                     stats[:queue_size] = @__config__.processor.queue.length
-                    stats[:queue_paused] = !@__config__.processor.queue.waiting.nil?
+                    stats[:queue_waiting] = !@__config__.processor.queue.waiting.nil?
+                    stats[:queue_pause] = @__config__.processor.queue.pause
                     stats[:queue_state] = @__config__.processor.queue.state
 
                     stats[:last_send] = @__config__.processor.last_sent_at
