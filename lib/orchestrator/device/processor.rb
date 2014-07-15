@@ -66,7 +66,7 @@ module Orchestrator
             attr_accessor :transport
 
             # For statistics only
-            attr_reader :last_sent_at, :last_receive_at
+            attr_reader :last_sent_at, :last_receive_at, :timeout
 
 
             # init -> mod.load -> post_init
@@ -309,7 +309,7 @@ module Orchestrator
             #  is guaranteed to have completed
             # Check for queue wait as we may have gone offline
             def resp_success(result)
-                if @queue.waiting && (result == :success || result == :abort || (result && result != :ignore))
+                if @queue.waiting && result && result != :ignore
                     if result == :abort
                         cmd = @queue.waiting
                         err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{(cmd[:data] || cmd[:path]).inspect}"
