@@ -110,9 +110,11 @@ module Orchestrator
                         stats[:timeout_created] = @__config__.processor.timeout.created
                         stats[:timeout_triggered] = @__config__.processor.timeout.trigger_count
                         stats[:timeout_scheduled] = @__config__.processor.timeout.next_scheduled
-                        stats[:time_now] = @__config__.thread.now
                     end
                 end
+
+                stats[:time_now] = @__config__.thread.now
+                stats[:schedules] = schedule.schedules.to_a
 
                 logger.debug JSON.generate(stats)
             end

@@ -9,6 +9,8 @@ module Orchestrator
                 @schedules = Set.new
             end
 
+            attr_reader :schedules
+
             def every(*args, &block)
                 add_schedule @scheduler.every(*args, &block)
             end
