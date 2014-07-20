@@ -291,7 +291,7 @@ module Orchestrator
                         @logger.warn err.message
 
                         # TODO:: Remove once resolved
-                        if result == :timeout && @transport.respond_to? :tmp_refresh_transport
+                        if result == :timeout && @transport.respond_to?(:tmp_refresh_transport)
                             @transport.tmp_refresh_transport
                         end
                     else
