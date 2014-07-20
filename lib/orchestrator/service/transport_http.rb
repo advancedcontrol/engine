@@ -33,8 +33,7 @@ module Orchestrator
                         nil
                     },
                     proc { |failure|
-                        @server.close_connection(:after_writing)
-                        @server = UV::HttpEndpoint.new @settings.uri, @processor.config
+                        tmp_refresh_transport
 
                         # Fail fast (no point waiting for the timeout)
                         if @processor.queue.waiting #== cmd
@@ -46,6 +45,13 @@ module Orchestrator
                     }
                 )
 
+                nil
+            end
+
+            # Temporary - bug in HTTP client
+            def tmp_refresh_transport
+                @server.close_connection(:after_writing)
+                @server = UV::HttpEndpoint.new @settings.uri, @processor.config
                 nil
             end
 

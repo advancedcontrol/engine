@@ -289,6 +289,11 @@ module Orchestrator
                         err = Error::CommandFailure.new "command aborted #{debug}"
                         cmd[:defer].reject(err)
                         @logger.warn err.message
+
+                        # TODO:: Remove once resolved
+                        if result == :timeout && @transport.respond_to? :tmp_refresh_transport
+                            @transport.tmp_refresh_transport
+                        end
                     else
                         cmd[:retries] -= 1
                         cmd[:wait_count] = 0      # reset our ignore count
