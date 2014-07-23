@@ -275,29 +275,34 @@ module Orchestrator
 
             def resp_failure(result_raw)
                 if @queue.waiting
-                    result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
-                    cmd = @queue.waiting
-                    debug = "with #{result}: <#{cmd[:name] || UNNAMED}> "
-                    if cmd[:data]
-                        debug << "#{cmd[:data].inspect}" 
-                    else
-                        debug << cmd[:path]
-                    end
-                    @logger.debug "command failed #{debug}"
-
-                    if cmd[:retries] == 0
-                        err = Error::CommandFailure.new "command aborted #{debug}"
-                        cmd[:defer].reject(err)
-                        @logger.warn err.message
-
-                        # TODO:: Remove once resolved
-                        if result == :timeout && @transport.respond_to?(:tmp_refresh_transport)
-                            @transport.tmp_refresh_transport
+                    begin
+                        result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
+                        cmd = @queue.waiting
+                        debug = "with #{result}: <#{cmd[:name] || UNNAMED}> "
+                        if cmd[:data]
+                            debug << "#{cmd[:data].inspect}" 
+                        else
+                            debug << cmd[:path]
                         end
-                    else
-                        cmd[:retries] -= 1
-                        cmd[:wait_count] = 0      # reset our ignore count
-                        @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
+                        @logger.debug "command failed #{debug}"
+
+                        if cmd[:retries] == 0
+                            err = Error::CommandFailure.new "command aborted #{debug}"
+                            cmd[:defer].reject(err)
+                            @logger.warn err.message
+
+                            # TODO:: Remove once resolved
+                            if result == :timeout && @transport.respond_to?(:tmp_refresh_transport)
+                                @transport.tmp_refresh_transport
+                            end
+                        else
+                            cmd[:retries] -= 1
+                            cmd[:wait_count] = 0      # reset our ignore count
+                            @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
+                        end
+                    rescue => e
+                        # Prevent the queue from ever pausing - this should never be called
+                        @logger.print_error(e, 'error handling request failure')
                     end
                 end
 

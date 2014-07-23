@@ -48,10 +48,11 @@ module Orchestrator
                 nil
             end
 
-            # Temporary - bug in HTTP client
+            # Temporary - failsafe for HTTP client
             def tmp_refresh_transport
-                @server.close_connection(:after_writing)
-                @server = UV::HttpEndpoint.new @settings.uri, @processor.config
+                #@server.close_connection(:after_writing)
+                #@server = UV::HttpEndpoint.new @settings.uri, @processor.config
+                @server.reset
                 nil
             end
 
