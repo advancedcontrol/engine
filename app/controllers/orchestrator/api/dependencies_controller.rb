@@ -20,10 +20,9 @@ module Orchestrator
                     })
                 end
 
-                results = @@elastic.search(query)
+                query.sort = [{name: "asc"}]
 
-                # Find by id doesn't raise errors
-                respond_with results
+                respond_with @@elastic.search(query)
             end
 
             def show
