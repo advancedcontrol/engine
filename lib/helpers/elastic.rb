@@ -1,6 +1,5 @@
 require 'elasticsearch'
 
-
 class Elastic
     class Query
         def initialize(params)
@@ -22,13 +21,23 @@ class Elastic
         attr_accessor :offset
         attr_accessor :limit
         attr_accessor :sort
-        
 
-        # filters is in the form {fieldname1: ['var1','var2',...], fieldname2: ['var1,',var2'...]}
+        def raw_filter(filter)
+            @raw_filter = filter
+        end
+
+
+        # filters is in the form {fieldname1: ['var1','var2',...], fieldname2: ['var1','var2'...]}
         # NOTE:: may overwrite an existing filter in merge
         def filter(filters)
             @filters ||= {}
             @filters.merge!(filters)
+        end
+
+        # Like filter however all keys are OR's instead of AND's
+        def or_filter(filters)
+            @orFilter ||= {}
+            @orFilter.merge!(filters)
         end
 
         # Call to add fields that should be missing
@@ -38,26 +47,50 @@ class Elastic
             @missing.merge(fields)
         end
 
+        # The opposite of filter
+        def not(filters)
+            @nots ||= {}
+            @nots.merge!(filters)
+        end
+
         def build
             if @filters
                 fieldfilters = []
 
                 @filters.each do |key, value|
                     fieldfilter = { :or => [] }
-                        value.each { |var|
-                            if var.nil?
-                                fieldfilter[:or].push({
-                                    missing: { field: key }
-                                })
-                            else
-                                fieldfilter[:or].push({
-                                    :term => {
-                                        key => var
-                                    }
-                                })
-                            end
-                        }
+                    build_filter(fieldfilter[:or], key, value)
+
+                    # TODO:: Discuss this - might be a security issue
+                    unless fieldfilter[:or].empty?
+                        fieldfilters.push(fieldfilter)
+                    end
+                end
+            end
+
+            if @orFilter
+                fieldfilters ||= []
+                fieldfilter = { :or => [] }
+                orArray = fieldfilter[:or]
+
+                @orFilter.each do |key, value|
+                    build_filter(orArray, key, value)
+                end
+
+                unless orArray.empty?
                     fieldfilters.push(fieldfilter)
+                end
+            end
+
+            if @nots
+                fieldfilters ||= []
+
+                @nots.each do |key, value|
+                    fieldfilter = { :not => { :or => [] } }
+                    build_filter(fieldfilter[:not][:or], key, value)
+                    unless fieldfilter[:not].empty?
+                        fieldfilters.push(fieldfilter)
+                    end
                 end
             end
 
@@ -69,6 +102,10 @@ class Elastic
                         missing: { field: field }
                     })
                 end
+            end
+
+            if @raw_filter
+                fieldfilters = @raw_filter
             end
 
             if @search.present?
@@ -96,6 +133,26 @@ class Elastic
                 }
             end
         end
+
+
+        #protected
+
+
+        def build_filter(filters, key, values)
+            values.each { |var|
+                if var.nil?
+                    filters.push({
+                        missing: { field: key }
+                    })
+                else
+                    filters.push({
+                        :term => {
+                            key => var
+                        }
+                    })
+                end
+            }
+        end
     end
 
 
@@ -104,7 +161,7 @@ class Elastic
     else
         ['localhost:9200']
     end
-    
+
     @@client ||= Elasticsearch::Client.new hosts: HOST, reload_connections: true
     def self.search *args
         @@client.search *args
@@ -129,7 +186,7 @@ class Elastic
         builder
     end
 
-    def search(builder)
+    def search(builder, &block)
         opt = builder.build
 
         sort = opt[:sort] || []
@@ -164,10 +221,15 @@ class Elastic
             }
         }
 
+        # if a formatter block is supplied, each loaded record is passed to it
+        # allowing annotation/conversion of records using data from the model
+        # and current request (e.g groups are annotated with 'admin' if the
+        # currently logged in user is an admin of the group)
         result = Elastic.search(query)
+        records = @klass.find_by_id(result[HITS][HITS].map {|entry| entry[ID]}) || []
         {
             total: result[HITS][TOTAL] || 0,
-            results: @klass.find_by_id(result[HITS][HITS].map {|entry| entry[ID]}) || []
+            results: block_given? ? records.map {|record| yield record} : records
         }
     end
 end

@@ -1,31 +1,10 @@
 {
     "template": "*",
     "order": 10,
+    "settings" : {
+        "index.mapping.ignore_malformed": true
+    },
     "mappings": {
-        "couchbaseDocument": {
-            "properties": {
-                "doc": {
-                    "properties" : {
-                        "_id"            : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "id"             : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "user_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "application_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-
-
-                        "group_id"       : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "article_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "authority_id"   : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "in_reply_to_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-
-
-                        "role"              : {"type": "string", "store": false, "index": "not_analyzed" },
-                        "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "ip"      : {"type": "ip", "store": true }
-                    }
-                }
-            }
-        },
         "couchbaseCheckpoint": {
             "_source": {
                 "includes": ["doc.*"]
@@ -51,6 +30,34 @@
                 "meta": {
                     "type": "object",
                     "include_in_all": false
+                }
+            }
+        },
+        "couchbaseDocument": {
+            "properties": {
+                "doc": {
+                    "properties" : {
+                        "_id"            : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "id"             : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "user_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "application_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+
+
+                        "group_id"       : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "article_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "authority_id"   : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "in_reply_to_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+
+                        "admins"         : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "groups"         : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "members"        : {"type": "string", "store": true, "index": "not_analyzed" },
+
+
+                        "role"              : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "ip"                : {"type": "ip", "store": true }
+                    }
                 }
             }
         }
