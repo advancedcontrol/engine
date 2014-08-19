@@ -48,7 +48,7 @@ module Orchestrator
 
 
             def safe_params
-                params.require(:zone).permit(
+                params.permit(
                     :name, :description,
                     {settings: []}, {groups: []}
                 )

@@ -43,6 +43,7 @@
                         "application_id" : {"type": "string", "store": true, "index": "not_analyzed" },
 
 
+
                         "group_id"       : {"type": "string", "store": true, "index": "not_analyzed" },
                         "article_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
                         "authority_id"   : {"type": "string", "store": true, "index": "not_analyzed" },
@@ -53,10 +54,15 @@
                         "members"        : {"type": "string", "store": true, "index": "not_analyzed" },
 
 
+
                         "role"              : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "zone_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
                         "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
                         "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "ip"                : {"type": "ip", "store": true }
+                        "ip"                : {"type": "ip", "store": true },
+
+                        "zones"             : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "modules"           : {"type": "string", "store": true, "index": "not_analyzed" }
                     }
                 }
             }

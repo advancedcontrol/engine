@@ -45,6 +45,24 @@ module Orchestrator
         view :by_zones
 
 
+        # Methods for obtaining the modules and zones as objects
+        def module_data
+            (::Orchestrator::Module.find_by_id(modules) || []).collect do |mod| 
+                mod.as_json({
+                    include: {
+                        dependency: {
+                            only: [:name, :role]
+                        }
+                    }
+                })
+            end
+        end
+
+        def zone_data
+            ::Orchestrator::Zone.find_by_id(zones) || []
+        end
+
+
         protected
 
 

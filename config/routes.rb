@@ -20,7 +20,7 @@ Orchestrator::Engine.routes.draw do
             post 'start',   on: :member
             post 'stop',    on: :member
             post 'exec',    on: :member
-            get  'status',  on: :member
+            get  'state',   on: :member
 
             concerns :mods
         end

@@ -14,14 +14,25 @@ module Orchestrator
                 query = @@elastic.query(params)
                 query.sort = [{name: "asc"}]
 
-                # TODO:: Filter by zone-id
-                # Requires some experimentation
+                # Filter systems via zone_id
+                if params.has_key? :zone_id
+                    zone_id = params.permit(:zone_id)[:zone_id]
+                    query.filter({
+                        zones: [zone_id]
+                    })
+                end
 
                 respond_with @@elastic.search(query)
             end
 
             def show
-                respond_with @cs
+                if params.has_key? :complete
+                    respond_with @cs, {
+                        methods: [:module_data, :zone_data]
+                    }
+                else
+                    respond_with @cs
+                end
             end
 
             def update
@@ -109,7 +120,7 @@ module Orchestrator
                 end
             end
 
-            def status
+            def state
                 # Status defined as a system module
                 params.require(:module)
                 params.require(:lookup)
@@ -133,7 +144,7 @@ module Orchestrator
 
 
             def safe_params
-                params.require(:control_system).permit(
+                params.permit(
                     :name, :description, :disabled,
                     {
                         zones: [],
