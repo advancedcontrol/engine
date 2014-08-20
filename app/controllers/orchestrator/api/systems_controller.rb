@@ -156,7 +156,8 @@ module Orchestrator
 
             def check_authorization
                 # Find will raise a 404 (not found) if there is an error
-                @cs = ControlSystem.find(id)
+                sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{id}", {quiet: true}) || id
+                @cs = ControlSystem.find(sys)
 
                 # Does the current user have permission to perform the current action?
             end
