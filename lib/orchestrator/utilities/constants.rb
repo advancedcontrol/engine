@@ -5,11 +5,11 @@ module Orchestrator
     module Constants
         On = true       # On is active
         Off = false     # Off is inactive
-        Down = true     # Down is usually active
-        Up = false      # Up is usually not in use
+        Down = true     # Down is usually active (projector screen for instance)
+        Up = false      # Up is usually inactive
 
-        On_vars = Set.new([1, true, 'true', 'True', :on, :On, 'on', 'On', :yes, :Yes, 'yes', 'Yes'])
-        Off_vars = Set.new([0, false, 'false', 'False', :off, :Off, 'off', 'Off', :no, :No, 'no', 'No'])
+        On_vars = Set.new([1, true, 'true', 'True', :on, :On, 'on', 'On', :yes, :Yes, 'yes', 'Yes', 'down', 'Down', :down, :Down])
+        Off_vars = Set.new([0, false, 'false', 'False', :off, :Off, 'off', 'Off', :no, :No, 'no', 'No', 'up', 'Up', :up, :Up])
 
 
         def in_range(num, max, min = 0)
