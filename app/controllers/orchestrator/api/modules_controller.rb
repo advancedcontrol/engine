@@ -115,12 +115,16 @@ module Orchestrator
             protected
 
 
+            MOD_PARAMS = [
+                :dependency_id, :control_system_id,
+                :ip, :tls, :udp, :port, :makebreak,
+                :uri, :custom_name
+            ]
             def safe_params
-                params.require(:module).permit(
-                    :dependency_id, :control_system_id,
-                    :ip, :tls, :udp, :port, :makebreak,
-                    :uri, :custom_name, {settings: []}
-                )
+                settings = params[:settings]
+                {
+                    settings: settings.is_a?(::Hash) ? settings : {}
+                }.merge(params.permit(MOD_PARAMS))
             end
 
             def lookup_module

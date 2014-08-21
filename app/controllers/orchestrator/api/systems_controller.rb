@@ -143,15 +143,24 @@ module Orchestrator
             protected
 
 
+            # Better performance as don't need to create the object each time
+            CS_PARAMS = [
+                :name, :description, :disabled,
+                {
+                    zones: [],
+                    modules: []
+                }
+            ]
+            # We need to support an arbitrary settings hash so have to
+            # work around safe params as per 
+            # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
-                params.permit(
-                    :name, :description, :disabled,
-                    {
-                        zones: [],
-                        modules: [],
-                        settings: []
-                    }
-                )
+                settings = params[:settings]
+                {
+                    modules: [],
+                    zones: [],
+                    settings: settings.is_a?(::Hash) ? settings : {}
+                }.merge(params.permit(CS_PARAMS))
             end
 
             def check_authorization

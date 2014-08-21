@@ -16,7 +16,7 @@ Orchestrator::Engine.routes.draw do
         # Trusted Sessions - Create Trust (returns id), Update Session and Destroy Trust
         resources :trusts
 
-        resources :systems do       # systems have settings and define what zone they are in
+        resources(:systems, {as: :control_system}) do       # systems have settings and define what zone they are in
             post 'start',   on: :member
             post 'stop',    on: :member
             post 'exec',    on: :member

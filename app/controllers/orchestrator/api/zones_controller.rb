@@ -47,11 +47,16 @@ module Orchestrator
             protected
 
 
+            ZONE_PARAMS = [
+                :name, :description,
+                {groups: []}
+            ]
             def safe_params
-                params.permit(
-                    :name, :description,
-                    {settings: []}, {groups: []}
-                )
+                settings = params[:settings]
+                {
+                    settings: settings.is_a?(::Hash) ? settings : {},
+                    groups: []
+                }.merge(params.permit(ZONE_PARAMS))
             end
 
             def check_authorization

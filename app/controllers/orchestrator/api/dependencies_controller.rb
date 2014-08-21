@@ -74,12 +74,16 @@ module Orchestrator
             protected
 
 
+            DEP_PARAMS = [
+                :name, :description, :role,
+                :class_name, :module_name,
+                :default
+            ]
             def safe_params
-                params.require(:dependency).permit(
-                    :name, :description, :role,
-                    :class_name, :module_name,
-                    :default, {settings: []}
-                )
+                settings = params[:settings]
+                {
+                    settings: settings.is_a?(::Hash) ? settings : {}
+                }.merge(params.permit(DEP_PARAMS))
             end
 
             def update_params

@@ -15,7 +15,7 @@ module Orchestrator
 
         attribute :name
         attribute :description
-        attribute :disabled     # prevents load on boot
+        attribute :disabled,    default: false     # prevents load on boot
 
         attribute :zones,       default: lambda { [] }
         attribute :modules,     default: lambda { [] }
