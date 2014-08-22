@@ -145,7 +145,7 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
-                :name, :description, :disabled,
+                :name, :description, :disabled, :support_url,
                 {
                     zones: [],
                     modules: []

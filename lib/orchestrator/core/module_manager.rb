@@ -180,6 +180,35 @@ module Orchestrator
                     value # Don't leak direct access to the database model
                 end
             end
+
+
+            protected
+
+
+            def update_connected_status(connected)
+                id = settings.id
+
+                # Access the database in a non-blocking fashion
+                thread.work(proc {
+                    model = ::Orchestrator::Module.find_by_id id
+
+                    if model && model.connected != connected
+                        model.connected = connected
+                        model.save
+                        model
+                    else
+                        nil
+                    end
+                }).then(proc { |model|
+                    # Update the model if it was updated
+                    if model
+                        @settings = model
+                    end
+                }, proc { |e|
+                    # report any errors updating the model
+                    @logger.print_error(e, 'error updating connected state in database model')
+                })
+            end
         end
     end
 end

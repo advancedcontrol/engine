@@ -1,4 +1,5 @@
 require 'set'
+require 'addressable/uri'
 
 
 module Orchestrator
@@ -22,6 +23,9 @@ module Orchestrator
         attribute :settings,    default: lambda { {} }
 
         attribute :created_at,  default: lambda { Time.now.to_i }
+
+        # Provide a field for simplifying support
+        attribute :support_url
 
 
         def name=(new_name)
@@ -69,6 +73,22 @@ module Orchestrator
         # Zones and settings are only required for confident coding
         validates :name,        presence: true
         validates :zones,       presence: true
+
+        validate  :support_link
+
+        def support_link
+            if self.support_url.nil? || self.support_url.empty?
+                self.support_url = nil
+            else
+                begin
+                    url = Addressable::URI.parse(self.support_url)
+                    url.scheme && url.host && url
+                rescue
+                    errors.add(:support_url, 'is an invalid URI')
+                end
+            end
+        end
+
         validate  :name_unique
 
         def name_unique

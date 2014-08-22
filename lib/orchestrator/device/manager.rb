@@ -45,6 +45,8 @@ module Orchestrator
                         @logger.print_error(e, 'error in module connected callback')
                     end
                 end
+
+                update_connected_status(true)
             end
 
             def notify_disconnected
@@ -55,6 +57,8 @@ module Orchestrator
                         @logger.print_error(e, 'error in module disconnected callback')
                     end
                 end
+
+                update_connected_status(false)
             end
 
             def notify_received(data, resolve, command = nil)

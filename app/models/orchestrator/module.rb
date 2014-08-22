@@ -36,6 +36,9 @@ module Orchestrator
         attribute :created_at,  default: lambda { Time.now.to_i }
         attribute :role         # cache the dependency role locally for load order
 
+        # Connected state in model so we can filter and search on it
+        attribute :connected,   default: false
+
 
         # helper method for looking up the manager
         def manager
@@ -86,6 +89,7 @@ module Orchestrator
                     errors.add(:uri, 'is an invalid URI')
                 end
             else # logic
+                self.connected = true  # it is connectionless
                 self.role = 3
                 if control_system.nil?
                     errors.add(:control_system, 'must be associated')

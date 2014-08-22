@@ -29,6 +29,7 @@ module Orchestrator
             end
 
             # NOTE:: Same as Device::Manager:-------
+            # TODO:: Need to have a guess about when a device may be off line
 
             def notify_connected
                 if @instance.respond_to? :connected, true
@@ -38,6 +39,8 @@ module Orchestrator
                         @logger.print_error(e, 'error in module connected callback')
                     end
                 end
+
+                update_connected_status(true)
             end
 
             def notify_received(data, resolve, command = nil)
