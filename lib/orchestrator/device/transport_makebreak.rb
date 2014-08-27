@@ -122,7 +122,8 @@ module Orchestrator
                         end
 
                         # we mark the queue as offline if more than 1 reconnect fails
-                        if @retries == 2
+                        #  or if the first connect fails
+                        if @retries == 2 || (@retries == 3 && @last_retry == 0)
                             @processor.disconnected
                             @processor.queue.offline(@config[:clear_queue_on_disconnect])
                         end

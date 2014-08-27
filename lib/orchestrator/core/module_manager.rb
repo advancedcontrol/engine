@@ -194,7 +194,7 @@ module Orchestrator
 
                     if model && model.connected != connected
                         model.connected = connected
-                        model.save
+                        model.save!
                         model
                     else
                         nil

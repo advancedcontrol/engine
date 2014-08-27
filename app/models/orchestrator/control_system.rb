@@ -55,7 +55,7 @@ module Orchestrator
                 mod.as_json({
                     include: {
                         dependency: {
-                            only: [:name, :role]
+                            only: [:name, :module_name]
                         }
                     }
                 })

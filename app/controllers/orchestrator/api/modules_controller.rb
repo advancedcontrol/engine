@@ -13,7 +13,9 @@ module Orchestrator
 
 
             def index
-                filters = params.permit(:system_id, :dependency_id)
+                filters = params.permit(:system_id, :dependency_id, :connected)
+
+                # if a system id is present we query the database directly
                 if filters[:system_id]
                     cs = ControlSystem.find(filters[:system_id])
 
@@ -22,7 +24,7 @@ module Orchestrator
                         total: results.length,
                         results: results
                     }
-                else
+                else # we use elastic search
                     query = @@elastic.query(params)
 
                     if filters[:dependency_id]
@@ -31,10 +33,22 @@ module Orchestrator
                         })
                     end
 
+                    if filters[:connected]
+                        connected = filters[:connected] == 'true'
+                        query.filter({
+                            connected: [false]
+                        })
+                    end
+
                     results = @@elastic.search(query)
 
                     # Find by id doesn't raise errors
-                    respond_with results
+                    respond_with results, {
+                        include: {
+                            dependency: {only: [:name, :description, :module_name]},
+                            control_system: {only: [:name]}
+                        }
+                    }
                 end
             end
 

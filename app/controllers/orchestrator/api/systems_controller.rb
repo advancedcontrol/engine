@@ -22,6 +22,14 @@ module Orchestrator
                     })
                 end
 
+                # filter via module_id
+                if params.has_key? :module_id
+                    module_id = params.permit(:module_id)[:module_id]
+                    query.filter({
+                        modules: [module_id]
+                    })
+                end
+
                 respond_with @@elastic.search(query)
             end
 

@@ -37,7 +37,7 @@ module Orchestrator
         attribute :role         # cache the dependency role locally for load order
 
         # Connected state in model so we can filter and search on it
-        attribute :connected,   default: false
+        attribute :connected,   default: true
 
 
         # helper method for looking up the manager
