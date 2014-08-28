@@ -17,6 +17,7 @@ Orchestrator::Engine.routes.draw do
         resources :trusts
 
         resources(:systems, {as: :control_system}) do       # systems have settings and define what zone they are in
+            post 'remove',  on: :member
             post 'start',   on: :member
             post 'stop',    on: :member
             post 'exec',    on: :member

@@ -94,7 +94,6 @@ module Orchestrator
             end
 
             def destroy
-                control.unload(id)
                 @mod.delete
                 render nothing: true
             end

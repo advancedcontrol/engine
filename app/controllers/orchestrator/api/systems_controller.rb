@@ -4,7 +4,7 @@ module Orchestrator
         class SystemsController < ApiController
             respond_to :json
             #doorkeeper_for :all
-            before_action :check_authorization, only: [:show, :update, :destroy, :start, :stop]
+            before_action :check_authorization, only: [:show, :update, :destroy, :remove, :start, :stop]
 
 
             @@elastic ||= Elastic.new(ControlSystem)
@@ -46,6 +46,29 @@ module Orchestrator
             def update
                 @cs.update_attributes(safe_params)
                 save_and_respond(@cs) # save deletes the system cache
+            end
+
+            # Removes the module from the system and deletes it if not used elsewhere
+            def remove
+                module_id = params.permit(:module_id)[:module_id]
+                mod = ::Orchestrator::Module.find module_id
+
+                if @cs.modules.include? module_id
+                    remove = true
+
+                    @cs.modules.delete(module_id)
+                    @cs.save!
+
+                    ControlSystem.using_module(module_id).each do |cs|
+                        if cs.id != @cs.id
+                            remove = false
+                            break
+                        end
+                    end
+
+                    mod.delete if remove
+                end
+                render :nothing => true
             end
 
             def create
