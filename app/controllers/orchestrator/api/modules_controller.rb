@@ -11,6 +11,21 @@ module Orchestrator
 
             @@elastic ||= Elastic.new(::Orchestrator::Module)
 
+            # Constant for performance
+            MOD_INCLUDE = {
+                include: {
+                    # Most human readable module data is contained in dependency
+                    dependency: {only: [:name, :description, :module_name, :settings]},
+
+                    # include control system on logic modules so it is possible
+                    # to display the inherited settings
+                    control_system: {
+                        only: [:name, :settings],
+                        methods: [:zone_data]
+                    }
+                }
+            }
+
 
             def index
                 filters = params.permit(:system_id, :dependency_id, :connected)
@@ -41,14 +56,7 @@ module Orchestrator
                     end
 
                     results = @@elastic.search(query)
-
-                    # Find by id doesn't raise errors
-                    respond_with results, {
-                        include: {
-                            dependency: {only: [:name, :description, :module_name]},
-                            control_system: {only: [:name]}
-                        }
-                    }
+                    respond_with results, MOD_INCLUDE
                 end
             end
 
@@ -119,7 +127,7 @@ module Orchestrator
                 end
             end
 
-            def status
+            def state
                 lookup_module do |mod|
                     render json: mod.status[params.permit(:lookup)[:lookup].to_sym]
                 end
@@ -132,7 +140,7 @@ module Orchestrator
             MOD_PARAMS = [
                 :dependency_id, :control_system_id,
                 :ip, :tls, :udp, :port, :makebreak,
-                :uri, :custom_name
+                :uri, :custom_name, :notes
             ]
             def safe_params
                 settings = params[:settings]

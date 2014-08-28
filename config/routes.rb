@@ -9,7 +9,7 @@ Orchestrator::Engine.routes.draw do
             resources :modules do # modules have settings
                 post 'start',   on: :member
                 post 'stop',    on: :member
-                get  'status',  on: :member
+                get  'state',   on: :member
             end
         end
 

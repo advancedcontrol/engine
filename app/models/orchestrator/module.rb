@@ -38,6 +38,7 @@ module Orchestrator
 
         # Connected state in model so we can filter and search on it
         attribute :connected,   default: true
+        attribute :notes
 
 
         # helper method for looking up the manager
@@ -72,8 +73,12 @@ module Orchestrator
             case dependency.role
             when :device
                 self.role = 1
+                self.port = (self.port || dependency.default).to_i
+
+                errors.add(:ip, 'cannot be blank') if self.ip.blank?
+                errors.add(:port, 'is invalid') unless self.port.between?(1, 65535)
+
                 begin
-                    self.port ||= dependency.default || 'no port'
                     url = Addressable::URI.parse("http://#{self.ip}:#{self.port}/")
                     url.scheme && url.host && url
                 rescue
@@ -81,6 +86,7 @@ module Orchestrator
                 end
             when :service
                 self.role = 2
+
                 begin
                     self.uri ||= dependency.default
                     url = Addressable::URI.parse(self.uri)

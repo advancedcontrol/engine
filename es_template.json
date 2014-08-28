@@ -59,7 +59,7 @@
                         "zone_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
                         "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
                         "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "ip"                : {"type": "ip", "store": true },
+                        "ip"                : {"type": "string", "store": true},
 
                         "zones"             : {"type": "string", "store": true, "index": "not_analyzed" },
                         "modules"           : {"type": "string", "store": true, "index": "not_analyzed" }
