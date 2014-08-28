@@ -28,7 +28,7 @@ module Orchestrator
 
 
             def index
-                filters = params.permit(:system_id, :dependency_id, :connected)
+                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic)
 
                 # if a system id is present we query the database directly
                 if filters[:system_id]
@@ -55,13 +55,19 @@ module Orchestrator
                         })
                     end
 
+                    if filters.has_key? :no_logic
+                        query.filter({
+                            role: [1, 2]
+                        })
+                    end
+
                     results = @@elastic.search(query)
                     respond_with results, MOD_INCLUDE
                 end
             end
 
             def show
-                respond_with @mod
+                respond_with @mod, MOD_INCLUDE
             end
 
             def update
