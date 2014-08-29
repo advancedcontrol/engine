@@ -72,17 +72,17 @@ module Orchestrator
 
             def update
                 para = safe_params
+                old_name = @mod.custom_name
+
                 @mod.update_attributes(para)
                 save_and_respond(@mod) do
-                    # Update the running module if anything other than settings is updated
-                    if para.keys.size > 2 || para[:settings].nil?
-                        control.update(id)
-                    end
-
-                    # If custom name is changed we need to expire any system caches
-                    if para[:custom_name]
-                        ::Orchestrator::ControlSystem.using_module(id).each do |sys|
-                            sys.expire_cache
+                    # Update the running module
+                    control.update(id).then do
+                        # If custom name is changed we need to expire any system caches
+                        if para[:custom_name] != old_name
+                            ::Orchestrator::ControlSystem.using_module(id).each do |sys|
+                                sys.expire_cache
+                            end
                         end
                     end
                 end
@@ -109,7 +109,7 @@ module Orchestrator
                 if mod
                     start_module(mod)
                 else # attempt to load module
-                    config = ::Orchestrator::Module.find(mod_id)
+                    config = ::Orchestrator::Module.find(id)
                     control.load(config).then(
                         proc { |mod|
                             start_module mod

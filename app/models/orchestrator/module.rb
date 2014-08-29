@@ -38,6 +38,7 @@ module Orchestrator
 
         # Connected state in model so we can filter and search on it
         attribute :connected,   default: true
+        attribute :running,     default: false
         attribute :notes
 
 
@@ -78,6 +79,15 @@ module Orchestrator
                 errors.add(:ip, 'cannot be blank') if self.ip.blank?
                 errors.add(:port, 'is invalid') unless self.port.between?(1, 65535)
 
+                # Ensure tls and upd values are correct
+                # can't have udp + tls
+                self.udp = !!self.udp
+                if self.udp
+                    self.tls = false
+                else
+                    self.tls = !!self.tls
+                end
+
                 begin
                     url = Addressable::URI.parse("http://#{self.ip}:#{self.port}/")
                     url.scheme && url.host && url
@@ -86,6 +96,9 @@ module Orchestrator
                 end
             when :service
                 self.role = 2
+
+                self.tls = nil
+                self.udp = nil
 
                 begin
                     self.uri ||= dependency.default
@@ -96,6 +109,8 @@ module Orchestrator
                 end
             else # logic
                 self.connected = true  # it is connectionless
+                self.tls = nil
+                self.udp = nil
                 self.role = 3
                 if control_system.nil?
                     errors.add(:control_system, 'must be associated')

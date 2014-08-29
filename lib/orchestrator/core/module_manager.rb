@@ -35,11 +35,12 @@ module Orchestrator
                         @subsciptions.each &unsub
                         @subsciptions = nil
                     end
+                    update_running_status(false)
                 end
             end
 
             def start
-                return unless @instance.nil?
+                return true unless @instance.nil?
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
@@ -50,7 +51,8 @@ module Orchestrator
                         @logger.print_error(e, 'error in module load callback')
                     end
                 end
-                true
+                update_running_status(true)
+                true # for REST API
             rescue => e
                 @logger.print_error(e, 'module failed to start')
                 false
@@ -182,6 +184,13 @@ module Orchestrator
             end
 
 
+            # override the default inspect method
+            # This provides relevant information and won't blow the stack on an error
+            def inspect
+                "#<#{self.class}:0x#{self.__id__.to_s(16)} @thread=#{@thread.inspect} running=#{!@instance.nil?} managing=#{@klass.to_s} id=#{@settings.id}>"
+            end
+
+
             protected
 
 
@@ -207,6 +216,32 @@ module Orchestrator
                 }, proc { |e|
                     # report any errors updating the model
                     @logger.print_error(e, 'error updating connected state in database model')
+                })
+            end
+
+            def update_running_status(running)
+                id = settings.id
+
+                # Access the database in a non-blocking fashion
+                thread.work(proc {
+                    model = ::Orchestrator::Module.find_by_id id
+
+                    if model && model.running != running
+                        model.running = running
+                        model.connected = false if !running
+                        model.save!
+                        model
+                    else
+                        nil
+                    end
+                }).then(proc { |model|
+                    # Update the model if it was updated
+                    if model
+                        @settings = model
+                    end
+                }, proc { |e|
+                    # report any errors updating the model
+                    @logger.print_error(e, 'error updating running state in database model')
                 })
             end
         end
