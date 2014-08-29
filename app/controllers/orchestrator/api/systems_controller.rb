@@ -122,27 +122,32 @@ module Orchestrator
                         req = Core::RequestProxy.new(mod.thread, mod)
                         args = para[:args] || []
                         result = req.send(para[:method].to_sym, *args)
-                        result.then(proc { |res|
-                            output = ''
-                            begin
-                                output = ::JSON.generate([res])
-                            rescue Exception => e
-                                # respond with nil if object cannot be converted
-                                # TODO:: need a better way of dealing with this
-                                # ALSO in websocket manager
-                            end
-                            env['async.callback'].call([200, {
-                                'Content-Length' => output.bytesize,
-                                'Content-Type' => 'application/json'
-                            }, [output]])
-                        }, proc { |err|
-                            output = err.message
-                            env['async.callback'].call([500, {
-                                'Content-Length' => output.bytesize,
-                                'Content-Type' => 'text/plain'
-                            }, [output]])
-                        })
-                        throw :async
+
+                        if mod.status[:connected] == true
+                            result.then(proc { |res|
+                                output = ''
+                                begin
+                                    output = ::JSON.generate([res])
+                                rescue Exception => e
+                                    # respond with nil if object cannot be converted
+                                    # TODO:: need a better way of dealing with this
+                                    # ALSO in websocket manager
+                                end
+                                env['async.callback'].call([200, {
+                                    'Content-Length' => output.bytesize,
+                                    'Content-Type' => 'application/json'
+                                }, [output]])
+                            }, proc { |err|
+                                output = err.message
+                                env['async.callback'].call([500, {
+                                    'Content-Length' => output.bytesize,
+                                    'Content-Type' => 'text/plain'
+                                }, [output]])
+                            })
+                            throw :async
+                        else
+                            render json: ['Module is disconnected. Command may have been queued']
+                        end
                     else
                         render nothing: true, status: :not_found
                     end
@@ -170,13 +175,40 @@ module Orchestrator
                 end
             end
 
+            # returns a list of functions available to call
+            def funcs
+                params.require(:module)
+                sys = System.get(id)
+                if sys
+                    para = params.permit(:module, :index)
+                    index = para[:index]
+                    index = index.nil? ? 0 : (index.to_i - 1);
+
+                    mod = sys.get(para[:module].to_sym, index)
+                    if mod
+                        funcs = mod.instance.public_methods(false)
+                        priv = []
+                        funcs.each do |func|
+                            if ::Orchestrator::Core::PROTECTED[func]
+                                priv << func
+                            end
+                        end
+                        render json: (funcs - priv)
+                    else
+                        render nothing: true, status: :not_found
+                    end
+                else
+                    render nothing: true, status: :not_found
+                end
+            end
+
 
             protected
 
 
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
-                :name, :description, :disabled, :support_url,
+                :name, :description, :support_url,
                 {
                     zones: [],
                     modules: []

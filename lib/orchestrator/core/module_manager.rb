@@ -10,6 +10,8 @@ module Orchestrator
                 @status = ::ThreadSafe::Cache.new
                 @stattrak = @thread.observer
                 @logger = ::Orchestrator::Logger.new(@thread, @settings)
+
+                @updating = Mutex.new
             end
 
 
@@ -199,15 +201,17 @@ module Orchestrator
 
                 # Access the database in a non-blocking fashion
                 thread.work(proc {
-                    model = ::Orchestrator::Module.find_by_id id
+                    @updating.synchronize {
+                        model = ::Orchestrator::Module.find_by_id id
 
-                    if model && model.connected != connected
-                        model.connected = connected
-                        model.save!
-                        model
-                    else
-                        nil
-                    end
+                        if model && model.connected != connected
+                            model.connected = connected
+                            model.save!
+                            model
+                        else
+                            nil
+                        end
+                    }
                 }).then(proc { |model|
                     # Update the model if it was updated
                     if model
@@ -224,16 +228,18 @@ module Orchestrator
 
                 # Access the database in a non-blocking fashion
                 thread.work(proc {
-                    model = ::Orchestrator::Module.find_by_id id
+                    @updating.synchronize {
+                        model = ::Orchestrator::Module.find_by_id id
 
-                    if model && model.running != running
-                        model.running = running
-                        model.connected = false if !running
-                        model.save!
-                        model
-                    else
-                        nil
-                    end
+                        if model && model.running != running
+                            model.running = running
+                            model.connected = false if !running
+                            model.save!
+                            model
+                        else
+                            nil
+                        end
+                    }
                 }).then(proc { |model|
                     # Update the model if it was updated
                     if model

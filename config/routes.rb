@@ -22,6 +22,7 @@ Orchestrator::Engine.routes.draw do
             post 'stop',    on: :member
             post 'exec',    on: :member
             get  'state',   on: :member
+            get  'funcs',   on: :member
 
             concerns :mods
         end
