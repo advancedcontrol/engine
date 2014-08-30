@@ -119,35 +119,10 @@ module Orchestrator
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
                     if mod
-                        req = Core::RequestProxy.new(mod.thread, mod)
-                        args = para[:args] || []
-                        result = req.send(para[:method].to_sym, *args)
-
-                        if mod.status[:connected] == true
-                            result.then(proc { |res|
-                                output = ''
-                                begin
-                                    output = ::JSON.generate([res])
-                                rescue Exception => e
-                                    # respond with nil if object cannot be converted
-                                    # TODO:: need a better way of dealing with this
-                                    # ALSO in websocket manager
-                                end
-                                env['async.callback'].call([200, {
-                                    'Content-Length' => output.bytesize,
-                                    'Content-Type' => 'application/json'
-                                }, [output]])
-                            }, proc { |err|
-                                output = err.message
-                                env['async.callback'].call([500, {
-                                    'Content-Length' => output.bytesize,
-                                    'Content-Type' => 'text/plain'
-                                }, [output]])
-                            })
-                            throw :async
-                        else
-                            render json: ['Module is disconnected. Command may have been queued']
+                        mod.thread.schedule do
+                            perform_exec(mod, para)
                         end
+                        throw :async
                     else
                         render nothing: true, status: :not_found
                     end
@@ -250,6 +225,46 @@ module Orchestrator
                         }
                     )
                 end
+            end
+
+            # Called on the module thread
+            def perform_exec(mod, para)
+                defer = mod.thread.defer
+
+                req = Core::RequestProxy.new(mod.thread, mod)
+                args = para[:args] || []
+                result = req.send(para[:method].to_sym, *args)
+
+                # timeout in case message is queued
+                timeout = mod.thread.scheduler.in(5000) do
+                    defer.resolve('Wait time exceeded. Command may have been queued.')
+                end
+
+                result.finally do
+                    timeout.cancel # if we have our answer
+                    defer.resolve(result)
+                end
+
+                defer.promise.then(proc { |res|
+                    output = ''
+                    begin
+                        output = ::JSON.generate([res])
+                    rescue Exception => e
+                        # respond with nil if object cannot be converted
+                        # TODO:: need a better way of dealing with this
+                        # ALSO in websocket manager
+                    end
+                    env['async.callback'].call([200, {
+                        'Content-Length' => output.bytesize,
+                        'Content-Type' => 'application/json'
+                    }, [output]])
+                }, proc { |err|
+                    output = err.message
+                    env['async.callback'].call([500, {
+                        'Content-Length' => output.bytesize,
+                        'Content-Type' => 'text/plain'
+                    }, [output]])
+                })
             end
         end
     end
