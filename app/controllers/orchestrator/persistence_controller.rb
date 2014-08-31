@@ -3,23 +3,22 @@ require 'spider-gazelle/upgrades/websocket'
 
 module Orchestrator
     class PersistenceController < ApiController
-        def self.start(hijacked)
-            ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
-            WebsocketManager.new(ws, current_user)
-            ws.start
-        end
-
-
-        START_WS = self.method(:start)
         CONTROL = Control.instance
 
 
+        # Supply a bearer_token param for oauth
         def websocket
             hijack = request.env['rack.hijack']
             if hijack && CONTROL.ready
                 promise = hijack.call
-                # TODO:: grab user for authorization checks in the web socket
-                promise.then START_WS
+
+                # grab user for authorization checks in the web socket
+                user = current_user
+                promise.then do |hijacked|
+                    ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
+                    WebsocketManager.new(ws, user)
+                    ws.start
+                end
 
                 throw :async     # to prevent rails from complaining 
             else
