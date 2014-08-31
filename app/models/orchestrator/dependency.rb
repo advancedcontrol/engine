@@ -7,9 +7,6 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
-        before_delete :cleanup_modules
-
-
         ROLES = Set.new([:device, :service, :logic])
 
 
@@ -69,6 +66,7 @@ module Orchestrator
         end
 
         # Delete all the module references relying on this dependency
+        before_delete :cleanup_modules
         def cleanup_modules
             modules.each do |mod|
                 mod.delete

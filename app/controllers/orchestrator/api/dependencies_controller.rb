@@ -53,13 +53,21 @@ module Orchestrator
             def reload
                 depman = ::Orchestrator::DependencyManager.instance
                 depman.load(@dep, :force).then(proc {
+                    updated = 0
+
                     @dep.modules.each do |mod|
                         manager = mod.manager
-                        manager.reloaded if manager
+                        if manager
+                            updated += 1
+                            manager.reloaded(mod)
+                        end
                     end
+
+                    content = updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
                     env['async.callback'].call([200, {
-                        'Content-Length' => 0
-                    }, []])
+                        'Content-Length' => content.bytesize,
+                        'Content-Type' => 'text/plain'
+                    }, [content]])
                 }, proc { |err|
                     output = err.message
                     env['async.callback'].call([500, {

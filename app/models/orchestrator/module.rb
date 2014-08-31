@@ -7,9 +7,6 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
-        before_delete :unload_module
-
-
         # The classes / files that this module requires to execute
         # Defines module type
         # Requires dependency_id to be set
@@ -68,7 +65,6 @@ module Orchestrator
         validates :dependency, presence: true
         validate  :configuration
 
-
         def configuration
             return unless dependency
             case dependency.role
@@ -118,6 +114,7 @@ module Orchestrator
             end
         end
 
+        before_delete :unload_module
         def unload_module
             ::Orchestrator::Control.instance.unload(self.id)
             # Find all the systems with this module ID and remove it

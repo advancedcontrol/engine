@@ -5,9 +5,6 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
-        before_delete :remove_zone
-
-
         attribute :name
         attribute :description
         attribute :settings,    default: lambda { {} }
@@ -15,7 +12,6 @@ module Orchestrator
         attribute :created_at,  default: lambda { Time.now.to_i }
 
 
-        validates :name,  presence: true
 
         # Loads all the zones
         def self.all
@@ -27,11 +23,24 @@ module Orchestrator
         protected
 
 
+        validates :name,  presence: true
+
+
+        before_delete :remove_zone
         def remove_zone
             ::Orchestrator::Control.instance.zones.delete(self.id)
             ::Orchestrator::ControlSystem.in_zone(self.id).each do |cs|
                 cs.zones.delete(self.id)
                 cs.save
+            end
+        end
+
+        # Expire both the zone cache and any systems that use the zone
+        after_save :expire_caches
+        def expire_caches
+            ::Orchestrator::Control.instance.zones[self.id] = self
+            ::Orchestrator::ControlSystem.in_zone(self.id).each do |cs|
+                cs.expire_cache
             end
         end
     end

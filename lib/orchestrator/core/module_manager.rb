@@ -60,9 +60,12 @@ module Orchestrator
                 false
             end
 
-            def reloaded
-                if @instance.respond_to? :on_update, true
-                    @thread.schedule do
+            def reloaded(mod)
+                @thread.schedule do
+                    # pass in any updated settings
+                    @settings = mod
+
+                    if @instance.respond_to? :on_update, true
                         begin
                             @instance.__send__(:on_update)
                         rescue => e
