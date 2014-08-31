@@ -53,10 +53,5 @@ module Orchestrator
             yield if model.save && block_given?
             respond_with :api, model
         end
-
-        # Access to the control system controller
-        def control
-            @@__control__ ||= ::Orchestrator::Control.instance
-        end
     end
 end
