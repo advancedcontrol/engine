@@ -63,10 +63,12 @@ module Orchestrator
                         end
                     end
 
-                    content = updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
+                    content = {
+                        message: updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
+                    }.to_json
                     env['async.callback'].call([200, {
                         'Content-Length' => content.bytesize,
-                        'Content-Type' => 'text/plain'
+                        'Content-Type' => 'application/json'
                     }, [content]])
                 }, proc { |err|
                     output = err.message
