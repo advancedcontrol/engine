@@ -3,8 +3,8 @@ module Orchestrator
     module Api
         class ZonesController < ApiController
             respond_to :json
-            #doorkeeper_for :all
-            before_action :check_authorization, only: [:show, :update, :destroy]
+            before_action :check_admin
+            before_action :find_zone, only: [:show, :update, :destroy]
 
 
             @@elastic ||= Elastic.new(Zone)
@@ -59,11 +59,9 @@ module Orchestrator
                 }.merge(params.permit(ZONE_PARAMS))
             end
 
-            def check_authorization
+            def find_zone
                 # Find will raise a 404 (not found) if there is an error
                 @zone = Zone.find(id)
-
-                # Does the current user have permission to perform the current action?
             end
 
             def expire_cache(zone)

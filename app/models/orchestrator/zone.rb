@@ -11,18 +11,11 @@ module Orchestrator
         attribute :name
         attribute :description
         attribute :settings,    default: lambda { {} }
-        attribute :groups,      default: lambda { [] }
 
         attribute :created_at,  default: lambda { Time.now.to_i }
 
 
         validates :name,  presence: true
-
-
-        def self.in_group(group_id)
-            by_groups({key: group_id, stale: false})
-        end
-        view :by_groups
 
         # Loads all the zones
         def self.all

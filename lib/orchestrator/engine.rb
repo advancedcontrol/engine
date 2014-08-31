@@ -6,7 +6,7 @@ module Orchestrator
         isolate_namespace Orchestrator
         
         
-        # TODO:: if we ever have any tasks
+        # NOTE:: if we ever have any tasks
         #rake_tasks do
         #    load "tasks/orchestrator_tasks.rake"
         #end
@@ -19,11 +19,13 @@ module Orchestrator
             app.config.orchestrator.module_paths = []
 
             # Clearance levels defined in code
-            app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
+            #app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
 
-            # Set these to be the same to enforce explicit clearance levels
-            app.config.orchestrator.default_clearance = :User        # Functions not given a clearance level are assumed User level
-            app.config.orchestrator.untrusted_clearance = :Public    # Default clearance is not given to untrusted parties
+            # Access checking callback - used at the system level
+            # Will always be passed a system id and the user attempting to access
+            app.config.orchestrator.check_access = proc { |system, user|
+                true
+            }
 
             # if not zero all UDP sockets must be transmitted from a single thread
             app.config.orchestrator.datagram_port = 0    # ephemeral port (random selection)

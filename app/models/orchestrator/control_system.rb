@@ -6,15 +6,18 @@ module Orchestrator
     class ControlSystem < Couchbase::Model
         design_document :sys
         include ::CouchbaseId::Generator
-
-
+        
         # Allows us to lookup systems by names
-        after_save      :update_name
+        before_save     :update_name
+        after_save      :expire_cache
+
         before_delete   :cleanup_modules
         after_delete    :expire_cache
 
 
         attribute :name
+        define_attribute_methods :name  # dirty attributes for name!
+
         attribute :description
 
         attribute :zones,       default: lambda { [] }
@@ -27,9 +30,15 @@ module Orchestrator
         attribute :support_url
 
 
+        def self.find_by_name(name)
+            id = ControlSystem.bucket.get("sysname-#{self.name.downcase}", {quiet: true})
+            ControlSystem.find_by_id(id) if id
+        end
+
+
         def name=(new_name)
-            @old_name ||= self.attributes[:name] || true
-            self.attributes[:name] = new_name
+            new_name.strip!
+            write_attribute(:name, new_name)
         end
 
         def expire_cache
@@ -91,25 +100,37 @@ module Orchestrator
         validate  :name_unique
 
         def name_unique
-            result = ControlSystem.bucket.get("sysname-#{name}", {quiet: true})
+            return false if self.name.blank?
+
+            result = ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true})
             if result != nil && result != self.id
-                errors.add(:name, 'must be unique')
+                errors.add(:name, 'has already been taken')
             end
         end
 
         def update_name
-            System.expire(self.id) # Expire the cache as we've updated
-            if @old_name && @old_name != self.name
-                ControlSystem.bucket.delete("sysname-#{@old_name}", {quiet: true}) unless @old_name == true
-                ControlSystem.bucket.set("sysname-#{self.name}", self.id)
+            if self.name_changed?
+                old_name = self.name_was
+                old_name.downcase! if old_name
+            elsif not self.exists?
+                old_name = false
+            else
+                return
             end
-            @old_name = nil
+
+            current_name = self.name.downcase
+
+            if old_name != current_name
+                bucket = ControlSystem.bucket
+                bucket.delete("sysname-#{old_name}", {quiet: true}) if old_name
+                bucket.set("sysname-#{current_name}", self.id)
+            end
         end
 
         # 1. Find systems that have each of the modules specified
         # 2. If this is the last system we remove the modules
         def cleanup_modules
-            ControlSystem.bucket.delete("sysname-#{self.name}", {quiet: true})
+            ControlSystem.bucket.delete("sysname-#{self.name.downcase}", {quiet: true})
 
             self.modules.each do |mod_id|
                 systems = ControlSystem.using_module(mod_id).fetch_all

@@ -5,8 +5,9 @@ module Orchestrator
     module Api
         class ModulesController < ApiController
             respond_to :json
-            #doorkeeper_for :all
-            before_action :check_authorization, only: [:show, :update, :destroy]
+            before_action :check_admin, except: [:index, :state, :show]
+            before_action :check_support, only: [:index, :state, :show]
+            before_action :find_module,   only: [:show, :update, :destroy]
 
 
             @@elastic ||= Elastic.new(::Orchestrator::Module)
@@ -163,11 +164,9 @@ module Orchestrator
                 end
             end
 
-            def check_authorization
+            def find_module
                 # Find will raise a 404 (not found) if there is an error
                 @mod = ::Orchestrator::Module.find(id)
-
-                # Does the current user have permission to perform the current action?
             end
 
             def start_module(mod)

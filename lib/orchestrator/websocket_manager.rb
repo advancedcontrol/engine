@@ -1,11 +1,10 @@
 require 'set'
 require 'json'
-require 'ostruct' # Temp until user management implemented
 
 
 module Orchestrator
     class WebsocketManager
-        def initialize(ws, user = OpenStruct.new({id: 'anonymous'}))
+        def initialize(ws, user)
             @ws = ws
             @user = user
             @loop = ws.loop
@@ -65,7 +64,15 @@ module Orchestrator
             end
 
             if check_requirements(params)
-                if security_check(params)
+                # Perform the security check in a nonblocking fashion
+                # (Database access is probably required)
+                result = @loop.work do
+                    params[:sys] = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
+                    Rails.configuration.orchestrator.check_access.call(params[:sys], @user)
+                end
+
+                # The result should be an access level if these are implemented
+                result.then do |access|
                     begin
                         cmd = params[:cmd].to_sym
                         if COMMANDS.include?(cmd)
@@ -78,10 +85,12 @@ module Orchestrator
                         @logger.print_error(e, "websocket request failed: #{data}")
                         error_response(params[:id], ERRORS[:request_failed], e.message)
                     end
-                else
-                    # log access attempt here (possible hacking attempt)
-                    @logger.warn('security check failed for websocket request')
-                    error_response(params[:id], ERRORS[:access_denied], 'the access attempt has been recorded')
+                end
+
+                # Raise an error if access is not granted
+                result.catch do |err|
+                    @logger.print_error(e, 'security check failed for websocket request')
+                    error_response(params[:id], ERRORS[:access_denied], e.message)
                 end
             else
                 # log user information here (possible probing attempt)
@@ -97,14 +106,6 @@ module Orchestrator
             end
             true
         end
-
-        def security_check(params)
-            # TODO:: fill this out
-            # Should callback to config block to check user access
-            # User would have had to have been authenticated to get socket access
-            true
-        end
-
 
 
         def exec(params)
@@ -123,7 +124,6 @@ module Orchestrator
         end
 
         def do_exec(id, sys, mod, index, name, args)
-            sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
             system = ::Orchestrator::System.get(sys)
 
             if system
@@ -203,7 +203,6 @@ module Orchestrator
 
         # Called from a worker thread
         def check_binding(id, sys, mod, index, name)
-            sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys}", {quiet: true}) || sys
             system = ::Orchestrator::System.get(sys)
 
             if system

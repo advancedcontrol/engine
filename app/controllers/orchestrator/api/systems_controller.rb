@@ -3,8 +3,10 @@ module Orchestrator
     module Api
         class SystemsController < ApiController
             respond_to :json
-            #doorkeeper_for :all
-            before_action :check_authorization, only: [:show, :update, :destroy, :remove, :start, :stop]
+            # state and funcs are available to authenticated users
+            before_action :check_admin, except: [:index, :show, :exec, :state, :funcs]
+            before_action :check_support, only: [:index, :show, :exec]
+            before_action :find_system,   only: [:show, :update, :destroy, :remove, :start, :stop]
 
 
             @@elastic ||= Elastic.new(ControlSystem)
@@ -44,8 +46,9 @@ module Orchestrator
             end
 
             def update
-                @cs.update_attributes(safe_params)
-                save_and_respond(@cs) # save deletes the system cache
+                @cs.update(safe_params)
+                #save_and_respond(@cs) # save deletes the system cache
+                respond_with :api, @cs
             end
 
             # Removes the module from the system and deletes it if not used elsewhere
@@ -201,12 +204,10 @@ module Orchestrator
                 }.merge(params.permit(CS_PARAMS))
             end
 
-            def check_authorization
+            def find_system
                 # Find will raise a 404 (not found) if there is an error
                 sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{id}", {quiet: true}) || id
                 @cs = ControlSystem.find(sys)
-
-                # Does the current user have permission to perform the current action?
             end
 
             def load_and_start(mod_id)

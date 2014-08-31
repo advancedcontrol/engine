@@ -3,8 +3,8 @@ module Orchestrator
     module Api
         class DependenciesController < ApiController
             respond_to :json
-            #doorkeeper_for :all
-            before_action :check_authorization, only: [:show, :update, :destroy, :reload]
+            before_action :check_admin
+            before_action :find_dependency, only: [:show, :update, :destroy, :reload]
 
 
             @@elastic ||= Elastic.new(Dependency)
@@ -90,11 +90,9 @@ module Orchestrator
                 params.permit(:name, :description, {settings: []})
             end
 
-            def check_authorization
+            def find_dependency
                 # Find will raise a 404 (not found) if there is an error
                 @dep = Dependency.find(id)
-
-                # Does the current user have permission to perform the current action?
             end
         end
     end
