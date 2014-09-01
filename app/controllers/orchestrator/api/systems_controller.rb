@@ -180,6 +180,28 @@ module Orchestrator
                 end
             end
 
+            # return the count of a module type in a system
+            def count
+                params.require(:module)
+                sys = System.get(id)
+                if sys
+                    mod = params.permit(:module)[:module]
+                    render json: {count: sys.count(mod)}
+                else
+                    render nothing: true, status: :not_found
+                end
+            end
+
+            # return the list of a module types in a system
+            def types
+                sys = System.get(id)
+                if sys
+                    render json: sys.modules
+                else
+                    render nothing: true, status: :not_found
+                end
+            end
+
 
             protected
 

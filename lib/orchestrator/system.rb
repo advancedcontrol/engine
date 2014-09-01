@@ -59,7 +59,7 @@ module Orchestrator
         end
 
         def count(name)
-            mod = @modules[name]
+            mod = @modules[name.to_sym]
             mod.nil? ? 0 : mod.length
         end
 

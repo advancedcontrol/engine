@@ -23,6 +23,8 @@ Orchestrator::Engine.routes.draw do
             post 'exec',    on: :member
             get  'state',   on: :member
             get  'funcs',   on: :member
+            get  'count',   on: :member
+            get  'types',   on: :member
 
             concerns :mods
         end
