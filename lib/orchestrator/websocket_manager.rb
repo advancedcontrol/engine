@@ -18,6 +18,10 @@ module Orchestrator
             @ws.progress method(:on_message)
             @ws.finally method(:on_shutdown)
             #@ws.on_open method(:on_open)
+
+            @accessed = ::Set.new
+            @access_log = ::Orchestrator::AccessLog.new
+            #@access_log.user_id = @user.id
         end
 
 
@@ -77,8 +81,10 @@ module Orchestrator
                     begin
                         cmd = params[:cmd].to_sym
                         if COMMANDS.include?(cmd)
-                            self.__send__(cmd, params)
+                            @accessed << params[:sys]   # Log the access
+                            self.__send__(cmd, params)  # Execute the request
                         else
+                            @access_log.suspected = true
                             @logger.warn("websocket requested unknown command '#{params[:cmd]}'")
                             error_response(params[:id], ERRORS[:unknown_command], "unknown command: #{params[:cmd]}")
                         end
@@ -90,11 +96,13 @@ module Orchestrator
 
                 # Raise an error if access is not granted
                 result.catch do |err|
+                    @access_log.suspected = true
                     @logger.print_error(e, 'security check failed for websocket request')
                     error_response(params[:id], ERRORS[:access_denied], e.message)
                 end
             else
                 # log user information here (possible probing attempt)
+                @access_log.suspected = true
                 reason = 'required parameters were missing from the request'
                 @logger.warn(reason)
                 error_response(params[:id], ERRORS[:bad_request], reason)
@@ -409,6 +417,9 @@ module Orchestrator
             @bindings.each_value &method(:do_unbind)
             @bindings = nil
             @debug.resolve(true) if @debug # detach debug listeners
+
+            @access_log.systems = @accessed.to_a
+            @access_log.save
         end
     end
 end

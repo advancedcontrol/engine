@@ -52,7 +52,7 @@ module Orchestrator
                     if filters[:connected]
                         connected = filters[:connected] == 'true'
                         query.filter({
-                            connected: [false]
+                            connected: [connected]
                         })
                     end
 
