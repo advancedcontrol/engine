@@ -5,6 +5,9 @@ module Orchestrator
         include ::CouchbaseId::Generator
 
 
+        TTL = Rails.env.production? ? 2.weeks.to_i : 120
+
+
         belongs_to :user,      class_name: "::User"
         attribute  :systems,   default: lambda { [] }
 
@@ -25,7 +28,7 @@ module Orchestrator
             if self.persisted
                 super
             else
-                super(ttl: 2.weeks.to_i)
+                super(ttl: TTL)
             end
         end
     end
