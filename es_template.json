@@ -44,8 +44,8 @@
                         
 
                         "name"           : {"type": "string", "analyzer": "whitespace" },
-                        "email"          : {"type": "string", "analyzer": "uax_url_email" },
-                        "uri"            : {"type": "string", "analyzer": "uax_url_email" },
+                        "email"          : {"type": "string", "analyzer": "whitespace" },
+                        "uri"            : {"type": "string", "analyzer": "whitespace" },
                         "ip"             : {"type": "string", "store": true, "index": "not_analyzed" },
 
 
