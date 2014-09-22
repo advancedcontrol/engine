@@ -21,7 +21,7 @@ module Orchestrator
 
             @accessed = ::Set.new
             @access_log = ::Orchestrator::AccessLog.new
-            #@access_log.user_id = @user.id
+            @access_log.user_id = @user.id
         end
 
 
