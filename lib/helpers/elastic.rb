@@ -40,6 +40,11 @@ class Elastic
             @orFilter.merge!(filters)
         end
 
+        def range(filter)
+            @rangeFilter ||= []
+            @rangeFilter << filter
+        end
+
         # Call to add fields that should be missing
         # Effectively adds a filter that ensures a field is missing
         def missing(*fields)
@@ -79,6 +84,14 @@ class Elastic
 
                 unless orArray.empty?
                     fieldfilters.push(fieldfilter)
+                end
+            end
+
+            if @rangeFilter
+                fieldfilters ||= []
+
+                @rangeFilter.each do |value|
+                    fieldfilters.push({range: value})
                 end
             end
 
