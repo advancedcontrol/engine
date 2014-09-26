@@ -4,9 +4,9 @@ require 'orchestrator/engine'
 # Gems
 require 'couchbase-id'
 require 'uv-rays'
+require 'co-elastic-query'
 
 # Optional utility modules
-require 'helpers/elastic'                   # elastic search abstractions
 require 'orchestrator/utilities/transcoder' # functions for data manipulation
 require 'orchestrator/utilities/constants'  # constants for readable code
 

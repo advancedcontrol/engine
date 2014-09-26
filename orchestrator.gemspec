@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'algorithms'         # Priority queue
     s.add_dependency 'couchbase-id'       # ID generation
     s.add_dependency 'elasticsearch'      # Searchable model indexes
+    s.add_dependency 'co-elastic-query'
 
     s.add_development_dependency 'rspec'    # Testing framework
     s.add_development_dependency 'yard'     # Comment based documentation generation
