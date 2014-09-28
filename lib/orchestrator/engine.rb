@@ -60,7 +60,7 @@ module Orchestrator
             ctrl = ::Orchestrator::Control.instance
 
             # Don't auto-load if running in the console or as a rake task
-            unless defined?(Rails::Console) || Rails.env.test? || defined?(Rake)
+            unless ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(Rake)
                 ctrl.loop.next_tick do
                     ctrl.mount.then ctrl.method(:boot)
                 end
