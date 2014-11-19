@@ -37,7 +37,9 @@ module Orchestrator
         
     
         # Couchbase catch all
-        def entry_not_found
+        def entry_not_found(err)
+            logger.warn err.message
+            logger.warn err.backtrace.join("\n") if err.respond_to?(:backtrace) && err.backtrace
             render nothing: true, status: :not_found  # 404
         end
 
