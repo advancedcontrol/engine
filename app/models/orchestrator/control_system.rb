@@ -41,8 +41,20 @@ module Orchestrator
             write_attribute(:name, new_name)
         end
 
-        def expire_cache
+        def expire_cache(noUpdate = nil)
             ::Orchestrator::System.expire(self.id || @old_id)
+            ctrl = ::Orchestrator::Control.instance
+
+            # If not deleted and control is running
+            # then we want to trigger updates on the logic modules
+            if !@old_id && noUpdate.nil? && ctrl.ready
+                ::Orchestrator::Module.find_by_id(self.modules).collect do |mod|
+                    if mod.control_system_id
+                        manager = ctrl.loaded? mod.id
+                        manager.reloaded(mod) if manager
+                    end
+                end
+            end
         end
 
 

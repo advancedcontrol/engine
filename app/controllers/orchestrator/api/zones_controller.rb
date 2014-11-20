@@ -23,18 +23,12 @@ module Orchestrator
 
             def update
                 @zone.update_attributes(safe_params)
-                save_and_respond @zone do
-                    # Update self in zone cache
-                    expire_cache(@zone)
-                end
+                save_and_respond @zone
             end
 
             def create
                 zone = Zone.new(safe_params)
-                save_and_respond zone do
-                    # Add self to zone cache
-                    expire_cache(zone)
-                end
+                save_and_respond zone
             end
 
             def destroy
@@ -62,13 +56,6 @@ module Orchestrator
             def find_zone
                 # Find will raise a 404 (not found) if there is an error
                 @zone = Zone.find(id)
-            end
-
-            def expire_cache(zone)
-                ::Orchestrator::Control.instance.zones[zone.id] = zone
-                ::Orchestrator::ControlSystem.in_zone(zone.id).each do |cs|
-                    ::Orchestrator::System.expire(cs.id)
-                end
             end
         end
     end

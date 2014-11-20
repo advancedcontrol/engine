@@ -82,7 +82,7 @@ module Orchestrator
                         # If custom name is changed we need to expire any system caches
                         if para[:custom_name] != old_name
                             ::Orchestrator::ControlSystem.using_module(id).each do |sys|
-                                sys.expire_cache
+                                sys.expire_cache(:no_update)
                             end
                         end
                     end
