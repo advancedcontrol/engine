@@ -172,13 +172,13 @@ module Orchestrator
             def buffer(data)
                 @last_receive_at = @thread.now
 
-                if @config[:encoding]
-                    data.force_encoding(@config[:encoding])
-                end
-
                 if @buffer
                     @responses.concat @buffer.extract(data)
                 else
+                    # tokenizing buffer above will enforce encoding
+                    if @config[:encoding]
+                        data.force_encoding(@config[:encoding])
+                    end
                     @responses << data
                 end
 
