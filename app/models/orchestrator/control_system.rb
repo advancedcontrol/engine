@@ -48,7 +48,7 @@ module Orchestrator
             # If not deleted and control is running
             # then we want to trigger updates on the logic modules
             if !@old_id && noUpdate.nil? && ctrl.ready
-                ::Orchestrator::Module.find_by_id(self.modules).collect do |mod|
+                (::Orchestrator::Module.find_by_id(self.modules) || []).each do |mod|
                     if mod.control_system_id
                         manager = ctrl.loaded? mod.id
                         manager.reloaded(mod) if manager
