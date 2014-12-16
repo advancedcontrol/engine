@@ -79,7 +79,7 @@ module Orchestrator
         # Reload all modules to update their settings
         def update_modules
             modules.each do |mod|
-                manager = ctrl.loaded? mod.id
+                manager = ::Orchestrator::Control.instance.loaded? mod.id
                 manager.reloaded(mod) if manager
             end
         end
