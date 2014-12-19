@@ -15,13 +15,15 @@ module Orchestrator
                             :on, :On, 'on', 'On', 
                             :yes, :Yes, 'yes', 'Yes', 
                             'down', 'Down', :down, :Down, 
-                            'open', 'Open', :open, :Open])
+                            'open', 'Open', :open, :Open,
+                            'active', 'Active', :active, :Active])
         Off_vars = Set.new([0, false, 'false', 'False',
                             :off, :Off, 'off', 'Off', 
                             :no, :No, 'no', 'No',
                             'up', 'Up', :up, :Up,
                             'close', 'Close', :close, :Close,
-                            'short', 'Short', :short, :Short])
+                            'short', 'Short', :short, :Short,
+                            'inactive', 'Inactive', :inactive, :Inactive])
 
 
         def in_range(num, max, min = 0)
