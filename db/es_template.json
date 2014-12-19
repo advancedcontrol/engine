@@ -2,9 +2,58 @@
     "template": "*",
     "order": 10,
     "settings" : {
-        "index.mapping.ignore_malformed": true
+        "index.mapping.ignore_malformed": true,
+        "analysis": {
+            "analyzer": {
+                "searchable": {
+                    "type": "custom",
+                    "tokenizer": "whitespace",
+                    "filter": ["lowercase", "custom_ascii_folding"]
+                }
+            },
+            "filter" : {
+                "custom_ascii_folding" : {
+                    "type" : "asciifolding",
+                    "preserve_original" : true
+                }
+            }
+        }
     },
     "mappings": {
+        "couchbaseDocument": {
+            "properties": {
+                "doc": {
+                    "properties" : {
+                        "_id"            : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "id"             : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "user_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "application_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+                        
+                        "name"           : {"type": "string", "analyzer": "searchable" },
+                        "email"          : {"type": "string", "analyzer": "searchable" },
+                        "uri"            : {"type": "string", "analyzer": "searchable" },
+                        "ip"             : {"type": "string", "analyzer": "searchable" },
+                        "settings"       : {
+                            "type" : "object",
+                            "enabled": false
+                        },
+
+                        "admins"         : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "groups"         : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "systems"        : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "members"        : {"type": "string", "store": true, "index": "not_analyzed" },
+
+                        "role"              : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "zone_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
+
+                        "zones"             : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "modules"           : {"type": "string", "store": true, "index": "not_analyzed" }
+                    }
+                }
+            }
+        },
         "couchbaseCheckpoint": {
             "_source": {
                 "includes": ["doc.*"]
@@ -30,44 +79,6 @@
                 "meta": {
                     "type": "object",
                     "include_in_all": false
-                }
-            }
-        },
-        "couchbaseDocument": {
-            "properties": {
-                "doc": {
-                    "properties" : {
-                        "_id"            : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "id"             : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "user_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "application_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-                        
-
-                        "name"           : {"type": "string", "analyzer": "whitespace" },
-                        "email"          : {"type": "string", "analyzer": "whitespace" },
-                        "uri"            : {"type": "string", "analyzer": "whitespace" },
-                        "ip"             : {"type": "string", "store": true, "index": "not_analyzed" },
-
-
-                        "group_id"       : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "article_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "authority_id"   : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "in_reply_to_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-
-                        "admins"         : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "groups"         : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "systems"        : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "members"        : {"type": "string", "store": true, "index": "not_analyzed" },
-
-
-                        "role"              : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "zone_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
-
-                        "zones"             : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "modules"           : {"type": "string", "store": true, "index": "not_analyzed" }
-                    }
                 }
             }
         }
