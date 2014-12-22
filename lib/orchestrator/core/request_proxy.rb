@@ -77,6 +77,11 @@ module Orchestrator
                 end
             end
 
+            # Looks up the arity of a method
+            def arity(method)
+                @mod.instance.method(method.to_sym).arity
+            end
+
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
                 defer = @thread.defer
