@@ -144,7 +144,7 @@ module Orchestrator
             def setting(name)
                 res = @settings.settings[name]
                 if res.nil?
-                    if !@settings.control_system_id.nil?
+                    if @settings.control_system_id
                         sys = System.get(@settings.control_system_id)
                         res = sys.settings[name]
 
