@@ -138,7 +138,7 @@ module Orchestrator
             if system
                 mod_man = system.get(mod, index - 1)
                 if mod_man
-                    req = Core::RequestProxy.new(@loop, mod_man)
+                    req = Core::RequestProxy.new(@loop, mod_man, @user)
                     result = req.send(name, *args)
                     result.then(proc { |res|
                         output = nil

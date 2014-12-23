@@ -17,6 +17,7 @@ module Orchestrator
 
             attr_reader :thread, :settings, :instance
             attr_reader :status, :stattrak, :logger
+            attr_reader :current_user
 
 
             # Should always be called on the module thread

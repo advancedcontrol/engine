@@ -45,9 +45,10 @@ module Orchestrator
 
 
         class RequestProxy
-            def initialize(thread, mod)
+            def initialize(thread, mod, user = nil)
                 @mod = mod
                 @thread = thread
+                @user = user
             end
 
             # Simplify access to status variables as they are thread safe
@@ -96,13 +97,21 @@ module Orchestrator
                     @mod.logger.warn(err.message)
                 else
                     @mod.thread.schedule do
+                        previous = nil
                         begin
+                            if @user
+                                previous = @mod.current_user
+                                @mod.current_user = @user
+                            end
+                            
                             defer.resolve(
                                 @mod.instance.public_send(name, *args, &block)
                             )
                         rescue => e
                             @mod.logger.print_error(e)
                             defer.reject(e)
+                        ensure
+                            @mod.current_user = previous if @user
                         end
                     end
                 end

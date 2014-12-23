@@ -4,10 +4,11 @@ require 'set'
 module Orchestrator
     module Core
         class SystemProxy
-            def initialize(thread, sys_id, origin = nil)
+            def initialize(thread, sys_id, origin = nil, user = nil)
                 @system = sys_id.to_sym
                 @thread = thread
                 @origin = origin    # This is the module that requested the proxy
+                @user = user
             end
 
             # Alias for get
@@ -24,7 +25,7 @@ module Orchestrator
                 index -= 1  # Get the real index
                 name = mod.to_sym
 
-                RequestProxy.new(@thread, system.get(name, index))
+                RequestProxy.new(@thread, system.get(name, index), @user)
             end
 
             # Checks for the existence of a particular module
@@ -44,8 +45,7 @@ module Orchestrator
             # @param module [String, Symbol] the name of the module in the system
             # @return [::Orchestrator::Core::RequestsProxy] proxies requests to multiple modules
             def all(mod)
-                name = mod.to_sym
-                RequestsProxy.new(@thread, system.all(name))
+                RequestsProxy.new(@thread, system.all(mod.to_sym), @user)
             end
 
             # Iterates over the modules in the system. Can also specify module types.
@@ -67,8 +67,7 @@ module Orchestrator
             # @param module [String, Symbol] the name of the module in the system
             # @return [Integer] the number of modules with a shared name
             def count(mod)
-                name = mod.to_sym
-                system.count(name)
+                system.count(mod.to_sym)
             end
 
             # Returns a list of all the module names in the system

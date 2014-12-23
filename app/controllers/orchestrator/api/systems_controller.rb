@@ -122,8 +122,9 @@ module Orchestrator
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
                     if mod
+                        user = current_user
                         mod.thread.schedule do
-                            perform_exec(mod, para)
+                            perform_exec(mod, para, user)
                         end
                         throw :async
                     else
@@ -251,10 +252,10 @@ module Orchestrator
             end
 
             # Called on the module thread
-            def perform_exec(mod, para)
+            def perform_exec(mod, para, user)
                 defer = mod.thread.defer
 
-                req = Core::RequestProxy.new(mod.thread, mod)
+                req = Core::RequestProxy.new(mod.thread, mod, user)
                 args = para[:args] || []
                 result = req.send(para[:method].to_sym, *args)
 

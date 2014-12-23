@@ -95,6 +95,10 @@ module Orchestrator
                 end
             end
 
+            def current_user
+                @__config__.current_user
+            end
+
             # Outputs any statistics collected on the module
             def __STATS__
                 stats = {}

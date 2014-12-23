@@ -4,7 +4,7 @@ module Orchestrator
             include ::Orchestrator::Core::Mixin
 
             def system
-                @__config__.system
+                @__config__.system(current_user)
             end
         end
     end

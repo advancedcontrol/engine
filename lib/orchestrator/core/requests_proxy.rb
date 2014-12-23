@@ -6,13 +6,14 @@ module Orchestrator
             extend Forwardable
 
             
-            def initialize(thread, modules)
+            def initialize(thread, modules, user = nil)
                 if modules.nil?
                     @modules = []
                 else
                     @modules = modules.is_a?(Array) ? modules : [modules]
                 end
                 @thread = thread
+                @user = user
             end
 
 
@@ -21,7 +22,7 @@ module Orchestrator
                 return enum_for(:each) unless block_given?
 
                 @modules.each do |mod|
-                    yield RequestProxy.new(@thread, mod)
+                    yield RequestProxy.new(@thread, mod, @user)
                 end
             end
 
@@ -31,19 +32,19 @@ module Orchestrator
             def last
                 mod = @modules.last
                 return nil unless mod
-                return RequestProxy.new(@thread, mod)
+                return RequestProxy.new(@thread, mod, @user)
             end
 
             def first
                 mod = @modules.first
                 return nil unless mod
-                return RequestProxy.new(@thread, mod)
+                return RequestProxy.new(@thread, mod, @user)
             end
 
             def [](index)
                 mod = @modules[index]
                 return nil unless mod
-                return RequestProxy.new(@thread, mod)
+                return RequestProxy.new(@thread, mod, @user)
             end
             alias_method :at, :[]
 
@@ -65,13 +66,21 @@ module Orchestrator
                     promises = @modules.map do |mod|
                         defer = mod.thread.defer
                         mod.thread.schedule do
+                            previous = nil
                             begin
+                                if @user
+                                    previous = mod.current_user
+                                    mod.current_user = @user
+                                end
+
                                 defer.resolve(
                                     mod.instance.public_send(name, *args, &block)
                                 )
                             rescue => e
                                 mod.logger.print_error(e)
                                 defer.reject(e)
+                            ensure
+                                mod.current_user = previous if @user
                             end
                         end
                         defer.promise
