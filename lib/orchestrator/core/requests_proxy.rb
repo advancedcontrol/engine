@@ -3,6 +3,9 @@ require 'forwardable'
 module Orchestrator
     module Core
         class RequestsProxy
+            extend Forwardable
+
+            
             def initialize(thread, modules)
                 if modules.nil?
                     @modules = []
