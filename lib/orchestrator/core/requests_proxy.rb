@@ -1,3 +1,5 @@
+require 'forwardable'
+
 module Orchestrator
     module Core
         class RequestsProxy
@@ -10,13 +12,46 @@ module Orchestrator
                 @thread = thread
             end
 
+
+            # Provide Enumerable support
+            def each
+                return enum_for(:each) unless block_given?
+
+                @modules.each do |mod|
+                    yield RequestProxy.new(@thread, mod)
+                end
+            end
+
+            # Provide some helper methods
+            def_delegators :@modules, :count, :length, :empty?, :each_index
+
+            def last
+                mod = @modules.last
+                return nil unless mod
+                return RequestProxy.new(@thread, mod)
+            end
+
+            def first
+                mod = @modules.first
+                return nil unless mod
+                return RequestProxy.new(@thread, mod)
+            end
+
+            def [](index)
+                mod = @modules[index]
+                return nil unless mod
+                return RequestProxy.new(@thread, mod)
+            end
+            alias_method :at, :[]
+
             # Returns true if there is no object to proxy
+            # Allows RequestProxy and RequestsProxy to be used interchangably
             #
             # @return [true|false]
             def nil?
                 @modules.empty?
             end
-            alias_method :empty?, :nil?
+
 
             def method_missing(name, *args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
