@@ -97,6 +97,7 @@ module Orchestrator
                     @mod.logger.warn(err.message)
                 else
                     @mod.thread.schedule do
+                        # Keep track of previous in case of recursion
                         previous = nil
                         begin
                             if @user

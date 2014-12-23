@@ -66,6 +66,7 @@ module Orchestrator
                     promises = @modules.map do |mod|
                         defer = mod.thread.defer
                         mod.thread.schedule do
+                            # Keep track of previous in case of recursion
                             previous = nil
                             begin
                                 if @user
