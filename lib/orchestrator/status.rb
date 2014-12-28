@@ -97,6 +97,38 @@ module Orchestrator
             end
         end
 
+        # Used to maintain subscriptions where module is moved to another thread
+        # or even another server.
+        def move(mod_id, to_thread)
+            return if to_thread == self
+
+            @thread.schedule do
+                subs = @subscriptions.delete(mod_id)
+                if subs
+                    # Remove the system references
+                    subs.each do |sub|
+                        @systems[sub.sys_id].delete(sub) if sub.sys_id
+                    end
+
+                    # Transfer the subscriptions
+                    to_thread.transfer(mod_id, subs)
+                end
+            end
+        end
+
+        def transfer(mod_id, subs)
+            @thread.schedule do
+                @subscriptions[mod_id] = subs
+
+                subs.each do |sub|
+                    if sub.sys_id
+                        @systems[sub.sys_id] ||= Set.new
+                        @systems[sub.sys_id] << sub
+                    end
+                end
+            end
+        end
+
         # The System class contacts each of the threads to let them know of an update
         def reloaded_system(sys_id, sys)
             subscriptions = @systems[sys_id]
@@ -121,6 +153,11 @@ module Orchestrator
                             # Check for existing status to send to subscriber
                             value = mod.status[sub.status]
                             sub.notify(value) unless value.nil?
+                        end
+
+                        # Transfer the subscription if on a different thread
+                        if mod.thread != @thread
+                            move(sub.mod_id.to_sym, mod.thread)
                         end
 
                         # Perform any required cleanup

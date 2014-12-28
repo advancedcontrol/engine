@@ -31,6 +31,9 @@ module Orchestrator
 
             @ready = false
 
+            # We keep track of unloaded modules so we can optimise loading them again
+            @unloaded = Set.new
+
             if Rails.env.production?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
             else
@@ -109,6 +112,19 @@ module Orchestrator
                         # update the module cache
                         defer.promise.then do |mod_manager|
                             @loaded[mod_id] = mod_manager
+
+                            # Transfer any existing observers over to the new thread
+                            if @ready && @unloaded.include?(mod_id)
+                                @unloaded.delete(mod_id)
+                                
+                                new_thread = thread.observer
+                                @threads.each do |thr|
+                                    thr.observer.move(mod_id, new_thread)
+                                end
+                            end
+
+                            # Return the manager
+                            mod_manager
                         end
                         defer.promise
                     }, @exceptions)
@@ -163,8 +179,10 @@ module Orchestrator
         # Stop the module gracefully
         # Then remove it from @loaded
         def unload(mod_id)
-            stop(mod_id).then(proc {
-                @loaded.delete(mod_id.to_sym)
+            mod = mod_id.to_sym
+            stop(mod).then(proc {
+                @unloaded << mod
+                @loaded.delete(mod)
                 true # promise response
             })
         end
