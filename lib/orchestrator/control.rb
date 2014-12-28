@@ -43,7 +43,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger, :loop, :ready, :zones
+        attr_reader :logger, :loop, :ready, :zones, :threads
 
 
         # Start the control reactor

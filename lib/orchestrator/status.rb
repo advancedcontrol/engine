@@ -97,12 +97,10 @@ module Orchestrator
             end
         end
 
-        # TODO:: we also need the system class to contact each of the threads
-        def reloaded_system(sys_id)
+        # The System class contacts each of the threads to let them know of an update
+        def reloaded_system(sys_id, sys)
             subscriptions = @systems[sys_id]
             if subscriptions
-                sys = ::Orchestrator::System.get(@system)
-
                 subscriptions.each do |sub|
                     old_id = sub.mod_id
 

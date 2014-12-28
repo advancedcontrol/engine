@@ -43,6 +43,14 @@ module Orchestrator
                 zone = zones[zone_id]
                 @zones << zone unless zone.nil?
             end
+
+            # Inform status tracker that that the system has reloaded
+            # There may have been a change in module order etc
+            @controller.threads.each do |thread|
+                thread.next_tick do
+                    thread.observer.reloaded_system(@config.id, self)
+                end
+            end
         end
 
         def get(mod, index)
