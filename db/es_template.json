@@ -39,7 +39,6 @@
                         },
 
                         "admins"         : {"type": "string", "store": true, "index": "not_analyzed" },
-                        "groups"         : {"type": "string", "store": true, "index": "not_analyzed" },
                         "systems"        : {"type": "string", "store": true, "index": "not_analyzed" },
                         "members"        : {"type": "string", "store": true, "index": "not_analyzed" },
 
