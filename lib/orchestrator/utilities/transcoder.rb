@@ -22,6 +22,8 @@ module Orchestrator
         # @param data [String] a binary string
         # @return [String]
         def byte_to_hex(data)
+            data = array_to_str(data) if data.is_a? Array
+
             output = ""
             data.each_byte { |c|
                 s = c.to_s(16)
@@ -36,6 +38,7 @@ module Orchestrator
         # @param data [String] data to be converted to bytes
         # @return [Array]
         def str_to_array(data)
+            return data if data.is_a? Array
             data.bytes.to_a
         end
         
@@ -44,6 +47,7 @@ module Orchestrator
         # @param data [Array] an array of bytes
         # @return [String]
         def array_to_str(data)
+            return data if data.is_a? String
             data.pack('c*')
         end
 
