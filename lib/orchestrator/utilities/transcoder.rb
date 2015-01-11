@@ -12,9 +12,9 @@ module Orchestrator
             data.prepend('0') if data.length % 2 > 0
 
             # Breaks string into an array of characters
-            output = ""
+            output = []
             data.scan(/.{2}/) { |byte| output << byte.hex}
-            return output
+            output.pack('c*')
         end
         
         # Converts a binary string into a hex encoded string
