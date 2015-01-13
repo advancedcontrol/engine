@@ -14,7 +14,11 @@ module Orchestrator
                 end
                 @thread = thread
                 @user = user
+                @trace = []
             end
+
+
+            attr_reader :trace
 
 
             # Provide Enumerable support
@@ -63,6 +67,8 @@ module Orchestrator
                     ::Libuv::Q.reject(@thread, err)
                     # TODO:: log warning err.message
                 else
+                    @trace = caller
+
                     promises = @modules.map do |mod|
                         defer = mod.thread.defer
                         mod.thread.schedule do
@@ -78,7 +84,7 @@ module Orchestrator
                                     mod.instance.public_send(name, *args, &block)
                                 )
                             rescue => e
-                                mod.logger.print_error(e)
+                                mod.logger.print_error(e, '', @trace)
                                 defer.reject(e)
                             ensure
                                 mod.current_user = previous if @user

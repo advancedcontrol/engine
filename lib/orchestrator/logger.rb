@@ -87,9 +87,10 @@ module Orchestrator
             end
         end
 
-        def print_error(e, msg = '')
+        def print_error(e, msg = '', trace = nil)
             msg << "\n#{e.message}"
             msg << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace
+            msg << "\nCaller backtrace:\n#{trace.join("\n")}" if trace
             error(msg)
         end
 

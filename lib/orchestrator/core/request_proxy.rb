@@ -49,7 +49,12 @@ module Orchestrator
                 @mod = mod
                 @thread = thread
                 @user = user
+                @trace = []
             end
+
+
+            attr_reader :trace
+
 
             # Simplify access to status variables as they are thread safe
             def [](name)
@@ -96,6 +101,8 @@ module Orchestrator
                     defer.reject(err)
                     @mod.logger.warn(err.message)
                 else
+                    @trace = caller
+
                     @mod.thread.schedule do
                         # Keep track of previous in case of recursion
                         previous = nil
@@ -109,7 +116,7 @@ module Orchestrator
                                 @mod.instance.public_send(name, *args, &block)
                             )
                         rescue => e
-                            @mod.logger.print_error(e)
+                            @mod.logger.print_error(e, '', @trace)
                             defer.reject(e)
                         ensure
                             @mod.current_user = previous if @user
