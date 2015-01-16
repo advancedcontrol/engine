@@ -95,7 +95,7 @@ module Orchestrator
                 end
 
                 # Raise an error if access is not granted
-                result.catch do |err|
+                result.catch do |e|
                     @access_log.suspected = true
                     @logger.print_error(e, 'security check failed for websocket request')
                     error_response(params[:id], ERRORS[:access_denied], e.message)
