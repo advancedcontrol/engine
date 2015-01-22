@@ -28,11 +28,11 @@ module Orchestrator
         COMMON_HEADERS = 'Origin, Accept, Content-Type, X-Requested-With, Authorization, X-Frame-Options'.freeze
         ONE_DAY = '1728000'.freeze
 
-        def allow_cors
-            headers[ALLOW_ORIGIN] = ANY_ORIGIN
-            headers[ALLOW_METHODS] = ANY_METHOD
-            headers[ALLOW_HEADERS] = COMMON_HEADERS
-            headers[MAX_AGE] = ONE_DAY
+        def allow_cors(headerHash = headers)
+            headerHash[ALLOW_ORIGIN] = ANY_ORIGIN
+            headerHash[ALLOW_METHODS] = ANY_METHOD
+            headerHash[ALLOW_HEADERS] = COMMON_HEADERS
+            headerHash[MAX_AGE] = ONE_DAY
         end
         
     

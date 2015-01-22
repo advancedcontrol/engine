@@ -34,6 +34,7 @@ module Orchestrator
                 # Other options include:
                 # * emit callback to occur once command complete (may be discarded if a named command)
                 # * on_receive (alternative to received function)
+                # * clear_queue (clear further commands once this has run)
             }
 
             CONFIG_DEFAULTS = {
@@ -425,6 +426,12 @@ module Orchestrator
                     command[:defer].resolve(:no_wait)
                     call_emit command   # the command has been sent
                 end
+
+                # Useful for emergency stops etc
+                if command[:clear_queue]
+                    @queue.cancel_all("Command #{command[:name]} cleared the queue")
+                end
+
                 nil # ensure promise chain is not propagated
             end
 

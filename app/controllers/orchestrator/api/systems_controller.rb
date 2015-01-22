@@ -269,6 +269,9 @@ module Orchestrator
                     defer.resolve(result)
                 end
 
+                respHeaders = {}
+                allow_cors(respHeaders)
+
                 defer.promise.then(proc { |res|
                     output = ''
                     begin
@@ -278,16 +281,14 @@ module Orchestrator
                         # TODO:: need a better way of dealing with this
                         # ALSO in websocket manager
                     end
-                    env['async.callback'].call([200, {
-                        'Content-Length' => output.bytesize,
-                        'Content-Type' => 'application/json'
-                    }, [output]])
+                    respHeaders['Content-Length'] = output.bytesize
+                    respHeaders['Content-Type'] = 'application/json'
+                    env['async.callback'].call([200, respHeaders, [output]])
                 }, proc { |err|
                     output = err.message
-                    env['async.callback'].call([500, {
-                        'Content-Length' => output.bytesize,
-                        'Content-Type' => 'text/plain'
-                    }, [output]])
+                    respHeaders['Content-Length'] = output.bytesize
+                    respHeaders['Content-Type'] = 'text/plain'
+                    env['async.callback'].call([500, respHeaders, [output]])
                 })
             end
         end

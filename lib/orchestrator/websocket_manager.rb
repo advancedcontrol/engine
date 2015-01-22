@@ -111,7 +111,7 @@ module Orchestrator
 
         def check_requirements(params)
             REQUIRED.each do |key|
-                return false if params[key].nil?
+                return false unless params.has_key?(key)
             end
             true
         end
@@ -310,8 +310,10 @@ module Orchestrator
         def debug(params)
             id = params[:id]
             sys = params[:sys]
-            mod_s = params[:mod]
-            mod = mod_s.to_sym if mod_s
+            mod = params[:mod].to_sym
+            index_s = params[:index]
+            index = nil
+            index = index_s.to_i if index_s
 
             if @debug.nil?
                 @debug = @loop.defer
@@ -319,35 +321,82 @@ module Orchestrator
                 @debug.promise.progress method(:debug_update)
             end
 
-            # Set mod to get module level errors
-            if mod && !@inspecting.include?(mod)
-                mod_man = ::Orchestrator::Control.instance.loaded?(mod)
-                if mod_man
-                    log = mod_man.logger
-                    log.add @debug
-                    log.level = :debug
-                    @inspecting.add mod
-
-                    # Set sys to get errors occurring outside of the modules
-                    if !@inspecting.include?(:self)
-                        @logger.add @debug
-                        @logger.level = :debug
-                        @inspecting.add :self
+            if index
+                # Look up the module ID on the thread pool
+                @loop.work(proc {
+                    system = ::Orchestrator::System.get(sys)
+                    if system
+                        mod_man = system.get(mod, index - 1)
+                        if mod_man
+                            mod_man.settings.id
+                        else
+                            ::Libuv::Q.reject(@loop, 'debug failed: module #{sys}->#{mod}_#{index} not found')
+                        end
+                    else
+                        ::Libuv::Q.reject(@loop, 'debug failed: system #{sys} lookup failed')
                     end
-
-                    @ws.text(::JSON.generate({
-                        id: id,
-                        type: :success
-                    }))
-                else
-                    @logger.info("websocket debug could not find module: #{mod}")
-                    error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
+                }).then(proc { |mod_id|
+                    do_debug(id, mod_id, sys, mod, index)
+                }).catch do |err|
+                    if err.is_a? String
+                        @logger.info(err)
+                        error_response(id, ERRORS[:module_not_found], err)
+                    else
+                        @logger.print_error(err, "debug request failed: #{params}")
+                        error_response(id, ERRORS[:module_not_found], "debug request failed for: #{sys}->#{mod}_#{index}")
+                    end
                 end
             else
-                @ws.text(::JSON.generate({
-                    id: id,
-                    type: :success
-                }))
+                do_debug(id, mod)
+            end
+        end
+
+        def do_debug(id, mod, sys_id = nil, mod_name = nil, mod_index = nil)
+            resp = {
+                id: id,
+                type: :success,
+                mod_id: mod
+            }
+
+            if mod_name
+                # Provide meta information for convenience
+                # Actual debug messages do not contain this info
+                # The library must use the mod_id returned in the response to route responses as desired
+                resp[:meta] = {
+                    sys: sys_id,
+                    mod: mod_name,
+                    index: mod_index
+                }
+            end
+
+            # Set mod to get module level errors
+            begin
+                if @inspecting.include?(mod)
+                    @ws.text(::JSON.generate(resp))
+                else
+                    mod_man = ::Orchestrator::Control.instance.loaded?(mod)
+                    if mod_man
+                        log = mod_man.logger
+                        log.add @debug
+                        log.level = :debug
+                        @inspecting.add mod
+
+                        # Set sys to get errors occurring outside of the modules
+                        if !@inspecting.include?(:self)
+                            @logger.add @debug
+                            @logger.level = :debug
+                            @inspecting.add :self
+                        end
+
+                        @ws.text(::JSON.generate(resp))
+                    else
+                        @logger.info("websocket debug could not find module: #{mod}")
+                        error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
+                    end
+                end
+            rescue => e
+                @logger.print_error(e, "websocket debug request failed")
+                error_response(id, ERRORS[:request_failed], e.message)
             end
         end
 
