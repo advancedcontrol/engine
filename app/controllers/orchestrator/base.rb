@@ -59,13 +59,13 @@ module Orchestrator
         # Checking if the user is an administrator
         def check_admin
             user = current_user
-            user && user.sys_admin
+            head(:forbidden) unless user && user.sys_admin
         end
 
         # Checking if the user is support personnel
         def check_support
             user = current_user
-            user && (user.support || user.sys_admin)
+            head(:forbidden) unless user && (user.support || user.sys_admin)
         end
 
         # current user using doorkeeper
