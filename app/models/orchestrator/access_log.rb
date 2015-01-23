@@ -17,14 +17,20 @@ module Orchestrator
 
         attribute :created_at
         attribute :ended_at
+        attribute :last_checked_at, default: 0
 
 
         def initialize(*args)
             super(*args)
-            self.created_at = Time.now.to_i
+
+            if self.created_at.nil?
+                self.created_at = Time.now.to_i
+            end
         end
 
         def save
+            self.last_checked_at = Time.now.to_i
+
             if self.persisted
                 super
             else
