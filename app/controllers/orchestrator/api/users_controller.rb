@@ -4,7 +4,7 @@ module Orchestrator
         class UsersController < ApiController
             respond_to :json
             before_action :check_authorization, only: [:update]
-            before_action :check_admin, only: [:logs, :destroy]
+            before_action :check_admin, only: [:index, :destroy]
 
 
             before_action :doorkeeper_authorize!
@@ -12,30 +12,16 @@ module Orchestrator
 
             # deal with live reload   filter
             @@elastic ||= Elastic.new(User)
-            @@elasticLogs ||= Elastic.new(::Orchestrator::AccessLog)
 
+             # Admins can see a little more of the users data
+            ADMIN_DATA = User::PUBLIC_DATA.dup
+            ADMIN_DATA[:only] += [:support, :sys_admin]
+            p ADMIN_DATA
 
             def index
                 query = @@elastic.query(params)
                 results = @@elastic.search(query) do |user|
-                    user.as_json(User::PUBLIC_DATA)
-                end
-                respond_with results
-            end
-
-            def logs
-                query = @@elasticLogs.query(params)
-                query.sort = [{
-                    ended_at: "desc"
-                }]
-                query.filter({
-                    user_id: [id]
-                })
-
-                results = @@elasticLogs.search(query) do |entry|
-                    entry.as_json.tap do |json|
-                        json[:systems] = ControlSystem.find_by_id(json[:systems]).as_json(only: [:id, :name])
-                    end
+                    user.as_json(ADMIN_DATA)
                 end
                 respond_with results
             end

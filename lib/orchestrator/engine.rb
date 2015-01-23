@@ -36,6 +36,7 @@ module Orchestrator
         # Discover the possible module location paths after initialization is complete
         #
         config.after_initialize do |app|
+            require File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/user'))
             
             ActiveSupport::Dependencies.autoload_paths.each do |path|
                 Pathname.new(path).ascend do |v|
