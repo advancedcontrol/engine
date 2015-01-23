@@ -3,7 +3,8 @@ module Orchestrator
     module Api
         class ZonesController < ApiController
             respond_to :json
-            before_action :check_admin
+            before_action :check_admin, except: [:index, :show]
+            before_action :check_support, only: [:index, :show]
             before_action :find_zone, only: [:show, :update, :destroy]
 
 

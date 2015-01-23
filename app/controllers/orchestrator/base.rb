@@ -65,7 +65,7 @@ module Orchestrator
         # Checking if the user is support personnel
         def check_support
             user = current_user
-            user && user.support
+            user && (user.support || user.sys_admin)
         end
 
         # current user using doorkeeper
