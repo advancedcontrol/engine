@@ -14,7 +14,7 @@ module Orchestrator
             def index
                 query = @@elastic.query(params)
                 query.sort = [{
-                    ended_at: "desc"
+                    created_at: "desc"
                 }]
 
                 # Filter systems via user_id
@@ -27,7 +27,7 @@ module Orchestrator
 
                 results = @@elastic.search(query) do |entry|
                     entry.as_json.tap do |json|
-                        json[:systems] = ControlSystem.find_by_id(json[:systems]).as_json(only: [:id, :name])
+                        json[:systems] = ControlSystem.find_by_id(json[:systems]).as_json(only: [:id, :name]) || []
                     end
                 end
                 respond_with results

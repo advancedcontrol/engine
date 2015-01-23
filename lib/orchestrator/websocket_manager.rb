@@ -83,6 +83,9 @@ module Orchestrator
                         if COMMANDS.include?(cmd)
                             @accessed << params[:sys]   # Log the access
                             self.__send__(cmd, params)  # Execute the request
+
+                            # Start logging
+                            periodicly_update_logs if @accessTimer.nil?
                         else
                             @access_log.suspected = true
                             @logger.warn("websocket requested unknown command '#{params[:cmd]}'")
@@ -467,11 +470,45 @@ module Orchestrator
             @bindings = nil
             @debug.resolve(true) if @debug # detach debug listeners
 
-            if @accessed.length > 0
-                @access_log.systems = @accessed.to_a
-                @access_log.ended_at = Time.now.to_i
-                @access_log.save
+            @accessTimer.cancel
+            @loop.work(proc {
+                @accesslock.synchronize {
+                    @access_log.systems = @accessed.to_a
+                    @access_log.ended_at = Time.now.to_i
+                    @access_log.save
+                }
+            })
+        end
+
+
+        protected
+
+
+        def update_accessed(*args)
+            if @accesslock.try_lock    # No blocking!
+                begin
+                    @access_log.systems = @accessed.to_a
+
+                    @loop.work(proc {
+                        @access_log.save
+                    }).finally do
+                        @accesslock.unlock
+                    end
+                ensure
+                    @accesslock.unlock
+                end
             end
+        end
+
+        def periodicly_update_logs
+            @accessTimer = @loop.scheduler.every(60000 + Random.rand(1000), method(:update_accessed))
+            @accesslock = Mutex.new
+            @access_log.systems = @accessed.to_a
+            @loop.work(proc {
+                @accesslock.synchronize {
+                    @access_log.save
+                }
+            })
         end
     end
 end
