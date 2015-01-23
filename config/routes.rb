@@ -33,6 +33,10 @@ Orchestrator::Engine.routes.draw do
         end
         resources :groups           # users define the groups they are in
         resources :zones            # zones define what groups can access them
+        resources :users do
+            get 'current',  on: :collection
+        end
+        resources :logs
         
         concerns  :mods
     end

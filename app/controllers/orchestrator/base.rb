@@ -5,8 +5,8 @@ module Orchestrator
         rescue_from Couchbase::Error::NotFound, with: :entry_not_found
 
 
-        # Add headers to allow for CORS requests to the API
-        before_filter :allow_cors
+        before_action :doorkeeper_authorize!, except: :options
+        before_filter :allow_cors  # Add headers to allow for CORS requests to the API
 
 
         # This is a preflight OPTIONS request
@@ -54,6 +54,23 @@ module Orchestrator
         def save_and_respond(model)
             yield if model.save && block_given?
             respond_with :api, model
+        end
+
+        # Checking if the user is an administrator
+        def check_admin
+            user = current_user
+            user && user.sys_admin
+        end
+
+        # Checking if the user is support personnel
+        def check_support
+            user = current_user
+            user && user.support
+        end
+
+        # current user using doorkeeper
+        def current_user
+            @current_user ||= User.find(doorkeeper_token.resource_owner_id) if doorkeeper_token
         end
     end
 end

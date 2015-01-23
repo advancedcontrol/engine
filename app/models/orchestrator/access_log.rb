@@ -16,11 +16,11 @@ module Orchestrator
         attribute :notes
 
         attribute :created_at
-        attribute :ended_at,   default: lambda { Time.now.to_i }
+        attribute :ended_at
 
 
-        def initialize
-            super
+        def initialize(*args)
+            super(*args)
             self.created_at = Time.now.to_i
         end
 

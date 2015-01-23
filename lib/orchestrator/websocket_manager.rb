@@ -467,8 +467,11 @@ module Orchestrator
             @bindings = nil
             @debug.resolve(true) if @debug # detach debug listeners
 
-            @access_log.systems = @accessed.to_a
-            @access_log.save
+            if @accessed.length > 0
+                @access_log.systems = @accessed.to_a
+                @access_log.ended_at = Time.now.to_i
+                @access_log.save
+            end
         end
     end
 end

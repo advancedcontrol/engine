@@ -1,6 +1,7 @@
 
 module Orchestrator
-    class ApiController < ::AcaEngineBase
+    class ApiController < ::Orchestrator::Base
+    	
 
         protected
 
