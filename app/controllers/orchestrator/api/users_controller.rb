@@ -15,8 +15,8 @@ module Orchestrator
 
              # Admins can see a little more of the users data
             ADMIN_DATA = User::PUBLIC_DATA.dup
-            ADMIN_DATA[:only] += [:support, :sys_admin]
-            p ADMIN_DATA
+            ADMIN_DATA[:only] += [:support, :sys_admin, :email]
+
 
             def index
                 query = @@elastic.query(params)
