@@ -5,7 +5,7 @@ module Orchestrator
             respond_to :json
             # state, funcs, count and types are available to authenticated users
             before_action :check_admin,   only: [:create, :update, :destroy, :remove, :start, :stop]
-            before_action :check_support, only: [:index, :show, :exec]
+            before_action :check_support, only: [:index, :exec]
             before_action :find_system,   only: [:show, :update, :destroy, :remove, :start, :stop]
 
 
