@@ -494,8 +494,9 @@ module Orchestrator
                     }).finally do
                         @accesslock.unlock
                     end
-                ensure
-                    @accesslock.unlock
+                rescue => e
+                    @accesslock.unlock if @accesslock.locked?
+                    @logger.print_error(e, "unknown error writing access log")
                 end
             end
         end
