@@ -30,6 +30,8 @@ module Orchestrator
             @exceptions = method(:log_unhandled_exception)
 
             @ready = false
+            @ready_defer = @loop.defer
+            @ready_promise = @ready_defer.promise
 
             # We keep track of unloaded modules so we can optimise loading them again
             @unloaded = Set.new
@@ -46,7 +48,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger, :loop, :ready, :zones, :threads
+        attr_reader :logger, :loop, :ready, :ready_promise, :zones, :threads
 
 
         # Start the control reactor
@@ -214,6 +216,7 @@ module Orchestrator
             # Clear the system cache (in case it has been populated at all)
             System.clear_cache
             @ready = true
+            @ready_defer.resolve(true)
         end
 
         def log_unhandled_exception(*args)
