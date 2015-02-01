@@ -84,9 +84,8 @@ module Orchestrator
             # NOTE:: Couchbase does support non-blocking gets although I think this is simpler
             #
             # @return [::Orchestrator::Core::SystemProxy]
-            # @raise [Couchbase::Error::NotFound] if unable to find the system in the DB
             def get_system(name)
-                id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{name}")
+                id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true}) || name
                 ::Orchestrator::Core::SystemProxy.new(@thread, id.to_sym, self)
             end
 

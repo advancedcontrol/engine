@@ -84,6 +84,13 @@ module Orchestrator
                 system.config.name
             end
 
+            # Returns the system id as defined in the database
+            #
+            # @return [Symbol] the id of the system
+            def id
+                @system
+            end
+
             # Used to be notified when an update to a status value occurs
             #
             # @param module [String, Symbol] the name of the module in the system
