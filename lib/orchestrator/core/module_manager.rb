@@ -62,6 +62,13 @@ module Orchestrator
             end
 
             def reloaded(mod)
+                # Eager load dependency data whilst not on the reactor thread
+                begin
+                    mod.dependency
+                rescue => e
+                    @logger.print_error(e, 'error eager loading dependency data')
+                end
+
                 @thread.schedule do
                     # pass in any updated settings
                     @settings = mod
