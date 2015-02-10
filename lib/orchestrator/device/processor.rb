@@ -53,6 +53,7 @@ module Orchestrator
                 # * verbose (throw errors or silently recover)
                 # * wait_ready (wait for some signal before signaling connected)
                 # * encoding (BINARY) (force encoding on incoming data)
+                # * before_transmit (callback for last min data modifications)
             }
 
 
