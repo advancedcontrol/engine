@@ -117,9 +117,9 @@ module Orchestrator
                     result = @delaying.split(@config[:wait_ready], 2)
                     if result.length > 1
                         @delaying = false
-                        init_connection
                         rem = result[-1]
                         @processor.buffer(rem) unless rem.empty?
+                        init_connection
                     end
                 else
                     @processor.buffer(data)
