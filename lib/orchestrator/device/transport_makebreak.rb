@@ -26,24 +26,30 @@ module Orchestrator
             def transmit(cmd)
                 return if @terminated
 
-                # This is the same as TCP
-                begin
-                    data = @config[:before_transmit].nil? ? cmd[:data] : @config[:before_transmit].call(cmd[:data], cmd)
-                rescue => err
-                    @manager.logger.print_error(err, 'error in before_transmit callback')
-                    if @processor.queue.waiting == cmd
-                        # Fail fast
-                        @processor.thread.next_tick do
-                            @processor.__send__(:resp_failure, err)
+                if @connected
+                    # This is the same as TCP
+                    data = cmd[:data]
+
+                    if @config[:before_transmit]
+                        begin
+                            data = @config[:before_transmit].call(data, cmd)
+                        rescue => err
+                            @manager.logger.print_error(err, 'error in before_transmit callback')
+
+                            if @processor.queue.waiting == cmd
+                                # Fail fast
+                                @processor.thread.next_tick do
+                                    @processor.__send__(:resp_failure, err)
+                                end
+                            else
+                                cmd[:defer].reject(err)
+                            end
+
+                            # Don't try and send anything
+                            return
                         end
-                    else
-                        cmd[:defer].reject(err)
                     end
 
-                    return
-                end
-
-                if @connected
                     promise = write(data)
                     reset_timeout
                     if cmd[:wait]

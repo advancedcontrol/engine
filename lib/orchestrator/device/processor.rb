@@ -341,6 +341,7 @@ module Orchestrator
                     if cmd[:wait_count] > cmd[:max_waits]
                         resp_failure(:max_waits_exceeded)
                     else
+                        @wait = false
                         check_next
                     end
 

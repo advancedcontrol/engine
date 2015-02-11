@@ -20,20 +20,26 @@ module Orchestrator
                 return if @terminated
 
                 # This is the same as MakeBreak
-                begin
-                    data = @config[:before_transmit].nil? ? cmd[:data] : @config[:before_transmit].call(cmd[:data], cmd)
-                rescue => err
-                    @manager.logger.print_error(err, 'error in before_transmit callback')
-                    if @processor.queue.waiting == cmd
-                        # Fail fast
-                        @processor.thread.next_tick do
-                            @processor.__send__(:resp_failure, err)
-                        end
-                    else
-                        cmd[:defer].reject(err)
-                    end
+                data = cmd[:data]
 
-                    return
+                if @config[:before_transmit]
+                    begin
+                        data = @config[:before_transmit].call(data, cmd)
+                    rescue => err
+                        @manager.logger.print_error(err, 'error in before_transmit callback')
+
+                        if @processor.queue.waiting == cmd
+                            # Fail fast
+                            @processor.thread.next_tick do
+                                @processor.__send__(:resp_failure, err)
+                            end
+                        else
+                            cmd[:defer].reject(err)
+                        end
+
+                        # Don't try and send anything
+                        return
+                    end
                 end
 
                 promise = write(data)
