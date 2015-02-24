@@ -82,7 +82,9 @@ module Libuv
             end
         end
 
-        def udp_broadcast(data, port = 9, ip = '<broadcast>')
+        def udp_broadcast(data, port = 9, ip = nil)
+            ip = ip || '255.255.255.255'
+
             if @udp_broadcast
                 @udp_broadcast.send(ip, port, data)
             else
@@ -105,7 +107,8 @@ module Libuv
             end
         end
 
-        def wake_device(mac, ip = '<broadcast>')
+        def wake_device(mac, ip = nil)
+            ip = ip || '255.255.255.255'
             mac = mac.gsub(/(0x|[^0-9A-Fa-f])*/, "").scan(/.{2}/).pack("H*H*H*H*H*H*")
             magicpacket = (0xff.chr) * 6 + mac * 16
             udp_broadcast(magicpacket, 9, ip)
