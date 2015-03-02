@@ -85,7 +85,7 @@ module Orchestrator
                             self.__send__(cmd, params)  # Execute the request
 
                             # Start logging
-                            periodicly_update_logs if @accessTimer.nil?
+                            periodicly_update_logs unless @accessTimer
                         else
                             @access_log.suspected = true
                             @logger.warn("websocket requested unknown command '#{params[:cmd]}'")
@@ -470,14 +470,16 @@ module Orchestrator
             @bindings = nil
             @debug.resolve(true) if @debug # detach debug listeners
 
-            @accessTimer.cancel
-            @loop.work(proc {
-                @accesslock.synchronize {
-                    @access_log.systems = @accessed.to_a
-                    @access_log.ended_at = Time.now.to_i
-                    @access_log.save
-                }
-            })
+            if @accessTimer
+                @accessTimer.cancel
+                @loop.work(proc {
+                    @accesslock.synchronize {
+                        @access_log.systems = @accessed.to_a
+                        @access_log.ended_at = Time.now.to_i
+                        @access_log.save
+                    }
+                })
+            end
         end
 
 
