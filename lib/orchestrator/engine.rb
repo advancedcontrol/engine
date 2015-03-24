@@ -65,11 +65,15 @@ module Orchestrator
                 ctrl.loop.next_tick do
                     begin
                         ctrl.mount.then ctrl.method(:boot)
-                    rescue Exception # Exception is valid here as process kill will be more effective
+                    rescue Exception => e # Exception is valid here as process kill will be more effective
                         # Issue would have been caused by a database error in the ctrl.mount function
                         # We really need the system to be in a clean state when it starts so our only
                         # option is to kill it and let the service manager restart it.
-                        Process.kill 'INT', Process.pid
+                        Thread.new {
+                            sleep 1
+                            Process.kill 'SIGKILL', Process.pid
+                        }
+                        raise e
                     end
                 end
             end
