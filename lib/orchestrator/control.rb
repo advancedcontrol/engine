@@ -54,6 +54,7 @@ module Orchestrator
         # Start the control reactor
         def mount
             return @server.loaded if @server
+            promise = nil
 
             @critical.synchronize {
                 return if @server   # Protect against multiple mounts
