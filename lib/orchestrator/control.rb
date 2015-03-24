@@ -64,7 +64,7 @@ module Orchestrator
                 end
 
                 @server = ::SpiderGazelle::Spider.instance
-                @server.loaded.then do
+                promise = @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)
                     if @server.mode == :thread
                         @threads = @server.threads
@@ -81,7 +81,7 @@ module Orchestrator
                 end
             }
 
-            return @server.loaded
+            return promise
         end
 
         # Boot the control system, running all defined modules

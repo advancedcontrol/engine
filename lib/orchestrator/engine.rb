@@ -63,7 +63,14 @@ module Orchestrator
             # Don't auto-load if running in the console or as a rake task
             unless ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(Rake)
                 ctrl.loop.next_tick do
-                    ctrl.mount.then ctrl.method(:boot)
+                    begin
+                        ctrl.mount.then ctrl.method(:boot)
+                    rescue Exception # Exception is valid here as process kill will be more effective
+                        # Issue would have been caused by a database error in the ctrl.mount function
+                        # We really need the system to be in a clean state when it starts so our only
+                        # option is to kill it and let the service manager restart it.
+                        Process.kill 'INT', Process.pid
+                    end
                 end
             end
         end

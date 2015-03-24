@@ -103,27 +103,33 @@ module Orchestrator
             return if to_thread == self
 
             @thread.schedule do
-                subs = @subscriptions.delete(mod_id)
-                if subs
-                    # Remove the system references
-                    subs.each do |sub|
-                        @systems[sub.sys_id].delete(sub) if sub.sys_id
+                statuses = @subscriptions.delete(mod_id)
+
+                if statuses
+                    statuses.each_value do |subs|
+                        # Remove the system references from this thread
+                        subs.each do |sub|
+                            @systems[sub.sys_id].delete(sub) if sub.sys_id
+                        end
                     end
 
                     # Transfer the subscriptions
-                    to_thread.transfer(mod_id, subs)
+                    to_thread.transfer(mod_id, statuses)
                 end
             end
         end
 
-        def transfer(mod_id, subs)
+        def transfer(mod_id, statuses)
             @thread.schedule do
-                @subscriptions[mod_id] = subs
+                @subscriptions[mod_id] = statuses
 
-                subs.each do |sub|
-                    if sub.sys_id
-                        @systems[sub.sys_id] ||= Set.new
-                        @systems[sub.sys_id] << sub
+                # Rebuild the system level lookup on this thread
+                statuses.each_value do |subs|
+                    subs.each do |sub|
+                        if sub.sys_id
+                            @systems[sub.sys_id] ||= Set.new
+                            @systems[sub.sys_id] << sub
+                        end
                     end
                 end
             end

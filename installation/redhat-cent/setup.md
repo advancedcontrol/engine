@@ -53,6 +53,7 @@ couchbase hard core unlimited
     * `yum install -y rubygem-nokogiri`
     * Libcouchbase: http://www.couchbase.com/communities/c-client-library
 * Install Ruby
+    * `export http_proxy="http://www-cache.usyd.edu.au:8080"`
     * `sudo curl -sSL https://get.rvm.io | bash`
     * `rvm reload`
     * `rvm list known`
@@ -93,7 +94,8 @@ ELASTIC_INDEX=control
 * Install ACA Engine
     * `cd /home`
     * `mkdir aca_apps`
-    * `git clone git clone https://bitbucket.org/william_le/engine-starter-kit.git`
+    * `useradd aca_apps` + `passwd aca_apps`
+    * `git clone https://bitbucket.org/william_le/engine-starter-kit.git`
     * `git clone https://stakach@bitbucket.org/quaypay/coauth.git`
     * `git clone https://stakach@bitbucket.org/quaypay/coauth.git`
     * `git clone https://stakach@bitbucket.org/aca/control.git`
