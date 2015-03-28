@@ -147,6 +147,19 @@ module Orchestrator
                 sub
             end
 
+            def load_complete(callback = nil, &blk)
+                callback = callback || blk
+
+                defer = @thread.defer
+                defer.resolve(::Orchestrator::Control.instance.ready_promise)
+
+                if callback
+                    defer.promise.then(callback)
+                else
+                    defer.promise
+                end
+            end
+
 
             protected
 
