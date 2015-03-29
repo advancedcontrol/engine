@@ -109,10 +109,10 @@ module Orchestrator
 
                     # Check level to speed processing
                     if @logger.level == 0
-                        @logger.debug "Status updated: #{status} = #{value}"
+                        @logger.debug "Status updated: #{name} = #{value}"
                     end
                 elsif @logger.level == 0
-                    @logger.debug "No change for: #{status} = #{value}"
+                    @logger.debug "No change for: #{name} = #{value}"
                 end
             end
 
