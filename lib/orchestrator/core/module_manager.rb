@@ -106,6 +106,13 @@ module Orchestrator
                     @thread.schedule do
                         @stattrak.update(@settings.id.to_sym, name, value)
                     end
+
+                    # Check level to speed processing
+                    if @logger.level == 0
+                        @logger.debug "Status updated: #{status} = #{value}"
+                    end
+                elsif @logger.level == 0
+                    @logger.debug "No change for: #{status} = #{value}"
                 end
             end
 

@@ -43,11 +43,6 @@ module Orchestrator
             # thread safe status settings
             def []=(status, value)
                 @__config__.trak(status.to_sym, value)
-
-                # Check level to speed processing
-                if @__config__.logger.level == 0
-                    @__config__.logger.debug "Status updated: #{status} = #{value}"
-                end
             end
 
             # thread safe status subscription
