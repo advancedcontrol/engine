@@ -46,10 +46,18 @@ module Orchestrator
                 respond_with @user
             end
 
-            # TODO:: We should only ever disable users... Need to add this flag
-            #def destroy
-            #    respond_with @user.delete
-            #end
+            # Make this available when there is a clean up option
+            def destroy
+                if defined?(::UserCleanup)
+                    @user.destroy
+                    render nothing: true
+                else
+                    ::Auth::Authentication.for_user(@user.id).each do |auth|
+                        auth.delete
+                    end
+                    @user.delete
+                end
+            end
 
 
             protected
