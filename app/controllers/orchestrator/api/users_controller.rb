@@ -48,6 +48,8 @@ module Orchestrator
 
             # Make this available when there is a clean up option
             def destroy
+                @user = User.find(id)
+
                 if defined?(::UserCleanup)
                     @user.destroy
                     render nothing: true
