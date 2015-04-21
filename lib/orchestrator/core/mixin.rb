@@ -86,7 +86,7 @@ module Orchestrator
                 @__config__.define_setting(name.to_sym, value)
             end
 
-            def wake_device(mac, ip = '<broadcast>')
+            def wake_device(mac, ip = nil)
                 @__config__.thread.schedule do
                     @__config__.thread.wake_device(mac, ip)
                 end
