@@ -44,7 +44,9 @@ module Orchestrator
         PROTECTED[:use_middleware] = true
 
 
-        class RequestProxy
+        #
+        # This class exists so that we can access regular kernel methods
+        class RequestForward
             def initialize(thread, mod, user = nil)
                 @mod = mod
                 @thread = thread
@@ -52,44 +54,9 @@ module Orchestrator
                 @trace = []
             end
 
-
             attr_reader :trace
 
-
-            # Simplify access to status variables as they are thread safe
-            def [](name)
-                @mod.instance[name]
-            end
-
-            def []=(status, value)
-                @mod.instance[status] = value
-            end
-
-            # Returns true if there is no object to proxy
-            #
-            # @return [true|false]
-            def nil?
-                @mod.nil?
-            end
-
-            # Returns true if the module responds to the given method
-            #
-            # @return [true|false]
-            def respond_to?(symbol, include_all = false)
-                if @mod
-                    @mod.instance.respond_to?(symbol, include_all)
-                else
-                    false
-                end
-            end
-
-            # Looks up the arity of a method
-            def arity(method)
-                @mod.instance.method(method.to_sym).arity
-            end
-
-            # All other method calls are wrapped in a promise
-            def method_missing(name, *args, &block)
+            def request(name, *args, &block)
                 defer = @thread.defer
 
                 if @mod.nil?
@@ -125,6 +92,65 @@ module Orchestrator
                 end
 
                 defer.promise
+            end
+
+            def respond_to?(symbol, include_all)
+                if @mod
+                    @mod.instance.respond_to?(symbol, include_all)
+                else
+                    false
+                end
+            end
+        end
+
+        FALSE = false
+        NIL = nil
+
+        # By using basic object we should be almost perfectly proxying the module code
+        class RequestProxy < BasicObject
+            def initialize(thread, mod, user = NIL)
+                @mod = mod
+                @forward = RequestForward.new(thread, mod, user)
+            end
+
+
+            def trace
+                @forward.trace
+            end
+
+
+            # Simplify access to status variables as they are thread safe
+            def [](name)
+                @mod.instance[name]
+            end
+
+            def []=(status, value)
+                @mod.instance[status] = value
+            end
+
+            # Returns true if there is no object to proxy
+            #
+            # @return [true|false]
+            def nil?
+                @mod.nil?
+            end
+
+            # Returns true if the module responds to the given method
+            #
+            # @return [true|false]
+            def respond_to?(symbol, include_all = FALSE)
+                @forward.respond_to?(symbol, include_all)
+            end
+
+            # Looks up the arity of a method
+            def arity(method)
+                @mod.instance.method(method.to_sym).arity
+            end
+
+
+            # All other method calls are wrapped in a promise
+            def method_missing(name, *args, &block)
+                @forward.request(name, *args, &block)
             end
         end
     end

@@ -142,7 +142,7 @@ module Orchestrator
                 mod_man = system.get(mod, index - 1)
                 if mod_man
                     req = Core::RequestProxy.new(@loop, mod_man, @user)
-                    result = req.send(name, *args)
+                    result = req.method_missing(name, *args)
                     result.then(proc { |res|
                         output = nil
                         begin

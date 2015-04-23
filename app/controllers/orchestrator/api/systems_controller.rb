@@ -257,7 +257,7 @@ module Orchestrator
 
                 req = Core::RequestProxy.new(mod.thread, mod, user)
                 args = para[:args] || []
-                result = req.send(para[:method].to_sym, *args)
+                result = req.method_missing(para[:method].to_sym, *args)
 
                 # timeout in case message is queued
                 timeout = mod.thread.scheduler.in(5000) do
