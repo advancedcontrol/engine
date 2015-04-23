@@ -89,7 +89,7 @@ module Orchestrator
         # By using basic object we should be almost perfectly proxying the module code
         class RequestsProxy < BasicObject
             def initialize(thread, modules, user = nil)
-                @forward = RequestForward.new(thread, modules, user)
+                @forward = RequestsForward.new(thread, modules, user)
                 @modules = @forward.modules
             end
 
