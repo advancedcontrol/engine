@@ -103,12 +103,10 @@ module Orchestrator
             end
         end
 
-        FALSE = false
-        NIL = nil
 
         # By using basic object we should be almost perfectly proxying the module code
         class RequestProxy < BasicObject
-            def initialize(thread, mod, user = NIL)
+            def initialize(thread, mod, user = nil)
                 @mod = mod
                 @forward = RequestForward.new(thread, mod, user)
             end
@@ -138,7 +136,7 @@ module Orchestrator
             # Returns true if the module responds to the given method
             #
             # @return [true|false]
-            def respond_to?(symbol, include_all = FALSE)
+            def respond_to?(symbol, include_all = false)
                 @forward.respond_to?(symbol, include_all)
             end
 

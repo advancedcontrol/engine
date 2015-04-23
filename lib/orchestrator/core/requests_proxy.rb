@@ -5,7 +5,7 @@ module Orchestrator
         #
         # This class exists so that we can access regular kernel methods
         class RequestsForward
-            def initialize(thread, modules, user = NIL)
+            def initialize(thread, modules, user)
                 if modules.nil?
                     @modules = []
                 else
@@ -88,7 +88,7 @@ module Orchestrator
 
         # By using basic object we should be almost perfectly proxying the module code
         class RequestsProxy < BasicObject
-            def initialize(thread, modules, user = NIL)
+            def initialize(thread, modules, user = nil)
                 @forward = RequestForward.new(thread, modules, user)
                 @modules = @forward.modules
             end
