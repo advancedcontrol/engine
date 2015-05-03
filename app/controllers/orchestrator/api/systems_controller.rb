@@ -138,14 +138,17 @@ module Orchestrator
             def state
                 # Status defined as a system module
                 params.require(:module)
-                params.require(:lookup)
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :lookup)
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
                     if mod
-                        render json: mod.status[para[:lookup].to_sym]
+                        if para.has_key?(:lookup)
+                            render json: mod.status[para[:lookup].to_sym]
+                        else
+                            render json: mod.status.marshal_dump
+                        end
                     else
                         render nothing: true, status: :not_found
                     end
@@ -257,7 +260,7 @@ module Orchestrator
 
                 req = Core::RequestProxy.new(mod.thread, mod, user)
                 args = para[:args] || []
-                result = req.send(para[:method].to_sym, *args)
+                result = req.method_missing(para[:method].to_sym, *args)
 
                 # timeout in case message is queued
                 timeout = mod.thread.scheduler.in(5000) do

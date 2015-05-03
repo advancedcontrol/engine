@@ -1,12 +1,11 @@
-require 'forwardable'
 
 module Orchestrator
     module Core
-        class RequestsProxy
-            extend Forwardable
 
-            
-            def initialize(thread, modules, user = nil)
+        #
+        # This class exists so that we can access regular kernel methods
+        class RequestsForward
+            def initialize(thread, modules, user)
                 if modules.nil?
                     @modules = []
                 else
@@ -19,6 +18,7 @@ module Orchestrator
 
 
             attr_reader :trace
+            attr_reader :modules
 
 
             # Provide Enumerable support
@@ -29,9 +29,6 @@ module Orchestrator
                     yield RequestProxy.new(@thread, mod, @user)
                 end
             end
-
-            # Provide some helper methods
-            def_delegators :@modules, :count, :length, :empty?, :each_index
 
             def last
                 mod = @modules.last
@@ -50,18 +47,9 @@ module Orchestrator
                 return nil unless mod
                 return RequestProxy.new(@thread, mod, @user)
             end
-            alias_method :at, :[]
-
-            # Returns true if there is no object to proxy
-            # Allows RequestProxy and RequestsProxy to be used interchangably
-            #
-            # @return [true|false]
-            def nil?
-                @modules.empty?
-            end
 
 
-            def method_missing(name, *args, &block)
+            def request(name, *args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
                     err = Error::ProtectedMethod.new "attempt to access a protected method '#{name}' in multiple modules"
                     ::Libuv::Q.reject(@thread, err)
@@ -95,6 +83,61 @@ module Orchestrator
 
                     @thread.finally(*promises)
                 end
+            end
+        end
+
+        # By using basic object we should be almost perfectly proxying the module code
+        class RequestsProxy < BasicObject
+            def initialize(thread, modules, user = nil)
+                @forward = RequestsForward.new(thread, modules, user)
+                @modules = @forward.modules
+            end
+
+
+            def trace
+                @forward.trace
+            end
+
+
+            # Provide Enumerable support
+            def each(&blk)
+                @forward.each &blk
+            end
+
+            # Provide some helper methods
+            def count; @modules.count; end
+            def length; @modules.length; end
+            def empty?; @modules.empty?; end
+            def each_index; @modules.each_index(&block); end
+
+
+            def last
+                @forward.last
+            end
+
+            def first
+                @forward.first
+            end
+
+            def [](index)
+                @forward[index]
+            end
+            
+            def at(index)
+                @forward[index]
+            end
+
+            # Returns true if there is no object to proxy
+            # Allows RequestProxy and RequestsProxy to be used interchangably
+            #
+            # @return [true|false]
+            def nil?
+                @modules.empty?
+            end
+
+
+            def method_missing(name, *args, &block)
+                @forward.request(name, *args, &block)
             end
         end
     end

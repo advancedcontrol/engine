@@ -20,6 +20,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
+                query.not({deleted: [true]})
                 results = @@elastic.search(query) do |user|
                     user.as_json(ADMIN_DATA)
                 end
@@ -46,10 +47,20 @@ module Orchestrator
                 respond_with @user
             end
 
-            # TODO:: We should only ever disable users... Need to add this flag
-            #def destroy
-            #    respond_with @user.delete
-            #end
+            # Make this available when there is a clean up option
+            def destroy
+                @user = User.find(id)
+
+                if defined?(::UserCleanup)
+                    @user.destroy
+                    render nothing: true
+                else
+                    ::Auth::Authentication.for_user(@user.id).each do |auth|
+                        auth.delete
+                    end
+                    @user.delete
+                end
+            end
 
 
             protected

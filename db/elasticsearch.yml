@@ -1,0 +1,24 @@
+
+
+
+# Set a cluster name and password for couchbase
+cluster.name: engine
+couchbase.username: admin
+couchbase.password: changeme
+
+
+
+# -------------------
+# ACA Engine Mappings:
+# -------------------
+couchbase.documentTypes.sgrp: ^sgrp(-|_).+$
+couchbase.documentTypes.user: ^user(-|_).+$
+couchbase.documentTypes.mod: ^mod(-|_).+$
+couchbase.documentTypes.alog: ^alog(-|_).+$
+couchbase.documentTypes.sys: ^sys(-|_).+$
+couchbase.documentTypes.dep: ^dep(-|_).+$
+couchbase.documentTypes.zone: ^zone(-|_).+$
+
+# Module to control system mapping (only way to search for logic modules)
+couchbase.documentTypeParentFields.mod: doc.control_system_id
+couchbase.documentTypeRoutingFields.mod: doc.control_system_id
