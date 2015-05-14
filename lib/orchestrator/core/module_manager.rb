@@ -5,6 +5,8 @@ module Orchestrator
                 @thread = thread        # Libuv Loop
                 @settings = settings    # Database model
                 @klass = klass
+
+                @running = false
                 
                 # Bit of a hack - should make testing pretty easy though
                 @status = ::ThreadSafe::Cache.new
@@ -15,14 +17,16 @@ module Orchestrator
             end
 
 
-            attr_reader :thread, :settings, :instance
+            attr_reader :thread, :settings, :instance, :running
             attr_reader :status, :stattrak, :logger
             attr_accessor :current_user
 
 
             # Should always be called on the module thread
             def stop
+                @running = false
                 return if @instance.nil?
+
                 begin
                     if @instance.respond_to? :on_unload, true
                         @instance.__send__(:on_unload)
@@ -43,7 +47,9 @@ module Orchestrator
             end
 
             def start
+                @running = true
                 return true unless @instance.nil?
+
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
