@@ -207,12 +207,6 @@ module Orchestrator
             })
         end
 
-        def reload(dep_id)
-            @loop.work do
-                reload_dep(dep_id)
-            end
-        end
-
         def notify_ready
             # Clear the system cache (in case it has been populated at all)
             System.clear_cache
