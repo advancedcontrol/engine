@@ -31,8 +31,12 @@ module Orchestrator
             end
 
             def update
-                # Must destroy and re-add to change class or module name
-                @dep.update_attributes(update_params)
+                args = safe_params
+                args.delete(:role)
+                args.delete(:class_name)
+
+                # Must destroy and re-add to change class or module type
+                @dep.update_attributes(args)
                 save_and_respond @dep
             end
 
@@ -95,10 +99,6 @@ module Orchestrator
                 {
                     settings: settings.is_a?(::Hash) ? settings : {}
                 }.merge(params.permit(DEP_PARAMS))
-            end
-
-            def update_params
-                params.permit(:name, :description, {settings: []})
             end
 
             def find_dependency
