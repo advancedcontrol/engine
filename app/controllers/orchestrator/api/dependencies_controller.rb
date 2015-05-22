@@ -58,23 +58,34 @@ module Orchestrator
             def reload
                 depman = ::Orchestrator::DependencyManager.instance
                 depman.load(@dep, :force).then(proc {
-                    updated = 0
+                    begin
+                        updated = 0
 
-                    @dep.modules.each do |mod|
-                        manager = mod.manager
-                        if manager
-                            updated += 1
-                            manager.reloaded(mod)
+                        @dep.modules.each do |mod|
+                            manager = mod.manager
+                            if manager
+                                updated += 1
+                                manager.reloaded(mod)
+                            end
                         end
-                    end
 
-                    content = {
-                        message: updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
-                    }.to_json
-                    env['async.callback'].call([200, {
-                        'Content-Length' => content.bytesize,
-                        'Content-Type' => 'application/json'
-                    }, [content]])
+                        content = {
+                            message: updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
+                        }.to_json
+
+                        env['async.callback'].call([200, {
+                            'Content-Length' => content.bytesize,
+                            'Content-Type' => 'application/json'
+                        }, [content]])
+                    rescue => e
+                        # Let user know about any post reload issues
+                        message = 'Warning! Reloaded successfully however some modules were not informed. '
+                        message << "It is safe to reload again. Error was: #{e.message}"
+                        env['async.callback'].call([200, {
+                            'Content-Length' => message.bytesize,
+                            'Content-Type' => 'text/plain'
+                        }, [message]])
+                    end
                 }, proc { |err|
                     output = err.message
                     env['async.callback'].call([500, {
@@ -82,6 +93,7 @@ module Orchestrator
                         'Content-Type' => 'text/plain'
                     }, [output]])
                 })
+
                 throw :async
             end
 
