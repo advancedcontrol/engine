@@ -58,6 +58,8 @@ module Orchestrator
             def reload
                 depman = ::Orchestrator::DependencyManager.instance
                 depman.load(@dep, :force).then(proc {
+                    content = nil
+
                     begin
                         updated = 0
 
@@ -72,20 +74,19 @@ module Orchestrator
                         content = {
                             message: updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
                         }.to_json
-
-                        env['async.callback'].call([200, {
-                            'Content-Length' => content.bytesize,
-                            'Content-Type' => 'application/json'
-                        }, [content]])
                     rescue => e
                         # Let user know about any post reload issues
                         message = 'Warning! Reloaded successfully however some modules were not informed. '
                         message << "It is safe to reload again. Error was: #{e.message}"
-                        env['async.callback'].call([200, {
-                            'Content-Length' => message.bytesize,
-                            'Content-Type' => 'text/plain'
-                        }, [message]])
+                        content = {
+                            message: message
+                        }.to_json
                     end
+
+                    env['async.callback'].call([200, {
+                        'Content-Length' => content.bytesize,
+                        'Content-Type' => 'application/json'
+                    }, [content]])
                 }, proc { |err|
                     output = err.message
                     env['async.callback'].call([500, {
