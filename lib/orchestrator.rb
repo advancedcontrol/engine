@@ -47,6 +47,9 @@ require 'orchestrator/service/transport_http'
 require 'orchestrator/service/manager'
 require 'orchestrator/service/mixin'
 
+# Trigger logic
+require 'orchestrator/triggers/state'
+
 
 module Orchestrator
 end

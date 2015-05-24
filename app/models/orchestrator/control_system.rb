@@ -87,6 +87,12 @@ module Orchestrator
         end
 
 
+        # Triggers
+        def triggers
+            Trigger.for(self.id)
+        end
+
+
         protected
 
 
