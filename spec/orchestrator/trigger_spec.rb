@@ -2,7 +2,7 @@ require 'rails'
 require 'orchestrator'
 
 describe "trigger state" do
-    MockTrig = Struct.new(:name, :triggered, :conditions)
+    MockTrig = Struct.new(:id, :triggered, :conditions)
 
     before :each do
         @sched = ::Libuv::Loop.default.scheduler

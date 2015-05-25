@@ -11,6 +11,9 @@ module Orchestrator
         attribute :conditions,  default: lambda { [] }
         attribute :actions,  default: lambda { [] }
 
+        # in seconds
+        attribute :debounce_period, default: 0
+
 
         # Returns a list of triggers for the system provided
         def for(sys_id)

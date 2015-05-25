@@ -170,7 +170,11 @@ module Orchestrator
                 defer = @thread.defer
                 defer.resolve(::Orchestrator::Control.instance.ready_promise)
 
-                defer.promise.then(callback) if callback
+                if callback
+                    defer.promise.then do 
+                        callback.call
+                    end
+                end
                 defer.promise
             end
 

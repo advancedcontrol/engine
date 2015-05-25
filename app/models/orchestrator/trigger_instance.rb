@@ -12,8 +12,6 @@ module Orchestrator
         attribute :triggered,  default: false
         attribute :important,  default: false
 
-        attribute :debounce_period, default: 0
-
 
         def name
             trigger.name
@@ -29,6 +27,10 @@ module Orchestrator
 
         def actions
             trigger.actions
+        end
+
+        def debounce_period
+            trigger.debounce_period
         end
 
 

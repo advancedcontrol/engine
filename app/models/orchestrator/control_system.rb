@@ -30,6 +30,12 @@ module Orchestrator
         attribute :support_url
 
 
+        # Used in triggers::manager for accssing a system proxy
+        def control_system_id
+            self.id
+        end
+
+
         def self.find_by_name(name)
             id = ControlSystem.bucket.get("sysname-#{self.name.downcase}", {quiet: true})
             ControlSystem.find_by_id(id) if id

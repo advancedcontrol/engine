@@ -198,7 +198,7 @@ module Orchestrator
                     defer.resolve(thread.work(proc {
                         mod = Orchestrator::Module.find(@settings.id)
                         mod.settings[name] = value
-                        mod.save!
+                        mod.save!(CAS => mod.meta[CAS])
                         mod
                     }))
                 end
@@ -219,17 +219,21 @@ module Orchestrator
             protected
 
 
+            CAS = 'cas'.freeze
+
             def update_connected_status(connected)
                 id = settings.id
 
                 # Access the database in a non-blocking fashion
+                # The update will not overwrite any user changes either
+                # (optimistic locking)
                 thread.work(proc {
                     @updating.synchronize {
                         model = ::Orchestrator::Module.find_by_id id
 
                         if model && model.connected != connected
                             model.connected = connected
-                            model.save!
+                            model.save!(CAS => model.meta[CAS])
                             model
                         else
                             nil
@@ -257,7 +261,7 @@ module Orchestrator
                         if model && model.running != running
                             model.running = running
                             model.connected = false if !running
-                            model.save!
+                            model.save!(CAS => model.meta[CAS])
                             model
                         else
                             nil

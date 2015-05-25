@@ -21,7 +21,7 @@ module Orchestrator
                 @conditions = []     # Pre-processed list of conditions
                 @schedules = {}      # References to schedules
 
-                @name = trigger.name
+                @id = trigger.id
                 @triggered = trigger.triggered
                 conditions = trigger.conditions
                 conditions.each_index do |index|
@@ -66,7 +66,7 @@ module Orchestrator
                     result = false
                 end
 
-                @callback.call(@name, result) if @enabled && result != @triggered
+                @callback.call(@id, result) if @enabled && result != @triggered
                 @triggered = result
                 result
             end
