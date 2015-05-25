@@ -13,6 +13,13 @@ module Orchestrator
         attribute :important,  default: false
 
 
+        before_delete :unload
+        after_save    :load
+
+
+        # ----------------
+        # PARENT ACCESSORS
+        # ----------------
         def name
             trigger.name
         end
@@ -34,13 +41,26 @@ module Orchestrator
         end
 
 
-        # Finds all the modules belonging to a particular system
+        # ------------
+        # VIEWS ACCESS
+        # ------------
+        # Finds all the instances belonging to a particular system
         def self.for(sys_id)
             by_system_id({key: sys_id, stale: false})
         end
         view :by_system_id
 
 
+        # Finds all the instances belonging to a particular trigger
+        def self.of(trig_id)
+            by_trigger_id({key: trig_id, stale: false})
+        end
+        view :by_trigger_id
+
+
+        # ---------------
+        # JSON SERIALISER
+        # ---------------
         DEFAULT_JSON_METHODS = [
             :name,
             :description,
@@ -54,11 +74,47 @@ module Orchestrator
         end
 
 
+        # --------------------
+        # START / STOP HELPERS
+        # --------------------
+        def load
+            mod_man = get_module_manager
+            mod = mod_man.instance if mod_man
+
+            if mod_man && mod
+                trig = self
+                mod_man.thread.schedule do
+                    mod.reload trig
+                end
+            end
+        end
+
+        def unload
+            mod_man = get_module_manager
+            mod = mod_man.instance if mod_man
+
+            if mod_man && mod
+                trig = self
+                mod_man.thread.schedule do
+                    mod.remove trig
+                end
+            end
+        end
+
+
         protected
 
 
-        # Validate that
-        # * there are some conditions entered
-        # * there are some actions entered
+        def get_module_manager
+            ::Orchestrator::Control.instance.loaded?(self.control_system_id)
+        end
+
+
+        # -----------
+        # VALIDATIONS
+        # -----------
+        # Ensure the models exist in the database
+        validates :control_system, presence: true
+        validates :trigger,        presence: true
     end
 end

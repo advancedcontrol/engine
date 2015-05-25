@@ -58,16 +58,7 @@ module Orchestrator
                 if system.id == trig.system_id
                     # Unload any previous trigger with the same ID
                     old = @triggers[trig.id]
-                    if old 
-                        @trigger_names.delete(old.name)
-                        @subscriptions[old.id].each do |sub|
-                            unsubscribe sub
-                        end
-                        @conditions[old.id].destroy
-
-                        timer = @debounce[old.id]
-                        timer.cancel if timer
-                    end
+                    remove(old) if old
 
                     # Load the new trigger
                     @triggers[trig.id] = trig
@@ -86,6 +77,19 @@ module Orchestrator
                     # enable the triggers
                     state.enable(trig.enabled)
                 end
+            end
+
+            def remove(trig)
+                @trigger_names.delete(trig.name)
+                @subscriptions[trig.id].each do |sub|
+                    unsubscribe sub
+                end
+                @conditions[trig.id].destroy
+
+                timer = @debounce[trig.id]
+                timer.cancel if timer
+
+                @triggers.delete(trig.id)
             end
 
             def run_trigger_action(name)

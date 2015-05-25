@@ -178,7 +178,15 @@ module Orchestrator
             
             # Unload the triggers
             ctrl.unload(self.id)
-            @old_id = self.id # not sure if required
+
+            # delete all the trigger instances (remove directly as before_delete is not required)
+            bucket = ::Orchestrator::TriggerInstance.bucket
+            TriggerInstance.for(sys_id).each do |trig|
+                bucket.delete(trig.id)
+            end
+
+            # Prevents reload for the cache expiry
+            @old_id = self.id
         end
     end
 end
