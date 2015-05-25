@@ -34,6 +34,13 @@ module Orchestrator
         end
 
 
+        # Finds all the modules belonging to a particular system
+        def self.for(sys_id)
+            by_system_id({key: sys_id, stale: false})
+        end
+        view :by_system_id
+
+
         DEFAULT_JSON_METHODS = [
             :name,
             :description,

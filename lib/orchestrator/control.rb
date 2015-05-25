@@ -212,6 +212,11 @@ module Orchestrator
             System.clear_cache
             @ready = true
             @ready_defer.resolve(true)
+
+            # these are invisible to system - never make it into the system cache
+            @loop.work do
+                load_all_triggers 
+            end
         end
 
         def log_unhandled_exception(*args)
@@ -227,9 +232,52 @@ module Orchestrator
             ::Libuv::Q.reject(@loop, msg)
         end
 
+        def load_triggers_for(system)
+            return unless loaded?(system.id)
+
+            thread = @selector.next
+            thread.schedule do
+                mod = Triggers::Manager.new(thread, ::Orchestrator::Triggers::Module, system)
+                @loaded[system.id] = mod  # NOTE:: Threadsafe
+                mod.start
+            end
+        end
+
 
         protected
 
+
+        # These run like regular modules
+        # This function is always run from the thread pool
+        # Batch loads the system triggers on to the main thread
+        def load_all_triggers
+            begin
+                systems = []
+                ControlSystem.all.each do |cs|
+                    systems << cs
+                    if systems.length >= 20
+                        schedule_triggers_for(systems)
+                        systems = []
+                    end
+                end
+                if systems.length > 0
+                    schedule_triggers_for(systems)
+                end
+            rescue => e
+                @logger.warn "exception starting triggers #{e.message}"
+                sleep 1  # Give it a bit of time
+                retry
+            end
+        end
+
+        # Schedule the systems for loading on the default thread
+        def schedule_triggers_for(systems)
+            @loop.schedule do
+                systems.each do |sys|
+                    load_triggers_for sys
+                end
+            end
+        end
 
         # This will always be called on the thread reactor here
         def start_module(thread, klass, settings)

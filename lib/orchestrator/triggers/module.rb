@@ -21,7 +21,7 @@ module Orchestrator
 
                 sys_id = system.id
                 result = task {
-                    triggers = Trigger.for(sys_id).to_a
+                    triggers = TriggerInstance.for(sys_id).to_a
                     triggers.each(&:name) # Load the parent model
                     triggers
                 }

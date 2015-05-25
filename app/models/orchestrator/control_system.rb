@@ -54,6 +54,10 @@ module Orchestrator
             # If not deleted and control is running
             # then we want to trigger updates on the logic modules
             if !@old_id && noUpdate.nil? && ctrl.ready
+                # Start the triggers if not already running
+                ctrl.load_triggers_for(self)
+
+                # Reload the running modules
                 (::Orchestrator::Module.find_by_id(self.modules) || []).each do |mod|
                     if mod.control_system_id
                         manager = ctrl.loaded? mod.id
@@ -63,6 +67,11 @@ module Orchestrator
             end
         end
 
+
+        def self.all
+            all(stale: false)
+        end
+        view :all
 
         def self.using_module(mod_id)
             by_modules({key: mod_id, stale: false})
@@ -95,7 +104,7 @@ module Orchestrator
 
         # Triggers
         def triggers
-            Trigger.for(self.id)
+            TriggerInstance.for(self.id)
         end
 
 
@@ -155,17 +164,20 @@ module Orchestrator
         # 2. If this is the last system we remove the modules
         def cleanup_modules
             ControlSystem.bucket.delete("sysname-#{self.name.downcase}", {quiet: true})
+            ctrl = ::Orchestrator::Control.instance
 
             self.modules.each do |mod_id|
                 systems = ControlSystem.using_module(mod_id).fetch_all
 
                 if systems.length <= 1
                     # We don't use the model's delete method as it looks up control systems
-                    ::Orchestrator::Control.instance.unload(mod_id)
+                    ctrl.unload(mod_id)
                     ::Orchestrator::Module.bucket.delete(mod_id, {quiet: true})
                 end
             end
             
+            # Unload the triggers
+            ctrl.unload(self.id)
             @old_id = self.id # not sure if required
         end
     end
