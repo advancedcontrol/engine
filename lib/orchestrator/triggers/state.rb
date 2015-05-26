@@ -89,7 +89,7 @@ module Orchestrator
                     lookup = :"schedule_#{index}"
 
                     # cond == [at|cron, value]
-                    __send__(cond[0].to_sym, value)
+                    __send__(cond[0].to_sym, lookup, cond[1])
 
                     value1 = {lookup: lookup}
                     comparison = :equal
@@ -197,7 +197,7 @@ module Orchestrator
                     check_conditions if @enabled
 
                     # 1min window of value high for times
-                    @schedules[timeout] = @scheduler.in(60000) do
+                    @schedules[timeout] = @scheduler.in(59000) do
                         @schedules.delete(timeout)
                         @values[schedule_id] = false
                         check_conditions if @enabled
@@ -213,7 +213,7 @@ module Orchestrator
                     check_conditions if @enabled
 
                     # 1min window of value high for times
-                    @schedules[timeout] = @scheduler.in(60000) do
+                    @schedules[timeout] = @scheduler.in(59000) do
                         @schedules.delete(timeout)
                         @values[schedule_id] = false
                         check_conditions if @enabled
