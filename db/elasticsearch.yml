@@ -18,7 +18,12 @@ couchbase.documentTypes.alog: ^alog(-|_).+$
 couchbase.documentTypes.sys: ^sys(-|_).+$
 couchbase.documentTypes.dep: ^dep(-|_).+$
 couchbase.documentTypes.zone: ^zone(-|_).+$
+couchbase.documentTypes.trigger: ^trigger(-|_).+$
+couchbase.documentTypes.trig: ^trig(-|_).+$
 
 # Module to dependency mapping
 couchbase.documentTypeParentFields.mod: doc.dependency_id
 couchbase.documentTypeRoutingFields.mod: doc.dependency_id
+
+couchbase.documentTypeParentFields.mod: doc.trigger_id
+couchbase.documentTypeRoutingFields.mod: doc.trigger_id
