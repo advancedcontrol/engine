@@ -54,7 +54,7 @@ module Orchestrator
                 actions = params[:actions]
 
                 {
-                    conditions: conditions.is_a?(::Array) ? conditions : nil
+                    conditions: conditions.is_a?(::Array) ? conditions : nil,
                     actions: actions.is_a?(::Array) ? actions : []
                 }.merge(params.permit(TRIGGER_PARAMS))
             end
