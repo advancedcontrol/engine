@@ -56,7 +56,7 @@ module Orchestrator
 
             def reload(trig)
                 # Check trigger belongs to this system
-                if system.id == trig.system_id
+                if system.id == trig[:system_id]
                     # Unload any previous trigger with the same ID
                     old = @triggers[trig.id]
                     remove(old) if old

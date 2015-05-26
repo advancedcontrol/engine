@@ -54,8 +54,11 @@ module Orchestrator
             # If not deleted and control is running
             # then we want to trigger updates on the logic modules
             if !@old_id && noUpdate.nil? && ctrl.ready
-                # Start the triggers if not already running
-                ctrl.load_triggers_for(self)
+                # Start the triggers if not already running (must occur on the same thread)
+                cs = self
+                ctrl.loop.schedule do
+                    ctrl.load_triggers_for(cs)
+                end
 
                 # Reload the running modules
                 (::Orchestrator::Module.find_by_id(self.modules) || []).each do |mod|

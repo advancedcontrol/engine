@@ -238,7 +238,7 @@ module Orchestrator
             thread = @selector.next
             thread.schedule do
                 mod = Triggers::Manager.new(thread, ::Orchestrator::Triggers::Module, system)
-                @loaded[system.id] = mod  # NOTE:: Threadsafe
+                @loaded[system.id.to_sym] = mod  # NOTE:: Threadsafe
                 mod.start
             end
         end
