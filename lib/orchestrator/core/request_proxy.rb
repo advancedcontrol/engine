@@ -162,7 +162,7 @@ module Orchestrator
 
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
-                @forward.request(name, *args, &block)
+                @forward.request(name.to_sym, *args, &block)
             end
         end
     end
