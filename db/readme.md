@@ -24,7 +24,7 @@ plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazon
 ```shell
 
 curl -X PUT http://localhost:9200/_template/couchbase -d @es_template.json
-curl -X PUT http://localhost:9200/control
+curl -X PUT http://localhost:9200/control/ -d '{"settings":{"number_of_shards":5,"number_of_replicas":1}}'
 curl -X PUT http://localhost:9200/_template/couchbase -d @es_template.json
 
 ```
