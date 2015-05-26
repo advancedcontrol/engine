@@ -49,6 +49,8 @@ require 'orchestrator/service/mixin'
 
 # Trigger logic
 require 'orchestrator/triggers/state'
+require 'orchestrator/triggers/manager'
+require 'orchestrator/triggers/module'
 
 
 module Orchestrator

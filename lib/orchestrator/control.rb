@@ -233,7 +233,7 @@ module Orchestrator
         end
 
         def load_triggers_for(system)
-            return unless loaded?(system.id)
+            return if loaded?(system.id)
 
             thread = @selector.next
             thread.schedule do

@@ -3,6 +3,11 @@ require 'orchestrator'
 
 describe "trigger state" do
     MockTrig = Struct.new(:id, :triggered, :conditions)
+    MockStat = Struct.new(:mod_name, :index, :status, :val) do
+        def value
+            val
+        end
+    end
 
     before :each do
         @sched = ::Libuv::Loop.default.scheduler
@@ -25,7 +30,7 @@ describe "trigger state" do
 
         state = ::Orchestrator::Triggers::State.new(@trig, @sched, @callback)
         
-        state.set_value :Display, 1, :power, true
+        state.set_value MockStat.new(:Display, 1, :power, true)
 
         expect(@result).to eq(nil)
         expect(state.triggered).to eq(false)
@@ -34,13 +39,13 @@ describe "trigger state" do
         expect(@result).to eq(true)
         expect(state.triggered).to eq(true)
 
-        state.set_value :Display, 1, :power, false
+        state.set_value MockStat.new(:Display, 1, :power, false)
         expect(@result).to eq(false)
         expect(state.triggered).to eq(false)
 
         state.enabled(false)
 
-        state.set_value :Display, 1, :power, true
+        state.set_value MockStat.new(:Display, 1, :power, true)
         expect(@result).to eq(false)
         expect(state.triggered).to eq(false)
 
@@ -66,15 +71,15 @@ describe "trigger state" do
 
         state = ::Orchestrator::Triggers::State.new(@trig, @sched, @callback)
 
-        state.set_value :Display, 1, :lamp_hours, 300
-        state.set_value :Display, 1, :power, true
+        state.set_value MockStat.new(:Display, 1, :lamp_hours, 300)
+        state.set_value MockStat.new(:Display, 1, :power, true)
 
         state.enabled(true)
 
         expect(@result).to eq(true)
         expect(state.triggered).to eq(true)
 
-        state.set_value :Display, 1, :lamp_hours, 0
+        state.set_value MockStat.new(:Display, 1, :lamp_hours, 0)
 
         expect(@result).to eq(false)
         expect(state.triggered).to eq(false)
@@ -91,13 +96,13 @@ describe "trigger state" do
         }]]
 
         state = ::Orchestrator::Triggers::State.new(@trig, @sched, @callback)
-        state.set_value :Display, 1, :running_time, {lamp: {hours: 300}}
+        state.set_value MockStat.new(:Display, 1, :running_time, {lamp: {hours: 300}})
         state.enabled(true)
 
         expect(@result).to eq(true)
         expect(state.triggered).to eq(true)
 
-        state.set_value :Display, 1, :running_time, {lamp: {hours: 0}}
+        state.set_value MockStat.new(:Display, 1, :running_time, {lamp: {hours: 0}})
 
         expect(@result).to eq(false)
         expect(state.triggered).to eq(false)
@@ -114,18 +119,18 @@ describe "trigger state" do
         }]]
 
         state = ::Orchestrator::Triggers::State.new(@trig, @sched, @callback)
-        state.set_value :Display, 1, :running_time, {lamp: nil}
+        state.set_value MockStat.new(:Display, 1, :running_time, {lamp: nil})
         state.enabled(true)
 
         expect(@result).to eq(nil)
         expect(state.triggered).to eq(false)
 
-        state.set_value :Display, 1, :running_time, {lamp: {}}
+        state.set_value MockStat.new(:Display, 1, :running_time, {lamp: {}})
 
         expect(@result).to eq(nil)
         expect(state.triggered).to eq(false)
 
-        state.set_value :Display, 1, :running_time, {lamp: {hours: 300}}
+        state.set_value MockStat.new(:Display, 1, :running_time, {lamp: {hours: 300}})
 
         expect(@result).to eq(true)
         expect(state.triggered).to eq(true)

@@ -43,8 +43,6 @@ module Orchestrator
         CONST_KEYS =  Set.new([:at, :cron])
         def condition_list
             if self.conditions
-                self.conditions.deep_symbolize_keys!
-
                 valid = true
                 self.conditions.each do |cond|
                     if cond.length < 3
@@ -64,6 +62,8 @@ module Orchestrator
         STATUS_KEYS = Set.new([:mod, :index, :status, :keys])
         # TODO:: Should also check types
         def value?(val)
+            val.deep_symbolize_keys!
+
             if val[:const]
                 # Should only store the constant
                 val.keep_if { |k, _| k == :const }
@@ -78,8 +78,6 @@ module Orchestrator
 
         def action_list
             if self.actions
-                self.actions.deep_symbolize_keys!
-
                 valid = true
                 self.actions.each do |act|
                     valid = check_action(act)
@@ -93,6 +91,7 @@ module Orchestrator
 
         ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args])
         def check_action(act)
+            act.deep_symbolize_keys!
             act.keep_if { |k, _| ACTION_KEYS.include? k }
 
             case act[:type].to_sym

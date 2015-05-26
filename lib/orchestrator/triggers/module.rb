@@ -3,6 +3,7 @@ module Orchestrator
     module Triggers
         class Module
             include ::Orchestrator::Constants
+            include ::Orchestrator::Logic::Mixin
 
             def on_load
                 @triggers = {}      # Trigger instance objects by id
@@ -60,6 +61,8 @@ module Orchestrator
                     old = @triggers[trig.id]
                     remove(old) if old
 
+                    logger.debug { "loading trigger: #{trig.name} -> #{trig.id}" }
+
                     # Load the new trigger
                     @triggers[trig.id] = trig
                     @trigger_names[trig.name] = trig
@@ -75,11 +78,13 @@ module Orchestrator
                     @subscriptions[trig.id] = subs
 
                     # enable the triggers
-                    state.enable(trig.enabled)
+                    state.enabled(trig.enabled)
                 end
             end
 
             def remove(trig)
+                logger.debug { "removing trigger: #{trig.name} -> #{trig.id}" }
+
                 @trigger_names.delete(trig.name)
                 @subscriptions[trig.id].each do |sub|
                     unsubscribe sub
@@ -134,24 +139,18 @@ module Orchestrator
                     # subscribe to status variables and
                     # map any existing status into the triggers
                     subs = []
+                    sub_callback = state.method(:set_value)
+
                     state.subscriptions.each do |sub|
-                        subs << subscribe(sys_proxy, state, sub[:mod], sub[:index], sub[:status])
+                        subs << sys_proxy.subscribe(sub[:mod], sub[:index], sub[:status], sub_callback)
                     end
                     @subscriptions[trig.id] = subs
 
                     # enable the triggers
-                    state.enable(trig.enabled)
+                    state.enabled(trig.enabled)
                 end
 
                 @reloading = false
-            end
-
-            def subscribe(sys_proxy, state, mod, index, status)
-                sub = sys_proxy.subscribe(mod, index, status) do |update|
-                    # Update the state var
-                    state.set_value(mod, index, status, update.value)
-                end
-                sub
             end
 
             # Function called when the trigger state is updated
@@ -190,6 +189,7 @@ module Orchestrator
                     if model
                         @triggers[id] = model
                         @trigger_names[model.name] = model
+                        logger.debug { "trigger model updated: #{model.name} -> #{model.id}" }
                     else
                         model = @triggers[id]
                         model.triggered = state
@@ -205,13 +205,18 @@ module Orchestrator
 
             def perform_trigger_actions(id)
                 model = @triggers[id]
+
+                logger.info "running trigger actions for #{model.name} -> #{model.id}"
+
                 model.actions.each do |act|
                     begin
                         case act[:type].to_sym
                         when :exec
                             # Execute the action
+                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args]})" }
                             system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
                         when :email
+                            logger.debug { "sending email to: #{act[:to]}" }
                             # TODO:: provide hooks into action mailer
                         end
                     rescue => e

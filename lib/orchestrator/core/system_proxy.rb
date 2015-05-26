@@ -117,6 +117,7 @@ module Orchestrator
                     status = index.to_sym
                     index = 1
                 else
+                    status = status.to_sym
                     callback ||= block
                 end
                 mod_name = mod_name.to_sym

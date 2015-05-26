@@ -22,7 +22,7 @@ module Orchestrator
             if mod.respond_to? :dependency
                 @klass = mod.dependency.class_name
             elsif mod.respond_to? :control_system_id
-                @klass = 'System'
+                @klass = 'Triggers'
             else
                 @klass = 'User' # Filter by user driven events and behavior
             end

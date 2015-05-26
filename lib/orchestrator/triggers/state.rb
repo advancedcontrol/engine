@@ -35,9 +35,9 @@ module Orchestrator
 
 
             # Update a status variable
-            def set_value(mod, index, status, value)
-                lookup = key(mod, index, status)
-                @values[lookup] = value
+            def set_value(info)
+                lookup = key(info[:mod_name], info[:index], info[:status])
+                @values[lookup] = info.value
 
                 check_conditions if @enabled
             end
