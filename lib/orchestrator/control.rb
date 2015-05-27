@@ -207,18 +207,6 @@ module Orchestrator
             })
         end
 
-        def notify_ready
-            # Clear the system cache (in case it has been populated at all)
-            System.clear_cache
-            @ready = true
-            @ready_defer.resolve(true)
-
-            # these are invisible to system - never make it into the system cache
-            @loop.work do
-                load_all_triggers 
-            end
-        end
-
         def log_unhandled_exception(*args)
             msg = ''
             err = args[-1]
@@ -245,6 +233,32 @@ module Orchestrator
 
 
         protected
+
+
+        def notify_ready
+            # Clear the system cache (in case it has been populated at all)
+            System.clear_cache
+            @ready = true
+            @ready_defer.resolve(true)
+
+            # these are invisible to the system - never make it into the system cache
+            @loop.work do
+                load_all_triggers 
+            end
+
+            # Save a statistics snapshot every 5min
+            stats_method = method(:log_stats)
+            @loop.scheduler.every(300_000) do
+                @loop.work stats_method
+            end
+        end
+
+
+        def log_stats(*args)
+            Orchestrator::Stats.new.save
+        rescue => e
+            @logger.warn "exception saving statistics #{e.message}"
+        end
 
 
         # These run like regular modules

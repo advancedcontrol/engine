@@ -20,10 +20,13 @@ couchbase.documentTypes.dep: ^dep(-|_).+$
 couchbase.documentTypes.zone: ^zone(-|_).+$
 couchbase.documentTypes.trigger: ^trigger(-|_).+$
 couchbase.documentTypes.trig: ^trig(-|_).+$
+couchbase.documentTypes.trig: ^zzz(-|_).+$
 
 # Module to dependency mapping
 couchbase.documentTypeParentFields.mod: doc.dependency_id
 couchbase.documentTypeRoutingFields.mod: doc.dependency_id
 
-couchbase.documentTypeParentFields.mod: doc.trigger_id
-couchbase.documentTypeRoutingFields.mod: doc.trigger_id
+# Trigger mappings
+couchbase.documentTypeParentFields.trig: doc.trigger_id
+couchbase.documentTypeRoutingFields.trig: doc.trigger_id
+

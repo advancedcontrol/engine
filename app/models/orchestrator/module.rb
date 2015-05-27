@@ -38,6 +38,10 @@ module Orchestrator
         attribute :running,     default: false
         attribute :notes
 
+        # Don't include this module in statistics or disconnected searches
+        # Might be a device that commonly goes offline (like a PC or Display that only supports Wake on Lan)
+        attribute :ignore_connected,   default: false
+
 
         # helper method for looking up the manager
         def manager
