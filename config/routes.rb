@@ -41,6 +41,12 @@ Orchestrator::Engine.routes.draw do
         resources :logs
         
         concerns  :mods
+
+        resources :stats do
+            get 'connections', on: :collection
+            get 'triggers',    on: :collection
+            get 'offline',     on: :collection
+        end
     end
 
     # These are non-restful endpoints
