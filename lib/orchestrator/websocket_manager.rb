@@ -198,7 +198,7 @@ module Orchestrator
 
         def bind(params)
             id = params[:id]
-            sys = params[:sys]
+            sys = params[:sys].to_sym
             mod = params[:mod].to_sym
             name = params[:name].to_sym
             index_s = params[:index] || 1
@@ -312,7 +312,7 @@ module Orchestrator
 
         def debug(params)
             id = params[:id]
-            sys = params[:sys]
+            sys = params[:sys].to_sym
             mod = params[:mod].to_sym
             index_s = params[:index]
             index = nil
@@ -331,7 +331,7 @@ module Orchestrator
                     if system
                         mod_man = system.get(mod, index - 1)
                         if mod_man
-                            mod_man.settings.id
+                            mod_man.settings.id.to_sym
                         else
                             ::Libuv::Q.reject(@loop, 'debug failed: module #{sys}->#{mod}_#{index} not found')
                         end
@@ -416,7 +416,7 @@ module Orchestrator
 
         def ignore(params)
             id = params[:id]
-            sys = params[:sys]
+            sys = params[:sys].to_sym
             mod_s = params[:mod]
             mod = mod_s.to_sym if mod_s
 

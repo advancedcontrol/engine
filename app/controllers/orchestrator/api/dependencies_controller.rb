@@ -31,8 +31,12 @@ module Orchestrator
             end
 
             def update
-                # Must destroy and re-add to change class or module name
-                @dep.update_attributes(update_params)
+                args = safe_params
+                args.delete(:role)
+                args.delete(:class_name)
+
+                # Must destroy and re-add to change class or module type
+                @dep.update_attributes(args)
                 save_and_respond @dep
             end
 
@@ -54,19 +58,31 @@ module Orchestrator
             def reload
                 depman = ::Orchestrator::DependencyManager.instance
                 depman.load(@dep, :force).then(proc {
-                    updated = 0
+                    content = nil
 
-                    @dep.modules.each do |mod|
-                        manager = mod.manager
-                        if manager
-                            updated += 1
-                            manager.reloaded(mod)
+                    begin
+                        updated = 0
+
+                        @dep.modules.each do |mod|
+                            manager = mod.manager
+                            if manager
+                                updated += 1
+                                manager.reloaded(mod)
+                            end
                         end
+
+                        content = {
+                            message: updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
+                        }.to_json
+                    rescue => e
+                        # Let user know about any post reload issues
+                        message = 'Warning! Reloaded successfully however some modules were not informed. '
+                        message << "It is safe to reload again. Error was: #{e.message}"
+                        content = {
+                            message: message
+                        }.to_json
                     end
 
-                    content = {
-                        message: updated == 1 ? "#{updated} module updated" : "#{updated} modules updated"
-                    }.to_json
                     env['async.callback'].call([200, {
                         'Content-Length' => content.bytesize,
                         'Content-Type' => 'application/json'
@@ -78,6 +94,7 @@ module Orchestrator
                         'Content-Type' => 'text/plain'
                     }, [output]])
                 })
+
                 throw :async
             end
 
@@ -95,10 +112,6 @@ module Orchestrator
                 {
                     settings: settings.is_a?(::Hash) ? settings : {}
                 }.merge(params.permit(DEP_PARAMS))
-            end
-
-            def update_params
-                params.permit(:name, :description, {settings: []})
             end
 
             def find_dependency

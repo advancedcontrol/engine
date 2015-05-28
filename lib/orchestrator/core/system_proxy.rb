@@ -117,6 +117,7 @@ module Orchestrator
                     status = index.to_sym
                     index = 1
                 else
+                    status = status.to_sym
                     callback ||= block
                 end
                 mod_name = mod_name.to_sym
@@ -170,7 +171,11 @@ module Orchestrator
                 defer = @thread.defer
                 defer.resolve(::Orchestrator::Control.instance.ready_promise)
 
-                defer.promise.then(callback) if callback
+                if callback
+                    defer.promise.then do 
+                        callback.call
+                    end
+                end
                 defer.promise
             end
 

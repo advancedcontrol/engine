@@ -137,7 +137,7 @@ module Orchestrator
 
 
             def method_missing(name, *args, &block)
-                @forward.request(name, *args, &block)
+                @forward.request(name.to_sym, *args, &block)
             end
         end
     end

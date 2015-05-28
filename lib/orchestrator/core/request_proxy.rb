@@ -78,10 +78,24 @@ module Orchestrator
                                 previous = @mod.current_user
                                 @mod.current_user = @user
                             end
-                            
-                            defer.resolve(
-                                @mod.instance.public_send(name, *args, &block)
-                            )
+
+                            instance = @mod.instance
+                            if instance.nil?
+                                if @mod.running == false
+                                    err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}'' is currently stopped"
+                                    defer.reject(err)
+                                else
+                                    logger.warn "the module #{@mod.settings.id} is currently stopped however should be running. Attempting restart"
+                                    if @mod.start
+                                        defer.resolve(@mod.instance.public_send(name, *args, &block))
+                                    else
+                                        err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}'' failed to start"
+                                        defer.reject(err)
+                                    end
+                                end
+                            else
+                                defer.resolve(instance.public_send(name, *args, &block))
+                            end
                         rescue => e
                             @mod.logger.print_error(e, '', @trace)
                             defer.reject(e)
@@ -148,7 +162,7 @@ module Orchestrator
 
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
-                @forward.request(name, *args, &block)
+                @forward.request(name.to_sym, *args, &block)
             end
         end
     end

@@ -30,6 +30,12 @@ module Orchestrator
         attribute :support_url
 
 
+        # Used in triggers::manager for accssing a system proxy
+        def control_system_id
+            self.id
+        end
+
+
         def self.find_by_name(name)
             id = ControlSystem.bucket.get("sysname-#{self.name.downcase}", {quiet: true})
             ControlSystem.find_by_id(id) if id
@@ -48,6 +54,13 @@ module Orchestrator
             # If not deleted and control is running
             # then we want to trigger updates on the logic modules
             if !@old_id && noUpdate.nil? && ctrl.ready
+                # Start the triggers if not already running (must occur on the same thread)
+                cs = self
+                ctrl.loop.schedule do
+                    ctrl.load_triggers_for(cs)
+                end
+
+                # Reload the running modules
                 (::Orchestrator::Module.find_by_id(self.modules) || []).each do |mod|
                     if mod.control_system_id
                         manager = ctrl.loaded? mod.id
@@ -57,6 +70,11 @@ module Orchestrator
             end
         end
 
+
+        def self.all
+            all(stale: false)
+        end
+        view :all
 
         def self.using_module(mod_id)
             by_modules({key: mod_id, stale: false})
@@ -84,6 +102,12 @@ module Orchestrator
 
         def zone_data
             ::Orchestrator::Zone.find_by_id(zones) || []
+        end
+
+
+        # Triggers
+        def triggers
+            TriggerInstance.for(self.id)
         end
 
 
@@ -143,18 +167,29 @@ module Orchestrator
         # 2. If this is the last system we remove the modules
         def cleanup_modules
             ControlSystem.bucket.delete("sysname-#{self.name.downcase}", {quiet: true})
+            ctrl = ::Orchestrator::Control.instance
 
             self.modules.each do |mod_id|
                 systems = ControlSystem.using_module(mod_id).fetch_all
 
                 if systems.length <= 1
                     # We don't use the model's delete method as it looks up control systems
-                    ::Orchestrator::Control.instance.unload(mod_id)
+                    ctrl.unload(mod_id)
                     ::Orchestrator::Module.bucket.delete(mod_id, {quiet: true})
                 end
             end
             
-            @old_id = self.id # not sure if required
+            # Unload the triggers
+            ctrl.unload(self.id)
+
+            # delete all the trigger instances (remove directly as before_delete is not required)
+            bucket = ::Orchestrator::TriggerInstance.bucket
+            TriggerInstance.for(sys_id).each do |trig|
+                bucket.delete(trig.id)
+            end
+
+            # Prevents reload for the cache expiry
+            @old_id = self.id
         end
     end
 end

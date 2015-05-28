@@ -13,6 +13,7 @@ module Orchestrator
             @@elastic ||= Elastic.new(::Orchestrator::Module)
 
             # Constant for performance
+            Dependency = 'dep'.freeze
             MOD_INCLUDE = {
                 include: {
                     # Most human readable module data is contained in dependency
@@ -62,6 +63,8 @@ module Orchestrator
                         })
                     end
 
+                    query.has_parent Dependency
+
                     results = @@elastic.search(query)
                     respond_with results, MOD_INCLUDE
                 end
@@ -106,7 +109,8 @@ module Orchestrator
 
             def start
                 # It is possible that module class load can fail
-                mod = control.loaded? id
+                mod_id = id
+                mod = control.loaded? mod_id
                 if mod
                     start_module(mod)
                 else # attempt to load module
@@ -114,6 +118,7 @@ module Orchestrator
                     control.load(config).then(
                         proc { |mod|
                             start_module mod
+                            expire_system_cache mod_id
                         },
                         proc { # Load failed
                             env['async.callback'].call([500, {'Content-Length' => 0}, []])
@@ -176,6 +181,12 @@ module Orchestrator
                     else
                         env['async.callback'].call([500, {'Content-Length' => 0}, []])
                     end
+                end
+            end
+
+            def expire_system_cache(mod_id)
+                ControlSystem.using_module(mod_id).each do |cs|
+                    cs.expire_cache :no_update
                 end
             end
         end

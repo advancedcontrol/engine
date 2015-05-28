@@ -47,8 +47,7 @@ module Orchestrator
 
             def update
                 @cs.update(safe_params)
-                #save_and_respond(@cs) # save deletes the system cache
-                respond_with :api, @cs
+                save_and_respond(@cs)
             end
 
             # Removes the module from the system and deletes it if not used elsewhere
@@ -90,10 +89,20 @@ module Orchestrator
             ##
 
             def start
+                loaded = []
+
                 # Start all modules in the system
                 @cs.modules.each do |mod_id|
-                    load_and_start mod_id
+                    promise = load_and_start mod_id
+                    loaded << promise if promise.respond_to?(:then)
                 end
+
+                # Clear the system cache once the modules are loaded
+                # This ensures the cache is accurate
+                control.loop.finally(*loaded).then do
+                    @cs.expire_cache :no_update
+                end
+
                 render :nothing => true
             end
 

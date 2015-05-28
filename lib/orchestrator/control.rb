@@ -207,19 +207,6 @@ module Orchestrator
             })
         end
 
-        def reload(dep_id)
-            @loop.work do
-                reload_dep(dep_id)
-            end
-        end
-
-        def notify_ready
-            # Clear the system cache (in case it has been populated at all)
-            System.clear_cache
-            @ready = true
-            @ready_defer.resolve(true)
-        end
-
         def log_unhandled_exception(*args)
             msg = ''
             err = args[-1]
@@ -233,9 +220,78 @@ module Orchestrator
             ::Libuv::Q.reject(@loop, msg)
         end
 
+        def load_triggers_for(system)
+            return if loaded?(system.id)
+
+            thread = @selector.next
+            thread.schedule do
+                mod = Triggers::Manager.new(thread, ::Orchestrator::Triggers::Module, system)
+                @loaded[system.id.to_sym] = mod  # NOTE:: Threadsafe
+                mod.start
+            end
+        end
+
 
         protected
 
+
+        def notify_ready
+            # Clear the system cache (in case it has been populated at all)
+            System.clear_cache
+            @ready = true
+            @ready_defer.resolve(true)
+
+            # these are invisible to the system - never make it into the system cache
+            @loop.work do
+                load_all_triggers 
+            end
+
+            # Save a statistics snapshot every 5min
+            stats_method = method(:log_stats)
+            @loop.scheduler.every(300_000) do
+                @loop.work stats_method
+            end
+        end
+
+
+        def log_stats(*args)
+            Orchestrator::Stats.new.save
+        rescue => e
+            @logger.warn "exception saving statistics #{e.message}"
+        end
+
+
+        # These run like regular modules
+        # This function is always run from the thread pool
+        # Batch loads the system triggers on to the main thread
+        def load_all_triggers
+            begin
+                systems = []
+                ControlSystem.all.each do |cs|
+                    systems << cs
+                    if systems.length >= 20
+                        schedule_triggers_for(systems)
+                        systems = []
+                    end
+                end
+                if systems.length > 0
+                    schedule_triggers_for(systems)
+                end
+            rescue => e
+                @logger.warn "exception starting triggers #{e.message}"
+                sleep 1  # Give it a bit of time
+                retry
+            end
+        end
+
+        # Schedule the systems for loading on the default thread
+        def schedule_triggers_for(systems)
+            @loop.schedule do
+                systems.each do |sys|
+                    load_triggers_for sys
+                end
+            end
+        end
 
         # This will always be called on the thread reactor here
         def start_module(thread, klass, settings)
