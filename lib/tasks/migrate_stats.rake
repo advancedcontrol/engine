@@ -1,6 +1,6 @@
 namespace :migrate do
 
-    desc 'Migrate modules so that statistics queryies are accurate'
+    desc 'Migrate modules so that statistics queries are accurate'
 
     task :stats => :environment do
         # This adds support for statistics collection via elasticsearch

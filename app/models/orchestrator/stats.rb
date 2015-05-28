@@ -13,7 +13,8 @@ module Orchestrator
         attribute :triggers_active,      default: 0
         attribute :connections_active,   default: 0
 
-        attribute :created_at
+        # Unique field in the index
+        attribute :stat_snapshot_at
 
 
         def initialize(*args)
@@ -36,8 +37,8 @@ module Orchestrator
 
 
         def query_for_stats
-            self.created_at = Time.now.to_i
-            self.id = "zzz_#{CLUSTER_ID}-#{self.created_at}"
+            self.stat_snapshot_at = Time.now.to_i
+            self.id = "zzz_#{CLUSTER_ID}-#{self.stat_snapshot_at}"
 
             #----------------------
             # => Connections active
@@ -47,7 +48,7 @@ module Orchestrator
             query.raw_filter([{         # Model was updated in the last 2min
                 range: {
                     last_checked_at: {
-                        gte: self.created_at - 120
+                        gte: self.stat_snapshot_at - 120
                     }
                 }
             }])
