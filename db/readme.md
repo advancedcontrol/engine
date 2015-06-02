@@ -28,3 +28,23 @@ curl -X PUT http://localhost:9200/control/ -d '{"settings":{"number_of_shards":5
 curl -X PUT http://localhost:9200/_template/couchbase -d @es_template.json
 
 ```
+
+
+## Backing Up the Database
+
+```shell
+
+cd C:\Program Files\Couchbase\Server\bin
+cbbackup http://localhost:8091/ C:/aca_apps/backups/2015-06-02 -u Administrator -p password -b control
+
+```
+
+
+## Restoring the Database
+
+```shell
+
+cd C:\Program Files\Couchbase\Server\bin
+cbrestore C:/aca_apps/backups/2015-06-01 http://Administrator:password@localhost:8091/ --bucket-source=control --bucket-destination=control
+
+```
