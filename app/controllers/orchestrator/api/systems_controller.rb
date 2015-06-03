@@ -100,7 +100,10 @@ module Orchestrator
                 # Clear the system cache once the modules are loaded
                 # This ensures the cache is accurate
                 control.loop.finally(*loaded).then do
-                    @cs.expire_cache :no_update
+                    # Might as well trigger update behaviour.
+                    # Ensures logic modules that interact with other logic modules
+                    # are accurately informed
+                    @cs.expire_cache   # :no_update
                 end
 
                 render :nothing => true

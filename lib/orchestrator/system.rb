@@ -37,11 +37,32 @@ module Orchestrator
             @config.modules.each &method(:index_module)
 
             # Build an ordered zone cache for setting lookup
-            zones = ::Orchestrator::Control.instance.zones
+            ctrl = ::Orchestrator::Control.instance
+            zones = ctrl.zones
             @zones = []
             @config.zones.each do |zone_id|
                 zone = zones[zone_id]
-                @zones << zone unless zone.nil?
+
+                if zone.nil?
+                    # Try to load this zone!
+                    prom = ctrl.load_zone(zone_id)
+                    prom.then do |zone|
+                        @config.expire_cache
+                    end
+                    prom.catch do |err|
+                        if err == zone_id
+                            # The zone no longer exists
+                            ctrl.logger.warn "Stale zone, #{zone_id}, removed from system #{@config.id}"
+                            @config.zones.delete(zone_id)
+                            @config.save
+                        else
+                            # Failed to load due to an error
+                            ctrl.logger.print_error err, "Zone #{zone_id} failed to load. System #{@config.id} may not function"
+                        end
+                    end
+                else
+                    @zones << zone
+                end
             end
 
             # Inform status tracker that that the system has reloaded
