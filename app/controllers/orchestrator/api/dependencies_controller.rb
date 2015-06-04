@@ -36,7 +36,7 @@ module Orchestrator
                 args.delete(:class_name)
 
                 # Must destroy and re-add to change class or module type
-                @dep.update_attributes(args)
+                @dep.assign_attributes(args)
                 save_and_respond @dep
             end
 

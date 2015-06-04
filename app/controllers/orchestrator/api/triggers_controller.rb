@@ -24,7 +24,7 @@ module Orchestrator
             end
 
             def update
-                @trig.update(safe_params)
+                @trig.assign_attributes(safe_params)
                 save_and_respond(@trig)
             end
 

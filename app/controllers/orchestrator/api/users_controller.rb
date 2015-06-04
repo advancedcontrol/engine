@@ -42,7 +42,7 @@ module Orchestrator
             ##
             # Requests requiring authorization have already loaded the model
             def update
-                @user.update_attributes(safe_params)
+                @user.assign_attributes(safe_params)
                 @user.save
                 respond_with @user
             end

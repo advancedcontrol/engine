@@ -23,7 +23,7 @@ module Orchestrator
             end
 
             def update
-                @zone.update_attributes(safe_params)
+                @zone.assign_attributes(safe_params)
                 save_and_respond @zone
             end
 

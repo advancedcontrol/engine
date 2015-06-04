@@ -46,7 +46,7 @@ module Orchestrator
             end
 
             def update
-                @cs.update(safe_params)
+                @cs.assign_attributes(safe_params)
                 save_and_respond(@cs)
             end
 
