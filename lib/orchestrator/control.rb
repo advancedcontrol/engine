@@ -91,6 +91,39 @@ module Orchestrator
             Thread.new &method(:load_all)
         end
 
+        # Load a zone that might have been missed or added manually
+        # The database etc
+        # This function is thread safe
+        def load_zone(zone_id)
+            defer = @loop.defer
+            @loop.schedule do   
+                @loop.work do
+                    @critical.synchronize {
+                        zone = @zones[zone.id]
+                        defer.resolve(zone) if zone
+
+                        tries = 0
+                        begin
+                            zone = ::Orchestrator::Zone.find(zone_id)
+                            @zones[zone.id] = zone
+                            defer.resolve(zone)
+                        rescue Couchbase::Error::NotFound => e
+                            defer.reject(zone_id)
+                        rescue => e
+                            if tries <= 2
+                                sleep 1
+                                tries += 1
+                                retry
+                            else
+                                defer.reject(e)
+                            end
+                        end
+                    }
+                end
+            end
+            defer.promise
+        end
+
         # Load the modules on the loop references in round robin
         # This method is thread safe.
         def load(mod_settings)

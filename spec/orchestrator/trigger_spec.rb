@@ -2,7 +2,7 @@ require 'rails'
 require 'orchestrator'
 
 describe "trigger state" do
-    MockTrig = Struct.new(:id, :triggered, :conditions)
+    MockTrig = Struct.new(:id, :triggered, :conditions, :override)
     MockStat = Struct.new(:mod_name, :index, :status, :val) do
         def value
             val
@@ -13,6 +13,7 @@ describe "trigger state" do
         @sched = ::Libuv::Loop.default.scheduler
         @result = nil
         @trig = MockTrig.new("test", false)
+        @trig.override = {}
         @callback = proc do |name, new_state|
             @result = new_state
         end
@@ -180,6 +181,44 @@ describe "trigger state" do
                 status: :power
             }
         ])
+    end
+
+    it "should be possible to override condition values" do
+        @trig.conditions = [[{
+            mod: :Display,
+            index: 1,
+            status: :lamp_hours
+        }, :greater_than, {
+            value_id: 1,
+            const: 200
+        }], [{
+            mod: :Display,
+            index: 1,
+            status: :power
+        }, :equal, {
+            const: true
+        }]]
+
+        @trig.override = {
+            1 => {
+                const: 300
+            }
+        }
+
+        state = ::Orchestrator::Triggers::State.new(@trig, @sched, @callback)
+
+        state.set_value MockStat.new(:Display, 1, :lamp_hours, 300)
+        state.set_value MockStat.new(:Display, 1, :power, true)
+
+        state.enabled(true)
+
+        expect(@result).to eq(nil)
+        expect(state.triggered).to eq(false)
+
+        state.set_value MockStat.new(:Display, 1, :lamp_hours, 350)
+
+        expect(@result).to eq(true)
+        expect(state.triggered).to eq(true)
     end
 
     it "should work with one time events" do

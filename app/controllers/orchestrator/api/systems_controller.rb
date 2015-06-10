@@ -46,7 +46,7 @@ module Orchestrator
             end
 
             def update
-                @cs.update(safe_params)
+                @cs.assign_attributes(safe_params)
                 save_and_respond(@cs)
             end
 
@@ -100,7 +100,10 @@ module Orchestrator
                 # Clear the system cache once the modules are loaded
                 # This ensures the cache is accurate
                 control.loop.finally(*loaded).then do
-                    @cs.expire_cache :no_update
+                    # Might as well trigger update behaviour.
+                    # Ensures logic modules that interact with other logic modules
+                    # are accurately informed
+                    @cs.expire_cache   # :no_update
                 end
 
                 render :nothing => true
@@ -176,15 +179,17 @@ module Orchestrator
                     index = index.nil? ? 0 : (index.to_i - 1);
 
                     mod = sys.get(para[:module].to_sym, index)
-                    if mod
-                        funcs = mod.instance.public_methods(false)
-                        priv = []
-                        funcs.each do |func|
-                            if ::Orchestrator::Core::PROTECTED[func]
-                                priv << func
-                            end
+                    inst = mod.instance if mod
+                    if inst
+                        funcs = inst.public_methods(false)
+                        pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
+
+                        resp = {}
+                        pub.each do |pfunc|
+                            resp[pfunc] = inst.method(pfunc.to_sym).arity
                         end
-                        render json: (funcs - priv)
+
+                        render json: resp
                     else
                         render nothing: true, status: :not_found
                     end

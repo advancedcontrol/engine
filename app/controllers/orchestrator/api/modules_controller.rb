@@ -78,7 +78,7 @@ module Orchestrator
                 para = safe_params
                 old_name = @mod.custom_name
 
-                @mod.update_attributes(para)
+                @mod.assign_attributes(para)
                 save_and_respond(@mod) do
                     # Update the running module
                     control.update(id).then do

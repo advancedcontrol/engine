@@ -34,6 +34,14 @@ module Orchestrator
             protected
 
 
+            # Month
+            #  Interval: 86400 (point for each day ~29 points)
+            # Week
+            #  Interval: 21600 (point for each quarter day ~28 points)
+            # Day
+            #  Interval: 1800 (30min intervals ~48 points)
+            # Hour
+            #  Interval: 300 (5min ~12 points)
             PERIODS = {
                 month: [1.day.to_i,      proc { Time.now.to_i - 29.days.to_i }],
                 week:  [6.hours.to_i,    proc { Time.now.to_i - 7.days.to_i  }],
@@ -57,7 +65,13 @@ module Orchestrator
                     filtered: {
                         query: {
                             bool: {
-                                must: [{match_all: {}}]
+                                must: [{
+                                    range: {
+                                        stat_snapshot_at: {
+                                            gte: @period[1].call
+                                        }
+                                    }
+                                }]
                             }
                         },
                         filter: {
@@ -65,13 +79,6 @@ module Orchestrator
                                 must: [{
                                     type: {
                                         value: :stats
-                                    }
-                                },
-                                {
-                                    range: {
-                                        stat_snapshot_at: {
-                                            gte: @period[1].call
-                                        }
                                     }
                                 }]
                             }
@@ -112,7 +119,7 @@ module Orchestrator
                         aggregations: aggregation(field)
                     }
                 })[AGGS][field.to_s][BUCKETS].collect { |b| b[BSTATS] }
-            end 
+            end
         end
     end
 end

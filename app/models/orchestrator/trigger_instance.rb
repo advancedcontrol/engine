@@ -12,6 +12,8 @@ module Orchestrator
         attribute :triggered,  default: false
         attribute :important,  default: false
 
+        attribute :override,   default: lambda { {} }
+
 
         before_delete :unload
         after_save    :load

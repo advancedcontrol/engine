@@ -235,7 +235,7 @@ module Orchestrator
 
         def do_subscribe(opt)
             # Build the subscription object (as loosely coupled as we can)
-            sub = Subscription.new(opt[:sys_name].to_sym, opt[:sys_id].to_sym, opt[:mod_name].to_sym, opt[:mod_id].to_sym, opt[:index].to_i, opt[:status].to_sym, opt[:callback], opt[:on_thread])
+            sub = Subscription.new(as_sym(opt[:sys_name]), as_sym(opt[:sys_id]), as_sym(opt[:mod_name]), as_sym(opt[:mod_id]), opt[:index].to_i, as_sym(opt[:status]), opt[:callback], opt[:on_thread])
 
             if sub.sys_id
                 @systems[sub.sys_id] ||= {}
@@ -256,6 +256,10 @@ module Orchestrator
 
             # return the subscription
             sub
+        end
+
+        def as_sym(obj)
+            obj.to_sym if obj.respond_to?(:to_sym)
         end
 
         def find_subscription(sub)

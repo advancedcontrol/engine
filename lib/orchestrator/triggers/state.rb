@@ -23,6 +23,7 @@ module Orchestrator
 
                 @id = trigger.id
                 @triggered = trigger.triggered
+                @override = trigger.override
                 conditions = trigger.conditions
                 conditions.each_index do |index|
                     extract_condition(conditions[index], index)
@@ -89,7 +90,10 @@ module Orchestrator
                     lookup = :"schedule_#{index}"
 
                     # cond == [at|cron, value]
-                    __send__(cond[0].to_sym, lookup, cond[1])
+                    cond1 = cond[1]
+                    id = cond1[:value_id]
+                    cond1 = @override[id] || cond1 if id
+                    __send__(cond[0].to_sym, lookup, cond1)
 
                     value1 = {lookup: lookup}
                     comparison = :equal
@@ -98,9 +102,17 @@ module Orchestrator
                     value2 = extract_value({const: true}, index)
                 else
                     # Comparison type
-                    value1 = extract_value(cond[0], index)
+                    cond0 = cond[0]
+                    id = cond0[:value_id]
+                    cond0 = @override[id] || cond0 if id
+                    value1 = extract_value(cond0, index)
+
                     comparison = cond[1].to_sym
-                    value2 = extract_value(cond[2], index)
+
+                    cond2 = cond[2]
+                    id = cond2[:value_id]
+                    cond2 = @override[id] || cond2 if id
+                    value2 = extract_value(cond2, index)
                 end
 
                 @conditions << [value1, comparison, value2]
@@ -190,7 +202,7 @@ module Orchestrator
 
             # Time methods
             def at(schedule_id, value)
-                @schedules[schedule_id] = @scheduler.at(value) do
+                @schedules[schedule_id] = @scheduler.at(value[:value]) do
                     timeout = :"#{schedule_id}_timeout"
 
                     @values[schedule_id] = true
@@ -206,7 +218,7 @@ module Orchestrator
             end
 
             def cron(schedule_id, value)
-                @schedules[schedule_id] = @scheduler.cron(value) do
+                @schedules[schedule_id] = @scheduler.cron(value[:value]) do
                     timeout = :"#{schedule_id}_timeout"
 
                     @values[schedule_id] = true
