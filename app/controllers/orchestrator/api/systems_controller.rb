@@ -179,15 +179,17 @@ module Orchestrator
                     index = index.nil? ? 0 : (index.to_i - 1);
 
                     mod = sys.get(para[:module].to_sym, index)
-                    if mod
-                        funcs = mod.instance.public_methods(false)
-                        priv = []
-                        funcs.each do |func|
-                            if ::Orchestrator::Core::PROTECTED[func]
-                                priv << func
-                            end
+                    inst = mod.instance if mod
+                    if inst
+                        funcs = inst.public_methods(false)
+                        pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
+
+                        resp = {}
+                        pub.each do |pfunc|
+                            resp[pfunc] = inst.method(pfunc.to_sym).arity
                         end
-                        render json: (funcs - priv)
+
+                        render json: resp
                     else
                         render nothing: true, status: :not_found
                     end
