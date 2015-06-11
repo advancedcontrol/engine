@@ -169,7 +169,7 @@ module Orchestrator
                         @subscriptions[old_id][sub.status].delete(sub.sub_id)
 
                         # Update to the new module
-                        if sub.mod_id
+                        if mod
                             @subscriptions[sub.mod_id] ||= {}
                             @subscriptions[sub.mod_id][sub.status] ||= {}
                             @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
@@ -177,11 +177,11 @@ module Orchestrator
                             # Check for existing status to send to subscriber
                             value = mod.status[sub.status]
                             sub.notify(value) unless value.nil?
-                        end
 
-                        # Transfer the subscription if on a different thread
-                        if mod.thread != @thread
-                            move(sub.mod_id.to_sym, mod.thread)
+                            # Transfer the subscription if on a different thread
+                            if mod.thread != @thread
+                                move(sub.mod_id.to_sym, mod.thread)
+                            end
                         end
 
                         # Perform any required cleanup
