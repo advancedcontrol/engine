@@ -22,6 +22,9 @@ module Orchestrator
             @accessed = ::Set.new
             @access_log = ::Orchestrator::AccessLog.new
             @access_log.user_id = @user.id
+
+            @access_cache  = {}
+            @access_timers = []
         end
 
 
@@ -70,8 +73,14 @@ module Orchestrator
             if check_requirements(params)
                 # Perform the security check in a nonblocking fashion
                 # (Database access is probably required)
-                result = @loop.work do
-                    Rails.configuration.orchestrator.check_access.call(params[:sys], @user)
+                sys_id = params[:sys].to_sym
+                result = @access_cache[sys_id]
+                if result.nil?
+                    result = @loop.work do
+                        Rails.configuration.orchestrator.check_access.call(sys_id, @user)
+                    end
+                    @access_cache[sys_id] = result
+                    expire_access(sys_id)
                 end
 
                 # The result should be an access level if these are implemented
@@ -79,7 +88,7 @@ module Orchestrator
                     begin
                         cmd = params[:cmd].to_sym
                         if COMMANDS.include?(cmd)
-                            @accessed << params[:sys]   # Log the access
+                            @accessed << sys_id         # Log the access
                             self.__send__(cmd, params)  # Execute the request
 
                             # Start logging
@@ -478,6 +487,11 @@ module Orchestrator
                     }
                 })
             end
+
+            @access_timers.each do |timer|
+                timer.cancel
+            end
+            @access_timers.clear
         end
 
 
@@ -510,6 +524,14 @@ module Orchestrator
                     @access_log.save
                 }
             })
+        end
+
+        def expire_access(sys_id)
+            # Require new access check every 15min
+            @access_timers << @loop.scheduler.in(900_000) do
+                @access_timers.shift
+                @access_cache.delete(sys_id)
+            end
         end
     end
 end
