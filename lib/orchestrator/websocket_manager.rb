@@ -71,8 +71,6 @@ module Orchestrator
                 # Perform the security check in a nonblocking fashion
                 # (Database access is probably required)
                 result = @loop.work do
-                    sys = params[:sys]
-                    params[:sys] = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys.downcase}", {quiet: true}) || sys
                     Rails.configuration.orchestrator.check_access.call(params[:sys], @user)
                 end
 
