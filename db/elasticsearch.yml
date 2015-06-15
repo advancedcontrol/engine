@@ -6,7 +6,7 @@ cluster.name: engine
 couchbase.username: admin
 couchbase.password: changeme
 
-
+couchbase.typeSelector: org.elasticsearch.transport.couchbase.capi.RegexTypeSelector
 
 # -------------------
 # ACA Engine Mappings:
