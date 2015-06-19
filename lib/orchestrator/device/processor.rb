@@ -175,7 +175,12 @@ module Orchestrator
                 @last_receive_at = @thread.now
 
                 if @buffer
-                    @responses.concat @buffer.extract(data)
+                    begin
+                        @responses.concat @buffer.extract(data)
+                    rescue => e
+                        @logger.print_error(e, 'error tokenizing data. Clearing buffer..')
+                        new_buffer
+                    end
                 else
                     # tokenizing buffer above will enforce encoding
                     if @config[:encoding]

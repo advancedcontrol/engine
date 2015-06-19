@@ -105,20 +105,35 @@ module Orchestrator
 
 
         # looks for the system in the database
+        # It's imperitive that this succeeds - sleeping on a reactor thread is preferable
         def self.load(id)
-            @@critical.synchronize {
-                system = @@systems[id]
-                return system unless system.nil?
+            tries = 0
 
-                sys = ControlSystem.find_by_id(id.to_s)
-                if sys.nil?
-                    return nil
+            begin
+                @@critical.synchronize {
+                    system = @@systems[id]
+                    return system unless system.nil?
+
+                    sys = ControlSystem.find_by_id(id.to_s)
+                    if sys.nil?
+                        return nil
+                    else
+                        system = System.new(sys)
+                        @@systems[id] = system
+                    end
+                    return system
+                }
+            rescue => err
+                if tries <= 2
+                    sleep 0.5
+                    tries += 1
+                    retry
                 else
-                    system = System.new(sys)
-                    @@systems[id] = system
+                    error = "System #{id} failed to load. System #{id} may not function properly"
+                    ctrl.logger.print_error err, error
+                    raise error
                 end
-                return system
-            }
+            end
         end
 
         def index_module(mod_id)
