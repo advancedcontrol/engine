@@ -93,12 +93,8 @@ module Orchestrator
                 @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread)
             end
 
-            # This is called from Core::Mixin on the thread pool as the DB query will be blocking
-            # NOTE:: Couchbase does support non-blocking gets although I think this is simpler
-            #
             # @return [::Orchestrator::Core::SystemProxy]
-            def get_system(name)
-                id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true}) || name
+            def get_system(id)
                 ::Orchestrator::Core::SystemProxy.new(@thread, id.to_sym, self)
             end
 
