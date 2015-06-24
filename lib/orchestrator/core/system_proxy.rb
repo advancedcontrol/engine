@@ -173,7 +173,7 @@ module Orchestrator
                 promise = ::Orchestrator::Control.instance.ready_promise
                 promise.then do
                     @thread.schedule do
-                        defer.resolve(promise)
+                        defer.resolve(true)
                         callback.call if callback
                     end
                 end
