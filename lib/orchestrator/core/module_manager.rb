@@ -53,6 +53,10 @@ module Orchestrator
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
+
+                # Apply the default config
+                apply_config
+
                 if @instance.respond_to? :on_load, true
                     begin
                         @instance.__send__(:on_load)
@@ -78,6 +82,8 @@ module Orchestrator
                 @thread.schedule do
                     # pass in any updated settings
                     @settings = mod
+
+                    apply_config
 
                     if @instance.respond_to? :on_update, true
                         begin
@@ -210,6 +216,10 @@ module Orchestrator
             def inspect
                 "#<#{self.class}:0x#{self.__id__.to_s(16)} @thread=#{@thread.inspect} running=#{!@instance.nil?} managing=#{@klass.to_s} id=#{@settings.id}>"
             end
+
+
+            # Stub for performance purposes
+            def apply_config; end
 
 
             protected

@@ -17,7 +17,6 @@ Gem::Specification.new do |s|
     s.add_dependency 'libuv'              # High performance IO reactor for ruby
     s.add_dependency 'uv-rays'            # Evented networking library
     s.add_dependency 'addressable'        # IP address utilities
-    s.add_dependency 'systemu'            # MAC address utilities
     s.add_dependency 'algorithms'         # Priority queue
     s.add_dependency 'couchbase-id'       # ID generation
     s.add_dependency 'elasticsearch'      # Searchable model indexes

@@ -38,6 +38,11 @@ module Orchestrator
                 @connection = nil
             end
 
+            def apply_config
+                @processor.config = @klass.__default_config(@instance) if @klass.respond_to? :__default_config
+                @processor.send_options(@klass.__default_opts(@instance)) if @klass.respond_to? :__default_opts
+            end
+
             def notify_connected
                 if @instance.respond_to? :connected, true
                     begin
