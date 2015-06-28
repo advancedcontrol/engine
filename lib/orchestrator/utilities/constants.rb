@@ -160,6 +160,26 @@ module Orchestrator
                 @config ||= {}
                 @config[:flush_buffer_on_disconnect] = true
             end
+
+            # ----------------------
+            # Make and Break Config:
+            # ----------------------
+
+            def inactivity_timeout(time)
+                @config ||= {}
+                @config[:inactivity_timeout] = time
+            end
+
+
+            # ------------------------
+            # Service module specific:
+            # ------------------------
+
+            def keepalive(val)
+                @request[:keepalive] = !!val
+            end
+
+
         end
 
         def self.included(klass)
