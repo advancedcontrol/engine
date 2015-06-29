@@ -4,6 +4,9 @@ module Orchestrator
         design_document :zone
         include ::CouchbaseId::Generator
 
+        extend EnsureUnique
+        extend Index
+
 
         attribute :name
         attribute :description
@@ -18,6 +21,11 @@ module Orchestrator
             all(stale: false)
         end
         view :all
+
+
+        ensure_unique :name, :name do |name|
+            "#{name.to_s.strip.downcase}"
+        end
 
 
         protected
