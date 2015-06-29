@@ -51,3 +51,33 @@ To activate the changes and persist them across reboots, run:
 
 $ sysctl -p
 
+
+
+
+
+
+
+Other Tweaks
+
+# Check using
+cat /proc/sys/vm/swappiness
+
+# Set swap memory to 0
+sudo echo 0 > /proc/sys/vm/swappiness
+
+# Edit /etc/sysctl.conf
+vm.swappiness = 0
+
+
+# Disable THP on a running system
+sudo echo never > /sys/kernel/mm/transparent_hugepage/enabled
+sudo echo never > /sys/kernel/mm/transparent_hugepage/defrag
+
+# Add these commands to /etc/rc.local
+if test -f /sys/kernel/mm/transparent_hugepage/enabled; then
+   echo never > /sys/kernel/mm/transparent_hugepage/enabled
+fi
+if test -f /sys/kernel/mm/transparent_hugepage/defrag; then
+   echo never > /sys/kernel/mm/transparent_hugepage/defrag
+fi
+

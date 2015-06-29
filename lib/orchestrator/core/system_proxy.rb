@@ -169,13 +169,15 @@ module Orchestrator
 
                 # We create a new promise that resolves on this thread
                 defer = @thread.defer
-                defer.resolve(::Orchestrator::Control.instance.ready_promise)
-
-                if callback
-                    defer.promise.then do 
-                        callback.call
+                
+                promise = ::Orchestrator::Control.instance.ready_promise
+                promise.then do
+                    @thread.schedule do
+                        defer.resolve(true)
+                        callback.call if callback
                     end
                 end
+
                 defer.promise
             end
 

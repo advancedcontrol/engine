@@ -32,6 +32,9 @@ module Orchestrator
             @ready = false
             @ready_defer = @loop.defer
             @ready_promise = @ready_defer.promise
+            @ready_promise.then do
+                @ready = true
+            end
 
             # We keep track of unloaded modules so we can optimise loading them again
             @unloaded = Set.new
@@ -271,7 +274,6 @@ module Orchestrator
         def notify_ready
             # Clear the system cache (in case it has been populated at all)
             System.clear_cache
-            @ready = true
             @ready_defer.resolve(true)
 
             # these are invisible to the system - never make it into the system cache

@@ -12,13 +12,21 @@ module Orchestrator
                 @__config__.get_scheduler
             end
 
-            # Looks up a system based on its name and returns a proxy to that system via a promise
+            # Returns a proxy to that system
             #
-            # @param name [String] the name of the system being accessed
+            # @param id [String|Symbol] the id of the system being accessed
+            # @return [::Orchestrator::Core::SystemProxy] Returns a system proxy
+            def systems(id)
+                @__config__.get_system(id)
+            end
+
+            # Returns the system id for a system based on its name
+            #
+            # @param id [String] the name of the system to lookup
             # @return [::Libuv::Q::Promise] Returns a single promise
-            def systems(name)
+            def lookup_system(name)
                 task do
-                    @__config__.get_system(name)
+                    ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true})
                 end
             end
 

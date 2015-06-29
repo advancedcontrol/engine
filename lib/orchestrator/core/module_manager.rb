@@ -53,6 +53,10 @@ module Orchestrator
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
+
+                # Apply the default config
+                apply_config
+
                 if @instance.respond_to? :on_load, true
                     begin
                         @instance.__send__(:on_load)
@@ -79,6 +83,8 @@ module Orchestrator
                     # pass in any updated settings
                     @settings = mod
 
+                    apply_config
+
                     if @instance.respond_to? :on_update, true
                         begin
                             @instance.__send__(:on_update)
@@ -93,12 +99,8 @@ module Orchestrator
                 @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread)
             end
 
-            # This is called from Core::Mixin on the thread pool as the DB query will be blocking
-            # NOTE:: Couchbase does support non-blocking gets although I think this is simpler
-            #
             # @return [::Orchestrator::Core::SystemProxy]
-            def get_system(name)
-                id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true}) || name
+            def get_system(id)
                 ::Orchestrator::Core::SystemProxy.new(@thread, id.to_sym, self)
             end
 
@@ -214,6 +216,10 @@ module Orchestrator
             def inspect
                 "#<#{self.class}:0x#{self.__id__.to_s(16)} @thread=#{@thread.inspect} running=#{!@instance.nil?} managing=#{@klass.to_s} id=#{@settings.id}>"
             end
+
+
+            # Stub for performance purposes
+            def apply_config; end
 
 
             protected
