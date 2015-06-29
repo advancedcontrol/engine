@@ -147,7 +147,7 @@ module Orchestrator
 
             # delete all the trigger instances (remove directly as before_delete is not required)
             bucket = ::Orchestrator::TriggerInstance.bucket
-            TriggerInstance.for(sys_id).each do |trig|
+            TriggerInstance.for(self.id).each do |trig|
                 bucket.delete(trig.id)
             end
 
