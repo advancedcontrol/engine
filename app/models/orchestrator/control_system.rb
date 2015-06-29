@@ -19,8 +19,6 @@ module Orchestrator
 
 
         attribute :name
-        define_attribute_methods :name  # dirty attributes for name!
-
         attribute :description
 
         attribute :zones,       default: lambda { [] }
