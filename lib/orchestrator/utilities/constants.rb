@@ -176,6 +176,7 @@ module Orchestrator
             # ------------------------
 
             def keepalive(val)
+                @request ||= {}
                 @request[:keepalive] = !!val
             end
 
