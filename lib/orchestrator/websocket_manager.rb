@@ -181,6 +181,9 @@ module Orchestrator
 
 
         def unbind(params)
+            # Check websocket hasn't shutdown
+            return unless @bindings
+
             id = params[:id]
             sys = params[:sys]
             mod = params[:mod]
@@ -222,6 +225,9 @@ module Orchestrator
 
         # Called from a worker thread
         def check_binding(id, sys, mod, index, name)
+            # Check websocket hasn't shutdown
+            return unless @bindings
+            
             system = ::Orchestrator::System.get(sys)
 
             if system
