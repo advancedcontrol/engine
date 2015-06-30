@@ -182,4 +182,34 @@ describe 'module constants mixin' do
             end
         }.to raise_error(ArgumentError)
     end
+
+
+    it 'should support defining an inactivity timeout' do
+        class TestModule
+            inactivity_timeout 3000
+        end
+
+        config = TestModule.__default_config(@inst)
+        req_opts = TestModule.__default_opts(@inst)
+
+        expect(req_opts.empty?).to eq(true)
+        expect(config).to eq({
+            inactivity_timeout: 3000
+        })
+    end
+
+
+    it 'should support defining HTTP keepalive' do
+        class TestModule
+            keepalive false
+        end
+
+        config = TestModule.__default_config(@inst)
+        req_opts = TestModule.__default_opts(@inst)
+
+        expect(config.empty?).to eq(true)
+        expect(req_opts).to eq({
+            keepalive: false
+        })
+    end
 end
