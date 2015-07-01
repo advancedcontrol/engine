@@ -103,6 +103,9 @@ module Orchestrator
             TriggerInstance.for(self.id)
         end
 
+        # For trigger logic module compatibility
+        def running; true; end
+
 
         protected
 
