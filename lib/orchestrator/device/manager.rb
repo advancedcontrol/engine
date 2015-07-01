@@ -6,7 +6,7 @@ module Orchestrator
 
                 # Do we want to start here?
                 # Should be ok.
-                @thread.next_tick method(:start)
+                @thread.next_tick method(:start) if @settings.running
             end
 
             attr_reader :processor, :connection
