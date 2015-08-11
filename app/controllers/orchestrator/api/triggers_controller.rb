@@ -15,7 +15,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.sort = [{name: "asc"}]
+                query.sort = NAME_SORT_ASC
                 respond_with @@elastic.search(query)
             end
 
