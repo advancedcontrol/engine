@@ -129,7 +129,7 @@ module Orchestrator
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :method, {args: []}).tap do |whitelist|
-                        whitelist[:args] = params[:args]
+                        whitelist[:args] = params[:args] || []
                     end
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
