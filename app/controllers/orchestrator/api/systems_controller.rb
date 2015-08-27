@@ -32,6 +32,7 @@ module Orchestrator
                     })
                 end
 
+                query.search_field :name
                 respond_with @@elastic.search(query)
             end
 

@@ -14,6 +14,7 @@ module Orchestrator
             def index
                 query = @@elastic.query(params)
                 query.sort = NAME_SORT_ASC
+                query.search_field :name
 
                 respond_with @@elastic.search(query)
             end
