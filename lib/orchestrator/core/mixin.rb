@@ -125,7 +125,9 @@ module Orchestrator
                 stats[:time_now] = @__config__.thread.now
                 stats[:schedules] = schedule.schedules.to_a
 
-                logger.debug JSON.generate(stats)
+                output = JSON.generate(stats)
+                logger.debug output
+                output
             end
         end
     end

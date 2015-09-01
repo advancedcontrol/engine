@@ -138,9 +138,38 @@ module Orchestrator
                 end
             end
 
+            # Returns the value of the requested status variable
+            # Or dumps the complete status state of the module
             def state
                 lookup_module do |mod|
-                    render json: mod.status[params.permit(:lookup)[:lookup].to_sym]
+                    para = params.permit(:lookup)
+                    if para.has_key?(:lookup)
+                        render json: mod.status[para[:lookup].to_sym]
+                    else
+                        render json: mod.status.marshal_dump
+                    end
+                end
+            end
+
+            # Dumps internal state out of the logger at debug level
+            # and returns the internal state
+            def internal_state
+                lookup_module do |mod|
+                    mod.thread.next_tick do
+                        respHeaders = {}
+                        begin
+                            output = mod.instance.__STATS__
+                            respHeaders['Content-Length'] = output.bytesize
+                            respHeaders['Content-Type'] = 'application/json'
+                            env['async.callback'].call([200, respHeaders, [output]])
+                        rescue => err
+                            output = err.message
+                            respHeaders['Content-Length'] = output.bytesize
+                            respHeaders['Content-Type'] = 'text/plain'
+                            env['async.callback'].call([500, respHeaders, [output]])
+                        end
+                    end
+                    throw :async
                 end
             end
 
