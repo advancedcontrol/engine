@@ -28,6 +28,18 @@ module Orchestrator
                 RequestProxy.new(@thread, system.get(name, index), @user)
             end
 
+            # Provides a proxy to a module for a safe way to communicate across threads
+            #
+            # @param module [String, Symbol] the name of the module in the system suffixed with the index. i.e. ModuleName_IndexNumber
+            # @return [::Orchestrator::Core::RequestsProxy] proxies requests to a single module
+            def get_implicit(mod_id)
+                res = mod_id.to_s.split(/_(?=[^_]+$)/)
+                mod = res[0].to_sym
+                id = res.length > 1 ? res[-1].to_i : 1
+                
+                get(mod, id)
+            end
+
             # Checks for the existence of a particular module
             #
             # @param module [String, Symbol] the name of the module in the system
@@ -105,6 +117,7 @@ module Orchestrator
                     status = index.to_sym
                     index = 1
                 else
+                    status = status.to_sym
                     callback ||= block
                 end
                 mod_name = mod_name.to_sym
@@ -147,17 +160,25 @@ module Orchestrator
                 sub
             end
 
+            # Is called when the system is completely loaded. Useful for logic module communication.
+            #
+            # @param callback [Proc] method, block, proc or lambda to be called when load is complete
+            # @return [::Libuv::Q::Promise] load complete promise object
             def load_complete(callback = nil, &blk)
                 callback = callback || blk
 
+                # We create a new promise that resolves on this thread
                 defer = @thread.defer
-                defer.resolve(::Orchestrator::Control.instance.ready_promise)
-
-                if callback
-                    defer.promise.then(callback)
-                else
-                    defer.promise
+                
+                promise = ::Orchestrator::Control.instance.ready_promise
+                promise.then do
+                    @thread.schedule do
+                        defer.resolve(true)
+                        callback.call if callback
+                    end
                 end
+
+                defer.promise
             end
 
 

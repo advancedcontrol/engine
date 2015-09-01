@@ -37,6 +37,9 @@ module Orchestrator
         #
         config.after_initialize do |app|
             require File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/user'))
+            # Increase the default observe timeout
+            # TODO:: We should really be writing our own DB adaptor
+            ::User.bucket.default_observe_timeout = 10000000
             
             ActiveSupport::Dependencies.autoload_paths.each do |path|
                 Pathname.new(path).ascend do |v|
@@ -55,6 +58,7 @@ module Orchestrator
             ::Orchestrator::ControlSystem.ensure_design_document!
             ::Orchestrator::Module.ensure_design_document!
             ::Orchestrator::Zone.ensure_design_document!
+            ::Orchestrator::TriggerInstance.ensure_design_document!
             ::Couchbase::Model::Configuration.design_documents_paths = temp
 
             # Start the control system by initializing it

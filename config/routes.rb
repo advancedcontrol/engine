@@ -10,6 +10,7 @@ Orchestrator::Engine.routes.draw do
                 post 'start',   on: :member
                 post 'stop',    on: :member
                 get  'state',   on: :member
+                get  'internal_state', on: :member
             end
         end
 
@@ -27,10 +28,12 @@ Orchestrator::Engine.routes.draw do
             get  'types',   on: :member
 
             concerns :mods
+            resources(:triggers, {controller: :system_triggers})
         end
         resources :dependencies do  # dependencies have settings
             post 'reload',  on: :member
         end
+        resources :triggers
         resources :groups           # users define the groups they are in
         resources :zones            # zones define what groups can access them
         resources :users do
@@ -39,6 +42,12 @@ Orchestrator::Engine.routes.draw do
         resources :logs
         
         concerns  :mods
+
+        resources :stats do
+            get 'connections', on: :collection
+            get 'triggers',    on: :collection
+            get 'offline',     on: :collection
+        end
     end
 
     # These are non-restful endpoints

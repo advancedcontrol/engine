@@ -14,7 +14,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.sort = [{name: "asc"}]
+                query.sort = NAME_SORT_ASC
 
                 # Filter systems via zone_id
                 if params.has_key? :zone_id
@@ -32,6 +32,7 @@ module Orchestrator
                     })
                 end
 
+                query.search_field :name
                 respond_with @@elastic.search(query)
             end
 
@@ -46,9 +47,8 @@ module Orchestrator
             end
 
             def update
-                @cs.update(safe_params)
-                #save_and_respond(@cs) # save deletes the system cache
-                respond_with :api, @cs
+                @cs.assign_attributes(safe_params)
+                save_and_respond(@cs)
             end
 
             # Removes the module from the system and deletes it if not used elsewhere
@@ -90,10 +90,23 @@ module Orchestrator
             ##
 
             def start
+                loaded = []
+
                 # Start all modules in the system
                 @cs.modules.each do |mod_id|
-                    load_and_start mod_id
+                    promise = load_and_start mod_id
+                    loaded << promise if promise.respond_to?(:then)
                 end
+
+                # Clear the system cache once the modules are loaded
+                # This ensures the cache is accurate
+                control.loop.finally(*loaded).then do
+                    # Might as well trigger update behaviour.
+                    # Ensures logic modules that interact with other logic modules
+                    # are accurately informed
+                    @cs.expire_cache   # :no_update
+                end
+
                 render :nothing => true
             end
 
@@ -117,7 +130,7 @@ module Orchestrator
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :method, {args: []}).tap do |whitelist|
-                        whitelist[:args] = params[:args]
+                        whitelist[:args] = params[:args] || []
                     end
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
@@ -138,14 +151,17 @@ module Orchestrator
             def state
                 # Status defined as a system module
                 params.require(:module)
-                params.require(:lookup)
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :lookup)
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
                     if mod
-                        render json: mod.status[para[:lookup].to_sym]
+                        if para.has_key?(:lookup)
+                            render json: mod.status[para[:lookup].to_sym]
+                        else
+                            render json: mod.status.marshal_dump
+                        end
                     else
                         render nothing: true, status: :not_found
                     end
@@ -164,15 +180,17 @@ module Orchestrator
                     index = index.nil? ? 0 : (index.to_i - 1);
 
                     mod = sys.get(para[:module].to_sym, index)
-                    if mod
-                        funcs = mod.instance.public_methods(false)
-                        priv = []
-                        funcs.each do |func|
-                            if ::Orchestrator::Core::PROTECTED[func]
-                                priv << func
-                            end
+                    inst = mod.instance if mod
+                    if inst
+                        funcs = inst.public_methods(false)
+                        pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
+
+                        resp = {}
+                        pub.each do |pfunc|
+                            resp[pfunc] = inst.method(pfunc.to_sym).arity
                         end
-                        render json: (funcs - priv)
+
+                        render json: resp
                     else
                         render nothing: true, status: :not_found
                     end
@@ -257,7 +275,7 @@ module Orchestrator
 
                 req = Core::RequestProxy.new(mod.thread, mod, user)
                 args = para[:args] || []
-                result = req.send(para[:method].to_sym, *args)
+                result = req.method_missing(para[:method].to_sym, *args)
 
                 # timeout in case message is queued
                 timeout = mod.thread.scheduler.in(5000) do

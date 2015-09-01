@@ -5,6 +5,8 @@ module Orchestrator
                 @thread = thread        # Libuv Loop
                 @settings = settings    # Database model
                 @klass = klass
+
+                @running = false
                 
                 # Bit of a hack - should make testing pretty easy though
                 @status = ::ThreadSafe::Cache.new
@@ -15,14 +17,16 @@ module Orchestrator
             end
 
 
-            attr_reader :thread, :settings, :instance
+            attr_reader :thread, :settings, :instance, :running
             attr_reader :status, :stattrak, :logger
             attr_accessor :current_user
 
 
             # Should always be called on the module thread
             def stop
+                @running = false
                 return if @instance.nil?
+
                 begin
                     if @instance.respond_to? :on_unload, true
                         @instance.__send__(:on_unload)
@@ -43,10 +47,16 @@ module Orchestrator
             end
 
             def start
+                @running = true
                 return true unless @instance.nil?
+
                 config = self
                 @instance = @klass.new
                 @instance.instance_eval { @__config__ = config }
+
+                # Apply the default config
+                apply_config
+
                 if @instance.respond_to? :on_load, true
                     begin
                         @instance.__send__(:on_load)
@@ -73,6 +83,8 @@ module Orchestrator
                     # pass in any updated settings
                     @settings = mod
 
+                    apply_config
+
                     if @instance.respond_to? :on_update, true
                         begin
                             @instance.__send__(:on_update)
@@ -87,12 +99,8 @@ module Orchestrator
                 @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread)
             end
 
-            # This is called from Core::Mixin on the thread pool as the DB query will be blocking
-            # NOTE:: Couchbase does support non-blocking gets although I think this is simpler
-            #
             # @return [::Orchestrator::Core::SystemProxy]
-            def get_system(name)
-                id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true}) || name
+            def get_system(id)
                 ::Orchestrator::Core::SystemProxy.new(@thread, id.to_sym, self)
             end
 
@@ -192,7 +200,7 @@ module Orchestrator
                     defer.resolve(thread.work(proc {
                         mod = Orchestrator::Module.find(@settings.id)
                         mod.settings[name] = value
-                        mod.save!
+                        mod.save!(CAS => mod.meta[CAS])
                         mod
                     }))
                 end
@@ -210,20 +218,28 @@ module Orchestrator
             end
 
 
+            # Stub for performance purposes
+            def apply_config; end
+
+
             protected
 
+
+            CAS = 'cas'.freeze
 
             def update_connected_status(connected)
                 id = settings.id
 
                 # Access the database in a non-blocking fashion
+                # The update will not overwrite any user changes either
+                # (optimistic locking)
                 thread.work(proc {
                     @updating.synchronize {
                         model = ::Orchestrator::Module.find_by_id id
 
                         if model && model.connected != connected
                             model.connected = connected
-                            model.save!
+                            model.save!(CAS => model.meta[CAS])
                             model
                         else
                             nil
@@ -251,7 +267,7 @@ module Orchestrator
                         if model && model.running != running
                             model.running = running
                             model.connected = false if !running
-                            model.save!
+                            model.save!(CAS => model.meta[CAS])
                             model
                         else
                             nil

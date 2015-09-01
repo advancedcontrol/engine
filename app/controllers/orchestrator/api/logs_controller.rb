@@ -13,9 +13,6 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.sort = [{
-                    created_at: "desc"
-                }]
 
                 # Filter systems via user_id
                 if params.has_key? :user_id

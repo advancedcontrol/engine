@@ -2,7 +2,9 @@ require 'rails'
 require 'orchestrator'
 
 describe "command queue" do
-    @loop = ::Libuv::Loop.default
+    before :each do
+        @loop = ::Libuv::Loop.default
+    end
 
     # Uses promises to pause shifts until any timers
     # have been resolved

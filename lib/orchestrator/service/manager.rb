@@ -6,7 +6,7 @@ module Orchestrator
 
                 # Do we want to start here?
                 # Should be ok.
-                @thread.next_tick method(:start)
+                @thread.next_tick method(:start) if @settings.running
             end
 
             attr_reader :processor, :connection
@@ -26,6 +26,11 @@ module Orchestrator
                 @processor = nil
                 @connection.terminate
                 @connection = nil
+            end
+
+            def apply_config
+                @processor.config = @klass.__default_config(@instance) if @klass.respond_to? :__default_config
+                @processor.send_options(@klass.__default_opts(@instance)) if @klass.respond_to? :__default_opts
             end
 
             # NOTE:: Same as Device::Manager:-------

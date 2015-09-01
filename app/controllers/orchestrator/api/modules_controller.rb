@@ -13,6 +13,7 @@ module Orchestrator
             @@elastic ||= Elastic.new(::Orchestrator::Module)
 
             # Constant for performance
+            Dependency = 'dep'.freeze
             MOD_INCLUDE = {
                 include: {
                     # Most human readable module data is contained in dependency
@@ -62,6 +63,8 @@ module Orchestrator
                         })
                     end
 
+                    query.has_parent Dependency
+
                     results = @@elastic.search(query)
                     respond_with results, MOD_INCLUDE
                 end
@@ -75,7 +78,7 @@ module Orchestrator
                 para = safe_params
                 old_name = @mod.custom_name
 
-                @mod.update_attributes(para)
+                @mod.assign_attributes(para)
                 save_and_respond(@mod) do
                     # Update the running module
                     control.update(id).then do
@@ -106,7 +109,8 @@ module Orchestrator
 
             def start
                 # It is possible that module class load can fail
-                mod = control.loaded? id
+                mod_id = id
+                mod = control.loaded? mod_id
                 if mod
                     start_module(mod)
                 else # attempt to load module
@@ -114,6 +118,7 @@ module Orchestrator
                     control.load(config).then(
                         proc { |mod|
                             start_module mod
+                            expire_system_cache mod_id
                         },
                         proc { # Load failed
                             env['async.callback'].call([500, {'Content-Length' => 0}, []])
@@ -133,9 +138,38 @@ module Orchestrator
                 end
             end
 
+            # Returns the value of the requested status variable
+            # Or dumps the complete status state of the module
             def state
                 lookup_module do |mod|
-                    render json: mod.status[params.permit(:lookup)[:lookup].to_sym]
+                    para = params.permit(:lookup)
+                    if para.has_key?(:lookup)
+                        render json: mod.status[para[:lookup].to_sym]
+                    else
+                        render json: mod.status.marshal_dump
+                    end
+                end
+            end
+
+            # Dumps internal state out of the logger at debug level
+            # and returns the internal state
+            def internal_state
+                lookup_module do |mod|
+                    mod.thread.next_tick do
+                        respHeaders = {}
+                        begin
+                            output = mod.instance.__STATS__
+                            respHeaders['Content-Length'] = output.bytesize
+                            respHeaders['Content-Type'] = 'application/json'
+                            env['async.callback'].call([200, respHeaders, [output]])
+                        rescue => err
+                            output = err.message
+                            respHeaders['Content-Length'] = output.bytesize
+                            respHeaders['Content-Type'] = 'text/plain'
+                            env['async.callback'].call([500, respHeaders, [output]])
+                        end
+                    end
+                    throw :async
                 end
             end
 
@@ -176,6 +210,12 @@ module Orchestrator
                     else
                         env['async.callback'].call([500, {'Content-Length' => 0}, []])
                     end
+                end
+            end
+
+            def expire_system_cache(mod_id)
+                ControlSystem.using_module(mod_id).each do |cs|
+                    cs.expire_cache :no_update
                 end
             end
         end

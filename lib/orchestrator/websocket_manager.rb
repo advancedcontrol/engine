@@ -22,6 +22,9 @@ module Orchestrator
             @accessed = ::Set.new
             @access_log = ::Orchestrator::AccessLog.new
             @access_log.user_id = @user.id
+
+            @access_cache  = {}
+            @access_timers = []
         end
 
 
@@ -70,10 +73,14 @@ module Orchestrator
             if check_requirements(params)
                 # Perform the security check in a nonblocking fashion
                 # (Database access is probably required)
-                result = @loop.work do
-                    sys = params[:sys]
-                    params[:sys] = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys.downcase}", {quiet: true}) || sys
-                    Rails.configuration.orchestrator.check_access.call(params[:sys], @user)
+                sys_id = params[:sys].to_sym
+                result = @access_cache[sys_id]
+                if result.nil?
+                    result = @loop.work do
+                        Rails.configuration.orchestrator.check_access.call(sys_id, @user)
+                    end
+                    @access_cache[sys_id] = result
+                    expire_access(sys_id)
                 end
 
                 # The result should be an access level if these are implemented
@@ -81,7 +88,7 @@ module Orchestrator
                     begin
                         cmd = params[:cmd].to_sym
                         if COMMANDS.include?(cmd)
-                            @accessed << params[:sys]   # Log the access
+                            @accessed << sys_id         # Log the access
                             self.__send__(cmd, params)  # Execute the request
 
                             # Start logging
@@ -142,7 +149,7 @@ module Orchestrator
                 mod_man = system.get(mod, index - 1)
                 if mod_man
                     req = Core::RequestProxy.new(@loop, mod_man, @user)
-                    result = req.send(name, *args)
+                    result = req.method_missing(name, *args)
                     result.then(proc { |res|
                         output = nil
                         begin
@@ -174,6 +181,9 @@ module Orchestrator
 
 
         def unbind(params)
+            # Check websocket hasn't shutdown
+            return unless @bindings
+
             id = params[:id]
             sys = params[:sys]
             mod = params[:mod]
@@ -198,7 +208,7 @@ module Orchestrator
 
         def bind(params)
             id = params[:id]
-            sys = params[:sys]
+            sys = params[:sys].to_sym
             mod = params[:mod].to_sym
             name = params[:name].to_sym
             index_s = params[:index] || 1
@@ -215,6 +225,9 @@ module Orchestrator
 
         # Called from a worker thread
         def check_binding(id, sys, mod, index, name)
+            # Check websocket hasn't shutdown
+            return unless @bindings
+            
             system = ::Orchestrator::System.get(sys)
 
             if system
@@ -312,7 +325,7 @@ module Orchestrator
 
         def debug(params)
             id = params[:id]
-            sys = params[:sys]
+            sys = params[:sys].to_sym
             mod = params[:mod].to_sym
             index_s = params[:index]
             index = nil
@@ -331,7 +344,7 @@ module Orchestrator
                     if system
                         mod_man = system.get(mod, index - 1)
                         if mod_man
-                            mod_man.settings.id
+                            mod_man.settings.id.to_sym
                         else
                             ::Libuv::Q.reject(@loop, 'debug failed: module #{sys}->#{mod}_#{index} not found')
                         end
@@ -416,7 +429,7 @@ module Orchestrator
 
         def ignore(params)
             id = params[:id]
-            sys = params[:sys]
+            sys = params[:sys].to_sym
             mod_s = params[:mod]
             mod = mod_s.to_sym if mod_s
 
@@ -480,6 +493,11 @@ module Orchestrator
                     }
                 })
             end
+
+            @access_timers.each do |timer|
+                timer.cancel
+            end
+            @access_timers.clear
         end
 
 
@@ -512,6 +530,14 @@ module Orchestrator
                     @access_log.save
                 }
             })
+        end
+
+        def expire_access(sys_id)
+            # Require new access check every 15min
+            @access_timers << @loop.scheduler.in(900_000) do
+                @access_timers.shift
+                @access_cache.delete(sys_id)
+            end
         end
     end
 end

@@ -18,6 +18,10 @@ module Orchestrator
         protected
 
 
+        # This defines current_authority from coauth/lib/auth/authority
+        include CurrentAuthorityHelper
+
+
         # Don't keep re-creating these objects for every request
         ALLOW_ORIGIN = 'Access-Control-Allow-Origin'.freeze
         ALLOW_METHODS = 'Access-Control-Allow-Methods'.freeze

@@ -7,8 +7,10 @@ module Orchestrator
 
 
         # Supply a bearer_token param for oauth
+        HIJACK = 'rack.hijack'.freeze
+
         def websocket
-            hijack = request.env['rack.hijack']
+            hijack = request.env[HIJACK]
             if hijack && CONTROL.ready
                 promise = hijack.call
 
@@ -20,7 +22,7 @@ module Orchestrator
                     ws.start
                 end
 
-                throw :async     # to prevent rails from complaining 
+                throw :async     # to prevent rails from complaining
             else
                 render nothing: true, status: :method_not_allowed
             end

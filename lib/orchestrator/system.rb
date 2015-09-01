@@ -37,11 +37,32 @@ module Orchestrator
             @config.modules.each &method(:index_module)
 
             # Build an ordered zone cache for setting lookup
-            zones = ::Orchestrator::Control.instance.zones
+            ctrl = ::Orchestrator::Control.instance
+            zones = ctrl.zones
             @zones = []
             @config.zones.each do |zone_id|
                 zone = zones[zone_id]
-                @zones << zone unless zone.nil?
+
+                if zone.nil?
+                    # Try to load this zone!
+                    prom = ctrl.load_zone(zone_id)
+                    prom.then do |zone|
+                        @config.expire_cache
+                    end
+                    prom.catch do |err|
+                        if err == zone_id
+                            # The zone no longer exists
+                            ctrl.logger.warn "Stale zone, #{zone_id}, removed from system #{@config.id}"
+                            @config.zones.delete(zone_id)
+                            @config.save
+                        else
+                            # Failed to load due to an error
+                            ctrl.logger.print_error err, "Zone #{zone_id} failed to load. System #{@config.id} may not function"
+                        end
+                    end
+                else
+                    @zones << zone
+                end
             end
 
             # Inform status tracker that that the system has reloaded
@@ -84,20 +105,35 @@ module Orchestrator
 
 
         # looks for the system in the database
+        # It's imperitive that this succeeds - sleeping on a reactor thread is preferable
         def self.load(id)
-            @@critical.synchronize {
-                system = @@systems[id]
-                return system unless system.nil?
+            tries = 0
 
-                sys = ControlSystem.find_by_id(id.to_s)
-                if sys.nil?
-                    return nil
+            begin
+                @@critical.synchronize {
+                    system = @@systems[id]
+                    return system unless system.nil?
+
+                    sys = ControlSystem.find_by_id(id.to_s)
+                    if sys.nil?
+                        return nil
+                    else
+                        system = System.new(sys)
+                        @@systems[id] = system
+                    end
+                    return system
+                }
+            rescue => err
+                if tries <= 2
+                    sleep 0.5
+                    tries += 1
+                    retry
                 else
-                    system = System.new(sys)
-                    @@systems[id] = system
+                    error = "System #{id} failed to load. System #{id} may not function properly"
+                    ctrl.logger.print_error err, error
+                    raise error
                 end
-                return system
-            }
+            end
         end
 
         def index_module(mod_id)
