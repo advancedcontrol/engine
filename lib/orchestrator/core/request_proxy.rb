@@ -56,7 +56,7 @@ module Orchestrator
 
             attr_reader :trace
 
-            def request(name, *args, &block)
+            def request(name, *args, **keyword, &block)
                 defer = @thread.defer
 
                 if @mod.nil?
@@ -87,14 +87,14 @@ module Orchestrator
                                 else
                                     logger.warn "the module #{@mod.settings.id} is currently stopped however should be running. Attempting restart"
                                     if @mod.start
-                                        defer.resolve(@mod.instance.public_send(name, *args, &block))
+                                        defer.resolve(@mod.instance.public_send(name, *args, **keyword, &block))
                                     else
                                         err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}'' failed to start"
                                         defer.reject(err)
                                     end
                                 end
                             else
-                                defer.resolve(instance.public_send(name, *args, &block))
+                                defer.resolve(instance.public_send(name, *args, **keyword, &block))
                             end
                         rescue => e
                             @mod.logger.print_error(e, '', @trace)
@@ -161,8 +161,12 @@ module Orchestrator
 
 
             # All other method calls are wrapped in a promise
-            def method_missing(name, *args, &block)
-                @forward.request(name.to_sym, *args, &block)
+            def send(name, *args, **keyword, &block)
+                @forward.request(name.to_sym, *args, **keyword, &block)
+            end
+
+            def method_missing(name, *args, **keyword, &block)
+                @forward.request(name.to_sym, *args, **keyword, &block)
             end
         end
     end
