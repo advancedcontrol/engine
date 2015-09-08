@@ -1,4 +1,3 @@
-require 'set'
 require 'logger'
 
 
@@ -25,6 +24,7 @@ module Orchestrator
             @critical = ::Mutex.new
             @loaded = ::ThreadSafe::Cache.new
             @zones = ::ThreadSafe::Cache.new
+            @nodes = ::ThreadSafe::Cache.new
             @loader = DependencyManager.instance
             @loop = ::Libuv::Loop.default
             @exceptions = method(:log_unhandled_exception)
@@ -35,9 +35,6 @@ module Orchestrator
             @ready_promise.then do
                 @ready = true
             end
-
-            # We keep track of unloaded modules so we can optimise loading them again
-            @unloaded = Set.new
 
             if Rails.env.production?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
@@ -51,7 +48,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger, :loop, :ready, :ready_promise, :zones, :threads
+        attr_reader :logger, :loop, :ready, :ready_promise, :zones, :nodes, :threads, :selector
 
 
         # Start the control reactor
@@ -73,7 +70,7 @@ module Orchestrator
                     if @server.in_mode? :thread
                         @threads = @server.threads
                     else    # We are either running no_ipc or process (unsupported for control)
-                        @threads = Set.new
+                        @threads = []
 
                         cpus = ::Libuv.cpu_count || 1
                         cpus.times &method(:start_thread)
@@ -129,46 +126,43 @@ module Orchestrator
 
         # Load the modules on the loop references in round robin
         # This method is thread safe.
-        def load(mod_settings)
-            mod_id = mod_settings.id.to_sym
+        def load(id, do_proxy = true)
+            mod_id = id.to_sym
             defer = @loop.defer
-            mod = @loaded[mod_id]
 
+            mod = @loaded[mod_id]
             if mod
                 defer.resolve(mod)
             else
-                defer.resolve(
-                    @loader.load(mod_settings.dependency).then(proc { |klass|
-                        # We will always be on the default loop here
-                        thread = @selector.next
+                # Grab database model in the thread pool
+                res = @loop.work do
+                    tries = 0
+                    begin
+                        ::Orchestrator::Module.find_by_id(mod_id)
+                    rescue => e
+                        tries += 1
+                        sleep 0.2
+                        retry if tries < 3
+                        raise e
+                    end
+                end
 
-                        # We'll resolve the promise if the module loads on the deferred thread
-                        defer = @loop.defer
-                        thread.schedule do
-                            defer.resolve(start_module(thread, klass, mod_settings))
-                        end
+                # Load the module if model found
+                res.then do |config|
+                    if config
+                        edge = @nodes[config.edge_id.to_sym]
+                        result = edge.update(config)
 
-                        # update the module cache
-                        defer.promise.then do |mod_manager|
-                            @loaded[mod_id] = mod_manager
-
-                            # Transfer any existing observers over to the new thread
-                            if @ready && @unloaded.include?(mod_id)
-                                @unloaded.delete(mod_id)
-                                
-                                new_thread = thread.observer
-                                @threads.each do |thr|
-                                    thr.observer.move(mod_id, new_thread)
-                                end
+                        if do_proxy && result
+                            result.then do |mod|
+                                remote = mod.remote_node
+                                remote.load(mod_id) if remote
                             end
-
-                            # Return the manager
-                            mod_manager
                         end
-                        defer.promise
-                    }, @exceptions)
-                )
+                    end
+                end
             end
+
             defer.promise
         end
 
@@ -177,15 +171,28 @@ module Orchestrator
             @loaded[mod_id.to_sym]
         end
 
+        def get_node(edge_id)
+            @nodes[edge_id.to_sym]
+        end
+
         # Starts a module running
-        def start(mod_id)
+        def start(mod_id, do_proxy = true)
             defer = @loop.defer
 
             mod = loaded? mod_id
             if mod
+                if do_proxy
+                    remote = mod.remote_node
+                    if remote
+                        @loop.schedule do
+                            remote.stop mod_id
+                        end
+                    end
+                end
+
                 mod.thread.schedule do
                     mod.start
-                    defer.resolve(true)
+                    defer.resolve(mod)
                 end
             else
                 err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
@@ -197,14 +204,23 @@ module Orchestrator
         end
 
         # Stops a module running
-        def stop(mod_id)
+        def stop(mod_id, do_proxy = true)
             defer = @loop.defer
 
             mod = loaded? mod_id
             if mod
+                if do_proxy
+                    remote = mod.remote_node
+                    if remote
+                        @loop.schedule do
+                            remote.stop mod_id
+                        end
+                    end
+                end
+
                 mod.thread.schedule do
                     mod.stop
-                    defer.resolve(true)
+                    defer.resolve(mod)
                 end
             else
                 err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', not found"
@@ -217,30 +233,32 @@ module Orchestrator
 
         # Stop the module gracefully
         # Then remove it from @loaded
-        def unload(mod_id)
+        def unload(mod_id, do_proxy = true)
             mod = mod_id.to_sym
-            stop(mod).then(proc {
-                @unloaded << mod
-                @loaded.delete(mod)
-                true # promise response
+
+            stop(mod, false).then(proc { |mod_man|
+                if do_proxy
+                    remote = mod_man.remote_node
+                    remote.unload mod if remote
+                end
+
+                edge = mod_man.local_node
+                edge.unload(mod)
+                mod_man # promise response
             })
         end
 
         # Unload then
         # Get a fresh version of the settings from the database
         # load the module
-        def update(mod_id)
-            unload(mod_id).then(proc {
-                # Grab database model in the thread pool
-                res = @loop.work do
-                    ::Orchestrator::Module.find(mod_id)
-                end
+        def update(mod_id, do_proxy = true)
+            defer = @loop.defer
 
-                # Load the module if model found
-                res.then(proc { |config|
-                    load(config)    # Promise chaining to here
-                })
-            })
+            unload(mod_id, do_proxy).finally do
+                defer.resolve load(mod_id, do_proxy)
+            end
+
+            defer.promise
         end
 
         def log_unhandled_exception(*args)
@@ -256,138 +274,60 @@ module Orchestrator
             ::Libuv::Q.reject(@loop, msg)
         end
 
-        def load_triggers_for(system)
-            return if loaded?(system.id)
-
-            thread = @selector.next
-            thread.schedule do
-                mod = Triggers::Manager.new(thread, ::Orchestrator::Triggers::Module, system)
-                @loaded[system.id.to_sym] = mod  # NOTE:: Threadsafe
-                mod.start
-            end
-        end
-
 
         protected
-
-
-        def notify_ready
-            # Clear the system cache (in case it has been populated at all)
-            System.clear_cache
-            @ready_defer.resolve(true)
-
-            # these are invisible to the system - never make it into the system cache
-            @loop.work do
-                load_all_triggers 
-            end
-
-            # Save a statistics snapshot every 5min
-            stats_method = method(:log_stats)
-            @loop.scheduler.every(300_000) do
-                @loop.work stats_method
-            end
-        end
-
-
-        def log_stats(*args)
-            Orchestrator::Stats.new.save
-        rescue => e
-            @logger.warn "exception saving statistics #{e.message}"
-        end
-
-
-        # These run like regular modules
-        # This function is always run from the thread pool
-        # Batch loads the system triggers on to the main thread
-        def load_all_triggers
-            begin
-                systems = []
-                ControlSystem.all.each do |cs|
-                    systems << cs
-                    if systems.length >= 20
-                        schedule_triggers_for(systems)
-                        systems = []
-                    end
-                end
-                if systems.length > 0
-                    schedule_triggers_for(systems)
-                end
-            rescue => e
-                @logger.warn "exception starting triggers #{e.message}"
-                sleep 1  # Give it a bit of time
-                retry
-            end
-        end
-
-        # Schedule the systems for loading on the default thread
-        def schedule_triggers_for(systems)
-            @loop.schedule do
-                systems.each do |sys|
-                    load_triggers_for sys
-                end
-            end
-        end
-
-        # This will always be called on the thread reactor here
-        def start_module(thread, klass, settings)
-            # Initialize the connection / logic / service handler here
-            case settings.dependency.role
-            when :device
-                Device::Manager.new(thread, klass, settings)
-            when :service
-                Service::Manager.new(thread, klass, settings)
-            else
-                Logic::Manager.new(thread, klass, settings)
-            end
-        end
 
 
         # Grab the modules from the database and load them
         def load_all
             loading = []
-            wait = nil
 
-            modules = ::Orchestrator::Module.all
-            modules.each do |mod|
-                if mod.role < 3
-                    loading << load(mod)  # modules are streamed in
-                else
-                    if wait.nil?
-                        wait = ::Libuv::Q.finally(@loop, *loading)
-                        loading.clear
+            nodes = ::Orchestrator::EdgeControl.all
+            nodes.each do |node|
+                loading << node.boot(@loaded)
+                @nodes[node.id.to_sym] = node
+            end
 
-                        # Clear here in case rest api calls have built the cache
-                        System.clear_cache
-                    end
-
-                    loading << mod
+            # If there are no edges then this is the only system
+            if loading.empty?
+                edge = EdgeControl.new
+                loading << edge.boot(@loaded).then do
+                    edge.id = :single_node
+                    @nodes[edge.id] = edge
                 end
             end
 
-            # In case there were no logic modules
-            if wait.nil?
-                wait = ::Libuv::Q.finally(@loop, *loading)
-                loading.clear
-            end
-
-            # Mark system as ready
-            wait.finally do
-                continue_loading(loading)
-            end
-        end
-
-        # Load all the logic modules after the device modules are complete
-        def continue_loading(modules)
-            loading = []
-
-            modules.each do |mod|
-                loading << load(mod)  # grab the load promises
-            end
-
             # Once load is complete we'll accept websockets
-            ::Libuv::Q.finally(@loop, *loading).finally method(:notify_ready)
+            ::Libuv::Q.finally(@loop, *loading).finally do
+                connect_to_master
+
+                # Determine if we are the master node
+                this_node   = @nodes[Remote::NodeId]
+                master_node = @nodes[this_node.master_id] if this_node
+                if this_node.nil? || this_node.master_id.nil? || this_node.master_id == Remote::NodeId || (master_node && master_node.master_id == Remote::NodeId)
+                    start_server
+
+                    # Save a statistics snapshot every 5min on the master server
+                    @loop.scheduler.every(300_000, method(:log_stats))
+                end
+
+                edge = @nodes[:single_node]
+                edge.start_modules if edge
+
+                @ready_defer.resolve(true)
+            end
         end
 
+
+        def log_stats(*_)
+            @loop.work do
+                begin
+                    Orchestrator::Stats.new.save
+                rescue => e
+                    @logger.warn "exception saving statistics #{e.message}"
+                end
+            end
+        end
 
 
         ##
@@ -399,18 +339,29 @@ module Orchestrator
                 thread.run do |promise|
                     promise.progress @exceptions
 
-                    thread.async do
-                        p 'noop'
+                    thread.signal :INT do
+                        thread.stop
                     end
                 end
             end
         end
 
         def kill_workers(*args)
-            @threads.each do |thread|
-                thread.stop
-            end
             @loop.stop
+        end
+
+
+        # Edge node connections
+        def start_server
+            @node_server = Remote::Master.new
+        end
+
+        def connect_to_master
+            model = @nodes[Remote::NodeId]
+            if model && model.master_id
+                master = @nodes[model.master_id.to_sym]
+                @connection = ::UV.connect master.host, Remote::SERVER_PORT, Remote::Edge, master
+            end
         end
     end
 end

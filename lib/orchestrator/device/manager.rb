@@ -1,21 +1,14 @@
 module Orchestrator
     module Device
         class Manager < ::Orchestrator::Core::ModuleManager
-            def initialize(*args)
-                super(*args)
-
-                # Do we want to start here?
-                # Should be ok.
-                @thread.next_tick method(:start) if @settings.running
-            end
-
             attr_reader :processor, :connection
 
-            def start
+            def start_local(online = @settings.running)
+                return false unless online
                 return true unless @processor.nil?
                 @processor = Processor.new(self)
 
-                super # Calls on load (allows setting of tls certs)
+                super online # Calls on load (allows setting of tls certs)
 
                 # Load UV-Rays abstraction here
                 @connection = if @settings.udp
@@ -30,7 +23,7 @@ module Orchestrator
                 true # for REST API
             end
 
-            def stop
+            def stop_local
                 super
                 @processor.terminate unless @processor.nil?
                 @processor = nil

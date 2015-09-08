@@ -13,6 +13,10 @@ module Orchestrator
         attribute :triggers_active,      default: 0
         attribute :connections_active,   default: 0
 
+        # TODO::
+        attribute :nodes_offline,        default: 0
+        belongs_to :edge, class_name: 'Orchestrator::EdgeControl'
+
         # Unique field in the index
         attribute :stat_snapshot_at
 
@@ -39,6 +43,7 @@ module Orchestrator
         def query_for_stats
             self.stat_snapshot_at = Time.now.to_i
             self.id = "zzz_#{CLUSTER_ID}-#{self.stat_snapshot_at}"
+            self.edge_id = Remote::NodeId  # Edge that recorded this statistic
 
             #----------------------
             # => Connections active

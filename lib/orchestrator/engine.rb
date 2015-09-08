@@ -59,6 +59,7 @@ module Orchestrator
             ::Orchestrator::Module.ensure_design_document!
             ::Orchestrator::Zone.ensure_design_document!
             ::Orchestrator::TriggerInstance.ensure_design_document!
+            ::Orchestrator::EdgeControl.ensure_design_document!
             ::Couchbase::Model::Configuration.design_documents_paths = temp
 
             # Start the control system by initializing it

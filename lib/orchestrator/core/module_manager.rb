@@ -14,6 +14,7 @@ module Orchestrator
                 @logger = ::Orchestrator::Logger.new(@thread, @settings)
 
                 @updating = Mutex.new
+                @nodes = Control.instance.nodes
             end
 
 
@@ -22,8 +23,42 @@ module Orchestrator
             attr_accessor :current_user
 
 
+            # Looks up any remote nodes that this module may run on
+            #
+            # @return [Remote::Proxy|nil]
+            def remote_node
+                # Grab the edge the module should be running on
+                edge = @nodes[@settings.edge_id.to_sym]
+                if edge && edge.should_run_on_this_host
+                    edge = @nodes[edge.master_id.to_sym]
+                end
+
+                # Ensure the edge we selected is not this host
+                if edge && !edge.should_run_on_this_host
+                    edge.proxy
+                else
+                    nil
+                end
+            end
+
+            def local_node
+                # Grab the edge the module should be running on
+                edge = @nodes[@settings.edge_id.to_sym]
+                if edge && !edge.should_run_on_this_host
+                    edge = @nodes[edge.master_id.to_sym]
+                end
+
+                edge
+            end
+
+
             # Should always be called on the module thread
             def stop
+                stop_local
+                update_running_status(false)
+            end
+
+            def stop_local
                 @running = false
                 return if @instance.nil?
 
@@ -34,19 +69,28 @@ module Orchestrator
                 rescue => e
                     @logger.print_error(e, 'error in module unload callback')
                 ensure
-                    # Clean up
-                    @instance = nil
                     @scheduler.clear if @scheduler
                     if @subsciptions
                         unsub = @stattrak.method(:unsubscribe)
                         @subsciptions.each &unsub
                         @subsciptions = nil
                     end
-                    update_running_status(false)
+                    @instance = nil
                 end
             end
 
             def start
+                begin
+                    start_local(true) if @settings.node.host_active?
+                    update_running_status(true)
+                    true # for REST API
+                rescue => e
+                    @logger.print_error(e, 'module failed to start')
+                    false
+                end
+            end
+
+            def start_local(_ = nil)
                 @running = true
                 return true unless @instance.nil?
 
@@ -64,11 +108,6 @@ module Orchestrator
                         @logger.print_error(e, 'error in module load callback')
                     end
                 end
-                update_running_status(true)
-                true # for REST API
-            rescue => e
-                @logger.print_error(e, 'module failed to start')
-                false
             end
 
             def reloaded(mod)

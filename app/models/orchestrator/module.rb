@@ -10,8 +10,9 @@ module Orchestrator
         # The classes / files that this module requires to execute
         # Defines module type
         # Requires dependency_id to be set
-        belongs_to :dependency, :class_name => "Orchestrator::Dependency"
-        belongs_to :control_system, :class_name => "Orchestrator::ControlSystem"
+        belongs_to :dependency,     class_name: 'Orchestrator::Dependency'
+        belongs_to :control_system, class_name: 'Orchestrator::ControlSystem'
+        belongs_to :edge,           class_name: 'Orchestrator::EdgeControl'
 
 
         # Device module
@@ -49,6 +50,15 @@ module Orchestrator
         end
 
 
+        # Returns the node currently running this module
+        def node
+            # NOTE:: Same function in control_system.rb
+            @nodes ||= Control.instance.nodes
+            @node_id ||= self.edge_id || :single_node
+            @nodes[@node_id]
+        end
+
+
         # Loads all the modules for this node
         def self.all
             # ascending order by default (device, service then logic)
@@ -61,6 +71,11 @@ module Orchestrator
             by_dependency({key: dep_id, stale: false})
         end
         view :by_dependency
+
+        def self.on_node(edge_id)
+            by_node({key: edge_id, stale: false})
+        end
+        view :by_node
 
 
         protected

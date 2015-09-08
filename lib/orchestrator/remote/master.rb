@@ -1,150 +1,146 @@
-require 'set'
+require 'uv-rays'
 require 'json'
+require 'set'
 
 
 module Orchestrator
+    module Remote
+        SERVER_PORT = 17400
 
-    class Master
-        def initialize(thread)
-            @thread = thread
-
-            @accept_connection = method :accept_connection
-            @new_connection =    method :new_connection
-            @bind_error =        method :bind_error
-
-            @shutdown = true
-            @edge_nodes = ::ThreadSafe::Cache.new # id => connection
-            @requests   = {} # req_id => defer
-            @req_map    = {} # connection => ::Set.new (req_id)
-
-            @signal_bind   = @thread.async method(:bind_actual)
-            @signal_unbind = @thread.async method(:unbind_actual)
-
-            @request_id = 0
+        Connection = Struct.new(:tokeniser, :parser, :node_id, :timeout, :io, :poll) do
+            def validated?
+                !!self.node_id
+            end
         end
 
+        ParserSettings = {
+            indicator: "\x02",
+            delimiter: "\x03"
+        }
 
-        attr_reader :thread
+        class Master
+
+            def initialize
+                @thread = ::Libuv::Loop.default
+                @logger = ::SpiderGazelle::Logger.instance
+                @ctrl = ::Orchestrator::Control.instance
+                @dep_man = ::Orchestrator::DependencyManager.instance
+
+                @connections = {}
+
+                @tokenise = method(:tokenise)
+                @node = @ctrl.nodes[NodeId]
+
+                start_server
+            end
 
 
-        # ping
-        # pong
-        # exec
-        # bind
-        # unbind
-        # notify
-        # status
-        # success
-        # failure
+            attr_reader :thread
+
+            
+            protected
 
 
-        def request(edge_id, details)
-            defer = @thread.defer
+            def start_server
+                # Bind the socket
+                @tcp = @thread.tcp
+                @tcp.bind '0.0.0.0'.freeze, SERVER_PORT, @new_connection
+                @tcp.listen 64 # smallish backlog is all we need
 
-            # Lookup node
-            connection = online? id
-            if connection
-                @thread.schedule do
-                    if connection.connected
-                        @request_id += 1
-                        @requests[@request_id] = defer
-                        @req_map[connection] ||= ::Set.new
-                        @req_map[connection] << @request_id
-                        
-                        # Send the request
-                        connection.write(::JSON.fast_generate({
-                            id: @request_id,
+                # Delegate errors
+                @tcp.catch @bind_error
+                @tcp
 
-                        })).catch do |reason|
-                            on_failure(defer, edge_id, details)
-                        end
+                @logger.info "Node server on tcp://0.0.0.0:#{SERVER_PORT}"
+            end
+
+            def new_connection(client)
+                # Build the connection object
+                connection = Connection.new
+                @connections[client.object_id] = connection
+
+                connection.timeout = @thread.scheduler.in(15000) do
+                    # Shutdown connection if validation doesn't occur within 15 seconds
+                    client.close
+                end
+                connection.tokeniser = ::UV::BufferedTokenizer.new(ParserSettings)
+                connection.io = client
+
+
+                connection.poll = @thread.scheduler.every(60000) do
+                    client.write "\x02ping\x03".freeze
+                end
+
+
+                # Hook up the connection callbacks
+                client.enable_nodelay
+                client.catch do |error|
+                    @logger.print_error(error, "Node connection error")
+                end
+
+                client.finally do
+                    @connections.delete client.object_id
+                    connection.poll.cancel
+
+                    if connection.validated?
+                        edge = @ctrl.nodes[connection.node_id]
+
+                        # We may not have noticed the disconnect
+                        edge.node_disconnected if edge.proxy == connection.parser
                     else
-                        on_failure(defer, edge_id, details)
+                        connection.timeout.cancel
                     end
                 end
-            else
-                on_failure(defer, edge_id, details)
+
+                client.progress @tokenise
+
+                # This is an encrypted connection
+                client.start_tls(server: true)
+                client.start_read
             end
 
-            defer.promise
-        end
-
-        def online?(id)
-            edge = @edge_nodes[id]
-            edge && edge.connected ? edge : false
-        end
-
-        def unbind
-            @signal_unbind.call
-        end
-
-        def bind
-            @signal_bind.call
-        end
-
-        
-        protected
-
-
-        def on_failure(defer, edge_id, details)
-            # Failed...
-            # Are we loading this device locally or remotely?
-            # Do we wait a small amount of time before trying again?
-            # When should we fail the request?
-        end
-
-
-        # These are async methods.. They could be called more than once
-        def unbind_actual(*args)
-            return if @shutdown
-            @shutdown = true
-
-            @tcp.close unless @tcp.nil?
-            @tcp = nil
-        end
-
-        def bind_actual(*args)
-            return unless @shutdown
-            @shutdown = false
-
-            # Bind the socket
-            @tcp = @thread.tcp
-            @tcp.bind '0.0.0.0', 17838, @new_connection
-            @tcp.listen 100 # smallish backlog is all we need
-
-            # Delegate errors
-            @tcp.catch @bind_error
-            @tcp
-        end
-
-
-        # There is a new connection pending. We accept it
-        def new_connection(server)
-            server.accept @accept_connection
-        end
-
-        # Once the connection is accepted we disable Nagles Algorithm
-        # This improves performance as we are using vectored or scatter/gather IO
-        # Then the spider delegates to the gazelle loops
-        def accept_connection(client)
-            client.enable_nodelay
-            # TODO:: auth client and then signal the interested parties
-        end
-
-        # Called when binding is closed due to an error
-        def bind_error(err)
-            return if @shutdown
-
-            # TODO:: log the error
-
-            # Attempt to recover!
-            @thread.scheduler.in(1000) do
-                bind
+            def tokenise(data, client)
+                connection = @connections[client.object_id]
+                connection.tokeniser.extract(data).each do |msg|
+                    process connection, msg
+                end
             end
-        end
 
-        def process_request(defer, node, request)
 
+            DECODE_OPTIONS = {
+                symbolize_names: true
+            }.freeze
+
+            def process(connection, msg)
+                # Connection Maintenance
+                return if msg[0] == 'p'.freeze
+
+                if connection.validated?
+                    begin
+                        connection.parser.process ::JSON.parse(msg, DECODE_OPTIONS)
+                    rescue => e
+                        # TODO:: Log the error here
+                    end
+                else
+                    # Will send an auth message: node_id password
+                    node_str, pass = msg.split(' '.freeze)
+                    node_id = node_str.to_sym
+                    edge = @ctrl.nodes[node_id]
+                    if edge.password == pass
+                        connection.timeout.cancel
+                        connection.timeout = nil
+                        connection.node_id = node_id
+                        connection.parser = Proxy.new(@ctrl, @dep_man, connection.io)
+
+                        connection.io.write "\x02hello #{@node.password}\x03"
+                        edge.node_connected connection.parser
+                    else
+                        ip, _ = transport.peername
+                        client.close
+                        @logger.warn "Connection from #{ip} was closed due to bad credentials"
+                    end
+                end
+            end
         end
     end
 end

@@ -18,6 +18,9 @@ module Orchestrator
         after_delete    :expire_cache
 
 
+        belongs_to :edge, class_name: 'Orchestrator::EdgeControl'
+
+
         attribute :name
         attribute :description
 
@@ -36,6 +39,14 @@ module Orchestrator
             self.id
         end
 
+        # Returns the node currently running this module
+        def node
+            # NOTE:: Same function in module.rb
+            @nodes ||= Control.instance.nodes
+            @node_id ||= self.edge_id || :single_node
+            @nodes[@node_id]
+        end
+
         ensure_unique :name, :name do |name|
             "#{name.to_s.strip.downcase}"
         end
@@ -50,7 +61,7 @@ module Orchestrator
                 # Start the triggers if not already running (must occur on the same thread)
                 cs = self
                 ctrl.loop.schedule do
-                    ctrl.load_triggers_for(cs)
+                    ctrl.nodes[cs.edge_id].load_triggers_for(cs)
                 end
 
                 # Reload the running modules
@@ -65,9 +76,9 @@ module Orchestrator
 
 
         def self.all
-            all(stale: false)
+            all_systems(stale: false)
         end
-        view :all
+        view :all_systems
 
         def self.using_module(mod_id)
             by_modules({key: mod_id, stale: false})
@@ -78,6 +89,11 @@ module Orchestrator
             by_zones({key: zone_id, stale: false})
         end
         view :by_zones
+
+        def self.on_node(edge_id)
+            by_node({key: edge_id, stale: false})
+        end
+        view :by_node
 
 
         # Methods for obtaining the modules and zones as objects
