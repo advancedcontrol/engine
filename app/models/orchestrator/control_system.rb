@@ -18,6 +18,8 @@ module Orchestrator
         after_delete    :expire_cache
 
 
+        # Defines the default affinity for modules in this system and triggers
+        # Of course it doesn't mean the module has to be located on this machine
         belongs_to :edge, class_name: 'Orchestrator::EdgeControl'
 
 
@@ -43,7 +45,7 @@ module Orchestrator
         def node
             # NOTE:: Same function in module.rb
             @nodes ||= Control.instance.nodes
-            @node_id ||= self.edge_id || :single_node
+            @node_id ||= self.edge_id.to_sym
             @nodes[@node_id]
         end
 
@@ -129,6 +131,7 @@ module Orchestrator
         # Zones and settings are only required for confident coding
         validates :name,        presence: true
         validates :zones,       presence: true
+        validates :edge_id,     presence: true
 
         validate  :support_link
 

@@ -213,8 +213,8 @@ module Orchestrator
                         case act[:type].to_sym
                         when :exec
                             # Execute the action
-                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args]})" }
-                            system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
+                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')}, #{act[:keyw]})" }
+                            system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args], **act[:keyw])
                         when :email
                             logger.debug { "sending email to: #{act[:to]}" }
                             # TODO:: provide hooks into action mailer

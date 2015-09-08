@@ -54,7 +54,7 @@ module Orchestrator
         def node
             # NOTE:: Same function in control_system.rb
             @nodes ||= Control.instance.nodes
-            @node_id ||= self.edge_id || :single_node
+            @node_id ||= self.edge_id.to_sym
             @nodes[@node_id]
         end
 
@@ -82,6 +82,7 @@ module Orchestrator
 
 
         validates :dependency, presence: true
+        validates :edge_id,    presence: true
         validate  :configuration
 
         def configuration

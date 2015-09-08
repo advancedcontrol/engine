@@ -89,14 +89,14 @@ module Orchestrator
             end
         end
 
-        ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args])
+        ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args, :keyw])
         def check_action(act)
             act.deep_symbolize_keys!
             act.keep_if { |k, _| ACTION_KEYS.include? k }
 
             case act[:type].to_sym
             when :exec
-                act[:index].is_a?(Fixnum) && act.has_key?(:mod) && act.has_key?(:func) && act[:args].is_a?(Array)
+                act[:index].is_a?(Fixnum) && act.has_key?(:mod) && act.has_key?(:func) && act[:args].is_a?(Array) && act[:keyw].is_a?(Hash)
             when :email
                 # TODO:: 
                 false

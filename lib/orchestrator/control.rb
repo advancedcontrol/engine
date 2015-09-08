@@ -288,31 +288,19 @@ module Orchestrator
                 @nodes[node.id.to_sym] = node
             end
 
-            # If there are no edges then this is the only system
-            if loading.empty?
-                edge = EdgeControl.new
-                loading << edge.boot(@loaded).then do
-                    edge.id = :single_node
-                    @nodes[edge.id] = edge
-                end
-            end
-
             # Once load is complete we'll accept websockets
             ::Libuv::Q.finally(@loop, *loading).finally do
                 connect_to_master
 
-                # Determine if we are the master node
+                # Determine if we are the master node (either single master or load balanced masters)
                 this_node   = @nodes[Remote::NodeId]
                 master_node = @nodes[this_node.master_id] if this_node
-                if this_node.nil? || this_node.master_id.nil? || this_node.master_id == Remote::NodeId || (master_node && master_node.master_id == Remote::NodeId)
+                if this_node.master_id.nil? || this_node.master_id == Remote::NodeId || (master_node && master_node.master_id == Remote::NodeId)
                     start_server
 
                     # Save a statistics snapshot every 5min on the master server
                     @loop.scheduler.every(300_000, method(:log_stats))
                 end
-
-                edge = @nodes[:single_node]
-                edge.start_modules if edge
 
                 @ready_defer.resolve(true)
             end

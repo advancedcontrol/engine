@@ -114,16 +114,17 @@ module Orchestrator
                 if mod
                     start_module(mod)
                 else # attempt to load module
-                    config = ::Orchestrator::Module.find(id)
-                    control.load(config).then(
-                        proc { |mod|
-                            start_module mod
-                            expire_system_cache mod_id
-                        },
-                        proc { # Load failed
-                            env['async.callback'].call([500, {'Content-Length' => 0}, []])
-                        }
-                    )
+                    control.loop.schedule do
+                        control.load(id).then(
+                            proc { |mod|
+                                start_module mod
+                                expire_system_cache mod_id
+                            },
+                            proc { # Load failed
+                                env['async.callback'].call([500, {'Content-Length' => 0}, []])
+                            }
+                        )
+                    end
                 end
                 throw :async
             end
