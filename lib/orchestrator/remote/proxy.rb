@@ -21,7 +21,7 @@ module Orchestrator
             # ---------------------------------
             # Send commands to the remote node:
             # ---------------------------------
-            def execute(mod_id, func, args: nil, keyw: nil, user_id: nil)
+            def execute(mod_id, func, args = nil, user_id = nil)
                 defer = @thread.defer
 
                 msg = {
@@ -31,7 +31,6 @@ module Orchestrator
                 }
 
                 msg[:args] = args if args
-                msg[:keyw] = keyw if keyw
                 msg[:user] = user_id if user_id
 
                 @thread.schedule do
@@ -113,7 +112,7 @@ module Orchestrator
             def process(msg)
                 case msg[:type].to_sym
                 when :cmd
-                    exec(msg[:id], msg[:mod], msg[:func], msg[:args] || [], msg[:keyw] || {}, msg[:user])
+                    exec(msg[:id], msg[:mod], msg[:func], msg[:args] || [], msg[:user])
                 when :stat
                     get_status(msg[:id], msg[:mod], msg[:stat])
                 when :resp
@@ -153,12 +152,12 @@ module Orchestrator
 
 
             # This is a request from the remote node
-            def exec(req_id, mod_id, func, args, keywords, user_id)
+            def exec(req_id, mod_id, func, args, user_id)
                 mod = @ctrl.loaded? mod_id
                 user = User.find_by_id(user_id) if user_id
 
                 if mod
-                    result = Core::RequestProxy.new(@thread, mod, user)
+                    result = Core::RequestProxy.new(@thread, mod, user).method_missing(func, *args)
                     if result.is_a? ::Libuv::Q::Promise
                         result.then do |val|
                             send_resolution(req_id, val)

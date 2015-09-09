@@ -74,24 +74,30 @@ module Orchestrator
                         # Keep track of previous in case of recursion
                         previous = nil
                         begin
-                            if @user
-                                previous = @mod.current_user
-                                @mod.current_user = @user
-                            end
+                            previous = @mod.current_user
+                            @mod.current_user = @user
 
                             instance = @mod.instance
                             if instance.nil?
                                 if @mod.running == false
-                                    err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}'' is currently stopped"
+                                    err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}' is currently stopped"
                                     defer.reject(err)
                                 else
                                     logger.warn "the module #{@mod.settings.id} is currently stopped however should be running. Attempting restart"
-                                    if @mod.start
+                                    if @mod.start_local
                                         defer.resolve(@mod.instance.public_send(name, *args, &block))
                                     else
-                                        err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}'' failed to start"
+                                        err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}' failed to start"
                                         defer.reject(err)
                                     end
+                                end
+                            elsif instance.is_a? EdgeControl
+                                proxy = instance.proxy
+                                if proxy
+                                    defer.resolve(proxy.execute(@mod.settings.id, name, args, @user ? @user.id : nil))
+                                else
+                                    err = StandardError.new "method '#{name}' request failed as the node '#{instance.name}' @ #{instance.host_origin} is currently offline"
+                                    defer.reject(err)
                                 end
                             else
                                 defer.resolve(instance.public_send(name, *args, &block))
@@ -100,7 +106,7 @@ module Orchestrator
                             @mod.logger.print_error(e, '', @trace)
                             defer.reject(e)
                         ensure
-                            @mod.current_user = previous if @user
+                            @mod.current_user = previous
                         end
                     end
                 end

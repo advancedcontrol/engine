@@ -18,7 +18,7 @@ module Orchestrator
             end
 
 
-            attr_reader :thread, :settings, :instance, :running
+            attr_reader :thread, :settings, :running
             attr_reader :status, :stattrak, :logger
             attr_accessor :current_user
 
@@ -52,6 +52,15 @@ module Orchestrator
 
                 yield edge if edge
                 edge
+            end
+
+            def instance
+                return @instance if @instance
+                if @settings.node.host_active?
+                    nil
+                else
+                    @settings.node
+                end
             end
 
 

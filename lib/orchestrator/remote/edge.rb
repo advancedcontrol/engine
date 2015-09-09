@@ -80,6 +80,9 @@ module Orchestrator
                 end
             end
 
+            DECODE_OPTIONS = {
+                symbolize_names: true
+            }.freeze
             def on_read(data, *_)
                 @tokenise.extract(data).each do |msg|
                     if msg[0] == '{'.freeze && @validated

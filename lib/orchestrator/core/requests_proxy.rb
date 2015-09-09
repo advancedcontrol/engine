@@ -63,19 +63,33 @@ module Orchestrator
                             # Keep track of previous in case of recursion
                             previous = nil
                             begin
-                                if @user
-                                    previous = mod.current_user
-                                    mod.current_user = @user
-                                end
+                                previous = mod.current_user
+                                mod.current_user = @user
 
-                                defer.resolve(
-                                    mod.instance.public_send(name, *args, &block)
-                                )
+                                instance = @mod.instance
+                                if instance.nil?
+                                    err = StandardError.new "method '#{name}' request failed as the module '#{mod.settings.id}' is currently stopped"
+                                    defer.reject(err)
+                                elsif instance.is_a? EdgeControl
+                                    proxy = instance.proxy
+                                    if proxy
+                                        defer.resolve(
+                                            proxy.execute(mod.settings.id, name, args, @user ? @user.id : nil)
+                                        )
+                                    else
+                                        err = StandardError.new "method '#{name}' request failed as the node '#{instance.name}' @ #{instance.host_origin} is currently offline"
+                                        defer.reject(err)
+                                    end
+                                else
+                                    defer.resolve(
+                                        mod.instance.public_send(name, *args, &block)
+                                    )
+                                end
                             rescue => e
                                 mod.logger.print_error(e, '', @trace)
                                 defer.reject(e)
                             ensure
-                                mod.current_user = previous if @user
+                                mod.current_user = previous
                             end
                         end
                         defer.promise
