@@ -88,14 +88,21 @@ module Orchestrator
             end
 
             def set_status(mod_id, status_name, value)
-                msg = {
-                    type: :push,
-                    push: :status,
-                    mod: mod_id,
-                    stat: status_name,
-                    val: value
-                }
-                send_direct(msg)
+                begin
+                    msg = {
+                        type: :push,
+                        push: :status,
+                        mod: mod_id,
+                        stat: status_name,
+                        val: value
+                    }
+                    send_direct(msg)
+                rescue => e
+                    # TODO:: Log this status value serialisation failure
+                    puts "Status value failed to send #{mod_id} -> #{status_name}=#{value}"
+                    puts e.message
+                    puts e.backtrace.join("\n")
+                end
             end
 
 
@@ -224,7 +231,9 @@ module Orchestrator
                         end
 
                         if mod
-                            mod.status[msg[:stat].to_sym] = msg[:val] 
+                            # The false indicates "don't send this update back to the remote node"
+                            mod.trak(msg[:stat].to_sym, msg[:val], false)
+                            puts "\n\nReceived status update!! #{msg[:stat]} = #{msg[:val]}"
                         else
                             # TODO:: warn that the module isn't known
                         end
@@ -240,13 +249,13 @@ module Orchestrator
             def send_with_id(msg)
                 id = next_id
                 msg[:id] = id
-                ouput = ::JSON.generate(msg)
+                output = ::JSON.generate(msg)
                 @tcp.write "\x02#{output}\x03"
                 id
             end
 
             def send_direct(msg)
-                ouput = ::JSON.generate(msg)
+                output = ::JSON.generate(msg)
                 @tcp.write "\x02#{output}\x03"
             end
 
@@ -261,13 +270,13 @@ module Orchestrator
 
                 output = nil
                 begin
-                    ouput = ::JSON.generate(response)
+                    output = ::JSON.generate(response)
                 rescue
                     response[:was_object] = true
                     response.delete(:resolve)
 
                     # Value probably couldn't be converted into a JSON object for transport...
-                    ouput = ::JSON.generate(response)
+                    output = ::JSON.generate(response)
                 end
 
                 @tcp.write "\x02#{output}\x03"

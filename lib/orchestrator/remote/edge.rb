@@ -39,6 +39,10 @@ module Orchestrator
                 keepalive(30)
                 @retries = 0
 
+
+                ip, _ = transport.peername
+                @logger.info "Connection made to master: #{ip}"
+
                 # Authenticate with the remote server
                 write("\x02#{NodeId} #{@node.password}\x03")
                 @proxy = Proxy.new(@ctrl, @dep_man, transport)

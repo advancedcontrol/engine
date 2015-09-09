@@ -29,13 +29,15 @@ module Orchestrator
             def remote_node
                 # Grab the edge the module should be running on
                 edge = @nodes[@settings.edge_id.to_sym]
-                if edge && edge.should_run_on_this_host
-                    edge = @nodes[edge.master_id.to_sym]
+                if edge.should_run_on_this_host
+                    edge = @nodes[edge.node_master_id]
                 end
 
                 # Ensure the edge we selected is not this host
                 if edge && !edge.should_run_on_this_host
-                    edge.proxy
+                    proxy = edge.proxy
+                    yield proxy if proxy
+                    proxy
                 else
                     nil
                 end
@@ -44,10 +46,11 @@ module Orchestrator
             def local_node
                 # Grab the edge the module should be running on
                 edge = @nodes[@settings.edge_id.to_sym]
-                if edge && !edge.should_run_on_this_host
-                    edge = @nodes[edge.master_id.to_sym]
+                if !edge.should_run_on_this_host
+                    edge = @nodes[edge.node_master_id]
                 end
 
+                yield edge if edge
                 edge
             end
 
@@ -144,7 +147,7 @@ module Orchestrator
             end
 
             # Called from Core::Mixin - thread safe
-            def trak(name, value)
+            def trak(name, value, remote = true)
                 if @status[name] != value
                     @status[name] = value
 
@@ -152,6 +155,15 @@ module Orchestrator
                     # For the most part this will run straight away
                     @thread.schedule do
                         @stattrak.update(@settings.id.to_sym, name, value)
+                    end
+
+                    if remote
+                        proxy = @nodes[Remote::NodeId].proxy
+                        if proxy
+                            @thread.schedule do
+                                proxy.set_status(@settings.id, name, value)
+                            end
+                        end
                     end
 
                     # Check level to speed processing

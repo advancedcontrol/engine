@@ -238,12 +238,12 @@ module Orchestrator
 
             stop(mod, false).then(proc { |mod_man|
                 if do_proxy
-                    remote = mod_man.remote_node
-                    remote.unload mod if remote
+                    mod_man.remote_node do |remote|
+                        remote.unload mod
+                    end
                 end
 
-                edge = mod_man.local_node
-                edge.unload(mod)
+                mod_man.local_node.unload(mod)
                 mod_man # promise response
             })
         end
