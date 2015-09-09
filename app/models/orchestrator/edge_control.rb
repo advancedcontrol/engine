@@ -87,15 +87,15 @@ module Orchestrator
         belongs_to :master, class_name: 'Orchestrator::EdgeControl'
 
         def node_master_id
-            return @master_id if @master_id
-            @master_id ||= self.master_id.to_sym if self.master_id
-            @master_id
+            return @master_id_sym if @master_id_sym
+            @master_id_sym ||= self.master_id.to_sym if self.master_id
+            @master_id_sym
         end
 
         def node_id
-            return @id if @id
-            @id ||= self.id.to_sym if self.id
-            @id
+            return @id_sym if @id_sym
+            @id_sym ||= self.id.to_sym if self.id
+            @id_sym
         end
 
 
@@ -135,8 +135,10 @@ module Orchestrator
         def node_connected(proxy)
             @proxy = proxy
 
-            @failover_timer.cancel
-            @failover_timer = nil
+            if @failover_timer
+                @failover_timer.cancel
+                @failover_timer = nil
+            end
             
             if is_failover_host
                 self.online = true
@@ -196,7 +198,7 @@ module Orchestrator
         end
 
         def is_failover_host
-            @fail_here ||= (LocalNodeId == self.node_master_id || is_only_master?)
+            @fail_here ||= (LocalNodeId == self.node_master_id || (should_run_on_this_host && is_only_master?))
             @fail_here
         end
 
@@ -214,7 +216,7 @@ module Orchestrator
 
             # Don't load anything if this host doesn't have anything to do
             # with the modules in this node
-            if !(should_run_on_this_host || is_failover_host)
+            unless should_run_on_this_host || is_failover_host
                 defer.resolve true
                 return defer.promise
             end

@@ -292,8 +292,8 @@ module Orchestrator
             @loop.finally(*loading).finally do
                 # Determine if we are the master node (either single master or load balanced masters)
                 this_node   = @nodes[Remote::NodeId]
-                master_node = @nodes[this_node.master_id] if this_node.master_id
-                connect_to_master(master_node) if master_node
+                master_node = @nodes[this_node.node_master_id]
+                connect_to_master(this_node, master_node) if master_node
 
                 if master_node.nil? || this_node.is_failover_host || (master_node && master_node.is_failover_host)
                     start_server
@@ -344,8 +344,8 @@ module Orchestrator
             @node_server = Remote::Master.new
         end
 
-        def connect_to_master(master)
-            @connection = ::UV.connect master.host, Remote::SERVER_PORT, Remote::Edge, master
+        def connect_to_master(this_node, master)
+            @connection = ::UV.connect master.host, Remote::SERVER_PORT, Remote::Edge, this_node, master
         end
     end
 end

@@ -46,7 +46,7 @@ module Orchestrator
             def start_server
                 # Bind the socket
                 @tcp = @thread.tcp
-                @tcp.bind '0.0.0.0'.freeze, SERVER_PORT, @new_connection
+                @tcp.bind '0.0.0.0'.freeze, SERVER_PORT, method(:new_connection)
                 @tcp.listen 64 # smallish backlog is all we need
 
                 # Delegate errors
@@ -141,9 +141,9 @@ module Orchestrator
                         @connected_to << node_id
                         edge.node_connected connection.parser
                     else
-                        ip, _ = transport.peername
-                        client.close
-                        @logger.warn "Connection from #{ip} was closed due to bad credentials"
+                        ip, _ = connection.io.peername
+                        connection.io.close
+                        @logger.warn "Connection from #{ip} was closed due to bad credentials: #{edge.password} !== #{pass}"
                     end
                 end
             end

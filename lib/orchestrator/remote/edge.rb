@@ -7,8 +7,9 @@ module Orchestrator
         NodeId = tmp_node_id ? tmp_node_id.to_sym : nil
 
         class Edge < ::UV::OutboundConnection
-            def post_init(node)
-                @node = node
+            def post_init(this_node, master)
+                @node = this_node
+                @master_node = master
 
                 # Delay retry by default if connection fails on load
                 @retries = 1        # Connection retries
@@ -39,7 +40,7 @@ module Orchestrator
                 @retries = 0
 
                 # Authenticate with the remote server
-                write("\x02#{NodeId} #{node.password}\x03")
+                write("\x02#{NodeId} #{@node.password}\x03")
                 @proxy = Proxy.new(@ctrl, @dep_man, transport)
             end
 
@@ -53,7 +54,7 @@ module Orchestrator
                 @retries += 1
                 the_time = @loop.now
 
-                @node.proxy = nil
+                @node.node_disconnected
 
                 # 1.5 seconds is the minimum time between successful connections
                 # Faster than this and there is probably something seriously wrong
@@ -85,7 +86,7 @@ module Orchestrator
                         # Message is: 'hello password'
                         # This very basic auth gives us some confidence that the remote is who they claim to be
                         _, pass = msg.split(' '.freeze)
-                        if @node.password == pass
+                        if @master_node.password == pass
                             @validated = true
                             @node.node_connected @proxy
                         else
