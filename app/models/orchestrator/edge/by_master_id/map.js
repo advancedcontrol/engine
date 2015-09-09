@@ -1,6 +1,6 @@
 
 function(doc, meta) {
     if(doc.type === "edge") {
-        emit(meta.id, null);
+        emit(meta.master_id, null);
     }
 }

@@ -78,22 +78,21 @@ module Orchestrator
 
 
         def self.all
-            all_systems(stale: false)
+            by_node(stale: false)
         end
-        view :all_systems
 
         def self.using_module(mod_id)
-            by_modules({key: mod_id, stale: false})
+            by_modules(key: mod_id, stale: false)
         end
         view :by_modules
 
         def self.in_zone(zone_id)
-            by_zones({key: zone_id, stale: false})
+            by_zones(key: zone_id, stale: false)
         end
         view :by_zones
 
         def self.on_node(edge_id)
-            by_node({key: edge_id, stale: false})
+            by_node(key: edge_id, stale: false)
         end
         view :by_node
 

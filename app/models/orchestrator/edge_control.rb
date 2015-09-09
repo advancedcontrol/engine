@@ -7,7 +7,7 @@ module Orchestrator
         design_document :edge
         include ::CouchbaseId::Generator
 
-        LocalNodeId = ENV['ENGINE_NODE_ID'].freeze
+        LocalNodeId = ENV['ENGINE_NODE_ID'].to_sym
 
 
         StartOrder = Struct.new(:device, :logic, :trigger) do
@@ -86,6 +86,18 @@ module Orchestrator
         # Allows for multi-master systems versus pure master-slave
         belongs_to :master, class_name: 'Orchestrator::EdgeControl'
 
+        def node_master_id
+            return @master_id if @master_id
+            @master_id ||= self.master_id.to_sym if self.master_id
+            @master_id
+        end
+
+        def node_id
+            return @id if @id
+            @id ||= self.id.to_sym if self.id
+            @id
+        end
+
 
         attribute :name
         attribute :host_origin  # Control UI's need this for secure cross domain connections
@@ -110,20 +122,66 @@ module Orchestrator
 
 
         def self.all
-            all_edges(stale: false)
+            by_master_id(stale: false)
         end
-        view :all_edges
+
+        def self.salve_of(node_id)
+            by_master_id(key: node_id, stale: false)
+        end
+        view :by_master_id
 
 
         attr_reader :proxy
         def node_connected(proxy)
             @proxy = proxy
-            restore_from_failover
+
+            @failover_timer.cancel
+            @failover_timer = nil
+            
+            if is_failover_host
+                self.online = true
+                self.failover_active = false
+                @thread.work do
+                    self.save!
+                end
+
+                if window_start.nil?
+                    stop_modules
+                else
+                    # TODO implement recovery window
+                end
+            elsif should_run_on_this_host
+                if window_start.nil?
+                    start_modules
+                else
+                    # TODO implement recovery window
+                end
+            end
         end
 
         def node_disconnected
             @proxy = nil
-            failover_as_required
+
+            if !host_active? && @failover_timer.nil? && is_failover_host
+                @failover_timer = @thread.scheduler.in(self.timeout) do
+                    @failover_timer = nil
+
+                    self.online = false
+                    self.failover_active = true
+
+                    @thread.work do
+                        self.save!
+                    end
+
+                    start_modules
+                end
+
+                self.online = false
+
+                @thread.work do
+                    self.save!
+                end
+            end
         end
 
 
@@ -133,13 +191,17 @@ module Orchestrator
         end
 
         def should_run_on_this_host
-            @run_here ||= LocalNodeId == self.id
+            @run_here ||= LocalNodeId == self.node_id
             @run_here
         end
 
         def is_failover_host
-            @fail_here ||= LocalNodeId == self.master_id
+            @fail_here ||= (LocalNodeId == self.node_master_id || is_only_master?)
             @fail_here
+        end
+
+        def is_only_master?
+            self.master_id.nil?
         end
 
         def host_active?
@@ -325,6 +387,8 @@ module Orchestrator
             @loader = DependencyManager.instance
             @control = Control.instance
             @logger = ::SpiderGazelle::Logger.instance
+            self.node_id
+            self.master_id
         end
 
         # Used to stagger the starting of different types of modules
@@ -393,14 +457,6 @@ module Orchestrator
                 sleep 1  # Give it a bit of time
                 retry
             end
-        end
-
-        def restore_from_failover
-            p "RESTORE FROM FAILOVER REQUESTED - not implemented"
-        end
-
-        def failover_as_required
-            p "FAILOVER REQUESTED - not implemented"
         end
     end
 end

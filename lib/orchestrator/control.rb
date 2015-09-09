@@ -289,13 +289,13 @@ module Orchestrator
             end
 
             # Once load is complete we'll accept websockets
-            ::Libuv::Q.finally(@loop, *loading).finally do
-                connect_to_master
-
+            @loop.finally(*loading).finally do
                 # Determine if we are the master node (either single master or load balanced masters)
                 this_node   = @nodes[Remote::NodeId]
-                master_node = @nodes[this_node.master_id] if this_node
-                if this_node.master_id.nil? || this_node.master_id == Remote::NodeId || (master_node && master_node.master_id == Remote::NodeId)
+                master_node = @nodes[this_node.master_id] if this_node.master_id
+                connect_to_master(master_node) if master_node
+
+                if master_node.nil? || this_node.is_failover_host || (master_node && master_node.is_failover_host)
                     start_server
 
                     # Save a statistics snapshot every 5min on the master server
@@ -344,12 +344,8 @@ module Orchestrator
             @node_server = Remote::Master.new
         end
 
-        def connect_to_master
-            model = @nodes[Remote::NodeId]
-            if model && model.master_id
-                master = @nodes[model.master_id.to_sym]
-                @connection = ::UV.connect master.host, Remote::SERVER_PORT, Remote::Edge, master
-            end
+        def connect_to_master(master)
+            @connection = ::UV.connect master.host, Remote::SERVER_PORT, Remote::Edge, master
         end
     end
 end

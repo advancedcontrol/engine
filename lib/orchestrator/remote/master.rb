@@ -27,10 +27,12 @@ module Orchestrator
                 @dep_man = ::Orchestrator::DependencyManager.instance
 
                 @connections = {}
+                @connected_to = Set.new
 
                 @tokenise = method(:tokenise)
                 @node = @ctrl.nodes[NodeId]
 
+                init_node_states
                 start_server
             end
 
@@ -86,7 +88,10 @@ module Orchestrator
                         edge = @ctrl.nodes[connection.node_id]
 
                         # We may not have noticed the disconnect
-                        edge.node_disconnected if edge.proxy == connection.parser
+                        if edge.proxy == connection.parser
+                            edge.node_disconnected
+                            @connected_to.delete connection.node_id
+                        end
                     else
                         connection.timeout.cancel
                     end
@@ -133,6 +138,7 @@ module Orchestrator
                         connection.parser = Proxy.new(@ctrl, @dep_man, connection.io)
 
                         connection.io.write "\x02hello #{@node.password}\x03"
+                        @connected_to << node_id
                         edge.node_connected connection.parser
                     else
                         ip, _ = transport.peername
@@ -140,6 +146,23 @@ module Orchestrator
                         @logger.warn "Connection from #{ip} was closed due to bad credentials"
                     end
                 end
+            end
+
+
+            def init_node_states
+                # If we are the undisputed master then we want to start our modules straight away
+                # These modules would have no failover node
+                @node.start_modules if @node.is_only_master?
+
+                @ctrl.nodes.each_pair do |id, node|
+                    if id == NodeId
+                        node.node_disconnected
+                    end
+                end
+            end
+
+            def node_added(node_id)
+                # TODO:: init this nodes state
             end
         end
     end
