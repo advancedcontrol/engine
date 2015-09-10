@@ -96,7 +96,7 @@ module Orchestrator
         # This function is thread safe
         def load_zone(zone_id)
             defer = @loop.defer
-            @loop.schedule do   
+            @loop.schedule do
                 @loop.work do
                     @critical.synchronize {
                         zone = @zones[zone.id]
@@ -124,8 +124,9 @@ module Orchestrator
             defer.promise
         end
 
-        # Load the modules on the loop references in round robin
-        # This method is thread safe.
+        # Loads the module requested
+        #
+        # @return [::Libuv::Q::Promise]
         def load(id, do_proxy = true)
             mod_id = id.to_sym
             defer = @loop.defer
@@ -134,30 +135,46 @@ module Orchestrator
             if mod
                 defer.resolve(mod)
             else
-                # Grab database model in the thread pool
-                res = @loop.work do
-                    tries = 0
-                    begin
-                        ::Orchestrator::Module.find_by_id(mod_id)
-                    rescue => e
-                        tries += 1
-                        sleep 0.2
-                        retry if tries < 3
-                        raise e
+                @loop.schedule do
+                    # Grab database model in the thread pool
+                    res = @loop.work do
+                        tries = 0
+                        begin
+                            ::Orchestrator::Module.find_by_id(mod_id)
+                        rescue => e
+                            tries += 1
+                            sleep 0.2
+                            retry if tries < 3
+                            raise e
+                        end
                     end
-                end
 
-                # Load the module if model found
-                res.then do |config|
-                    if config
-                        edge = @nodes[config.edge_id.to_sym]
-                        result = edge.update(config)
+                    # Load the module if model found
+                    res.then do |config|
+                        if config
+                            edge = @nodes[config.edge_id.to_sym]
+                            result = edge.update(config)
 
-                        if do_proxy && result
-                            result.then do |mod|
-                                remote = mod.remote_node
-                                remote.load(mod_id) if remote
+                            if result
+                                defer.resolve(result)
+                                result.then do |mod|
+                                    # Expire the system cache
+                                    @loop.work do
+                                        ControlSystem.using_module(id).each do |sys|
+                                            sys.expire_cache(:no_update)
+                                        end
+                                    end
+
+                                    # Signal the remote node to load this module
+                                    mod.remote_node {|proxy| remote.load(mod_id) } if do_proxy
+                                end
+                            else
+                                err = Error::ModuleUnavailable.new "module '#{mod_id}' not assigned to node #{edge.name} (#{edge.host_origin})"
+                                defer.reject(err)
                             end
+                        else
+                            err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
+                            defer.reject(err)
                         end
                     end
                 end
@@ -179,22 +196,23 @@ module Orchestrator
         def start(mod_id, do_proxy = true)
             defer = @loop.defer
 
-            mod = loaded? mod_id
-            if mod
+            # No need to proxy this load as the remote will load
+            # when it runs start
+            loading = load(mod_id, false)
+            loading.then do |mod|
                 if do_proxy
-                    remote = mod.remote_node
-                    if remote
+                    mod.remote_node do |remote|
                         @loop.schedule do
-                            remote.stop mod_id
+                            remote.start mod_id
                         end
                     end
                 end
 
                 mod.thread.schedule do
-                    mod.start
-                    defer.resolve(mod)
+                    defer.resolve(mod.start)
                 end
-            else
+            end
+            loading.catch do |err|
                 err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
                 defer.reject(err)
                 @logger.warn err.message
@@ -210,8 +228,7 @@ module Orchestrator
             mod = loaded? mod_id
             if mod
                 if do_proxy
-                    remote = mod.remote_node
-                    if remote
+                    mod.remote_node do |remote|
                         @loop.schedule do
                             remote.stop mod_id
                         end
@@ -220,10 +237,10 @@ module Orchestrator
 
                 mod.thread.schedule do
                     mod.stop
-                    defer.resolve(mod)
+                    defer.resolve(true)
                 end
             else
-                err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', not found"
+                err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', might not be loaded"
                 defer.reject(err)
                 @logger.warn err.message
             end
@@ -243,8 +260,9 @@ module Orchestrator
                     end
                 end
 
-                mod_man.local_node.unload(mod)
-                mod_man # promise response
+                # Unload the module locally
+                @nodes[Remote::NodeId].unload(mod)
+                nil # promise response
             })
         end
 
@@ -254,8 +272,19 @@ module Orchestrator
         def update(mod_id, do_proxy = true)
             defer = @loop.defer
 
+            # We want to unload on the current remote (this might be what we are updating)
             unload(mod_id, do_proxy).finally do
-                defer.resolve load(mod_id, do_proxy)
+                # We don't want to load on the current remote (it might have changed)
+                defer.resolve load(mod_id, false)
+            end
+
+            # Perform the proxy after we've completed the load here
+            if do_proxy
+                defer.promise.then do |mod_man|
+                    mod_man.remote_node do |remote|
+                        remote.load mod_id
+                    end
+                end
             end
 
             defer.promise

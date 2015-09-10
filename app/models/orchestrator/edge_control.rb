@@ -140,7 +140,7 @@ module Orchestrator
                 @failover_timer = nil
             end
             
-            if is_failover_host
+            if is_failover_host || is_only_master?
                 self.online = true
                 self.failover_active = false
                 @thread.work do
@@ -154,6 +154,9 @@ module Orchestrator
                 end
             elsif should_run_on_this_host
                 if window_start.nil?
+                    self.online = true
+                    self.failover_active = false
+
                     start_modules
                 else
                     # TODO implement recovery window
@@ -198,12 +201,12 @@ module Orchestrator
         end
 
         def is_failover_host
-            @fail_here ||= (LocalNodeId == self.node_master_id || (should_run_on_this_host && is_only_master?))
+            @fail_here ||= LocalNodeId == self.node_master_id
             @fail_here
         end
 
         def is_only_master?
-            self.master_id.nil?
+            self.master_id.nil? || node_master_id == node_id
         end
 
         def host_active?

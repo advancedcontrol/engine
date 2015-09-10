@@ -190,6 +190,8 @@ module Orchestrator
             def command(msg)
                 msg_type = msg[:push].to_sym
 
+                puts "\n#{msg_type} #{msg[:mod]}"
+
                 case msg_type
                 when :shutdown
                     # TODO:: shutdown the control server
@@ -207,35 +209,24 @@ module Orchestrator
                     end
 
                 when :load
-                    @ctrl.update(msg[:mod])
+                    @ctrl.update(msg[:mod], false)
 
-                else
+                when :start, :stop
+                    @ctrl.__send__(msg_type, msg[:mod], false)
+
+                when :unload
+                    @ctrl.unload(msg[:mod], false)
+
+                when :status
                     mod_id = msg[:mod]
                     mod = @ctrl.loaded?(mod_id)
 
-                    case msg_type
-                    when :start, :stop
-                        if mod
-                            mod.__send__(msg_type)
-                        else
-                            # TODO:: warn that the module isn't loaded
-                        end
-
-                    when :unload
-                        @ctrl.unload(mod_id) if mod
-
-                    when :status
-                        unless mod
-                            # Check if there is mod shell available
-                        end
-
-                        if mod
-                            # The false indicates "don't send this update back to the remote node"
-                            mod.trak(msg[:stat].to_sym, msg[:val], false)
-                            puts "\n\nReceived status update!! #{msg[:stat]} = #{msg[:val]}"
-                        else
-                            # TODO:: warn that the module isn't known
-                        end
+                    if mod
+                        # The false indicates "don't send this update back to the remote node"
+                        mod.trak(msg[:stat].to_sym, msg[:val], false)
+                        puts "Received status #{msg[:stat]} = #{msg[:val]}"
+                    else
+                        # TODO:: warn that the module isn't known
                     end
                 end
             end

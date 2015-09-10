@@ -76,19 +76,10 @@ module Orchestrator
 
             def update
                 para = safe_params
-                old_name = @mod.custom_name
-
                 @mod.assign_attributes(para)
                 save_and_respond(@mod) do
                     # Update the running module
-                    control.update(id).then do
-                        # If custom name is changed we need to expire any system caches
-                        if para[:custom_name] != old_name
-                            ::Orchestrator::ControlSystem.using_module(id).each do |sys|
-                                sys.expire_cache(:no_update)
-                            end
-                        end
-                    end
+                    control.update(id)
                 end
             end
 
@@ -109,34 +100,33 @@ module Orchestrator
 
             def start
                 # It is possible that module class load can fail
-                mod_id = id
-                mod = control.loaded? mod_id
-                if mod
-                    start_module(mod)
-                else # attempt to load module
-                    control.loop.schedule do
-                        control.load(id).then(
-                            proc { |mod|
-                                start_module mod
-                                expire_system_cache mod_id
-                            },
-                            proc { # Load failed
-                                env['async.callback'].call([500, {'Content-Length' => 0}, []])
-                            }
-                        )
+                starting = control.start id
+                starting.then do |result|
+                    if result
+                        env['async.callback'].call([200, {'Content-Length' => 0}, []])
+                    else
+                        msg ='module failed to start'.freeze
+                        env['async.callback'].call([500, {'Content-Length' => msg.bytesize}, [msg]])
                     end
+                end
+                starting.catch do |err|
+                    msg = err.message
+                    env['async.callback'].call([500, {'Content-Length' => msg.bytesize}, [msg]])
                 end
                 throw :async
             end
 
             def stop
-                # Stop will always succeed
-                lookup_module do |mod|
-                    mod.thread.next_tick do
-                        mod.stop
-                    end
-                    render nothing: true
+                stopping = control.stop id
+                stopping.then do
+                    # Stop will always succeed here
+                    env['async.callback'].call([200, {'Content-Length' => 0}, []])
                 end
+                stopping.catch do |err|
+                    msg = err.message
+                    env['async.callback'].call([500, {'Content-Length' => msg.bytesize}, [msg]])
+                end
+                throw :async
             end
 
             # Returns the value of the requested status variable
@@ -202,16 +192,6 @@ module Orchestrator
             def find_module
                 # Find will raise a 404 (not found) if there is an error
                 @mod = ::Orchestrator::Module.find(id)
-            end
-
-            def start_module(mod)
-                mod.thread.next_tick do
-                    if mod.start
-                        env['async.callback'].call([200, {'Content-Length' => 0}, []])
-                    else
-                        env['async.callback'].call([500, {'Content-Length' => 0}, []])
-                    end
-                end
             end
 
             def expire_system_cache(mod_id)

@@ -23,7 +23,8 @@ module Orchestrator
             attr_accessor :current_user
 
 
-            # Looks up any remote nodes that this module may run on
+            # Looks up the remote edge, if any for the module.
+            # irrelevant of whether the module is running on this machine or not
             #
             # @return [Remote::Proxy|nil]
             def remote_node
@@ -43,16 +44,6 @@ module Orchestrator
                 end
             end
 
-            def local_node
-                # Grab the edge the module should be running on
-                edge = @nodes[@settings.edge_id.to_sym]
-                if !edge.should_run_on_this_host
-                    edge = @nodes[edge.node_master_id]
-                end
-
-                yield edge if edge
-                edge
-            end
 
             def instance
                 return @instance if @instance

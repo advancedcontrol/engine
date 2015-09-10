@@ -4,6 +4,7 @@ module Orchestrator
         # Called from:
         # * request_proxy
         # * requests_proxy
+        # * control
         class ProtectedMethod < Error; end
         class ModuleUnavailable < Error; end
 
