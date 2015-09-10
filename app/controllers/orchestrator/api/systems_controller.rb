@@ -94,10 +94,10 @@ module Orchestrator
 
                 # Start all modules in the system
                 @cs.modules.each do |mod_id|
-                    promise = load_and_start mod_id
-                    loaded << promise if promise.respond_to?(:then)
+                    promise = control.start mod_id
                 end
 
+                # TODO:: This needs to be done on the remote as well
                 # Clear the system cache once the modules are loaded
                 # This ensures the cache is accurate
                 control.loop.finally(*loaded).then do
@@ -113,12 +113,7 @@ module Orchestrator
             def stop
                 # Stop all modules in the system (shared or not)
                 @cs.modules.each do |mod_id|
-                    mod = control.loaded? mod_id
-                    if mod
-                        mod.thread.next_tick do
-                            mod.stop
-                        end
-                    end
+                    control.stop mod_id
                 end
                 render :nothing => true
             end
@@ -180,14 +175,14 @@ module Orchestrator
                     index = index.nil? ? 0 : (index.to_i - 1);
 
                     mod = sys.get(para[:module].to_sym, index)
-                    inst = mod.instance if mod
-                    if inst
-                        funcs = inst.public_methods(false)
+                    if mod
+                        klass = mod.klass
+                        funcs = klass.instance_methods(false)
                         pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
 
                         resp = {}
                         pub.each do |pfunc|
-                            resp[pfunc] = inst.method(pfunc.to_sym).arity
+                            resp[pfunc] = klass.instance_method(pfunc.to_sym).arity
                         end
 
                         render json: resp
@@ -249,24 +244,6 @@ module Orchestrator
                 # Find will raise a 404 (not found) if there is an error
                 sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{id.downcase}", {quiet: true}) || id
                 @cs = ControlSystem.find(sys)
-            end
-
-            def load_and_start(mod_id)
-                mod = control.loaded? mod_id
-                if mod
-                    mod.thread.next_tick do
-                        mod.start
-                    end
-                else # attempt to load module
-                    config = ::Orchestrator::Module.find(mod_id)
-                    control.load(config).then(
-                        proc { |mod|
-                            mod.thread.next_tick do
-                                mod.start
-                            end
-                        }
-                    )
-                end
             end
 
             # Called on the module thread

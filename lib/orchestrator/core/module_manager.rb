@@ -18,7 +18,7 @@ module Orchestrator
             end
 
 
-            attr_reader :thread, :settings, :running
+            attr_reader :thread, :settings, :running, :klass
             attr_reader :status, :stattrak, :logger
             attr_accessor :current_user
 
