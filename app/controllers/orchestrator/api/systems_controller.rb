@@ -177,12 +177,16 @@ module Orchestrator
                     mod = sys.get(para[:module].to_sym, index)
                     if mod
                         klass = mod.klass
-                        funcs = klass.instance_methods(false)
+                        funcs = klass.public_instance_methods(false)
                         pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
 
                         resp = {}
                         pub.each do |pfunc|
-                            resp[pfunc] = klass.instance_method(pfunc.to_sym).arity
+                            meth = klass.instance_method(pfunc.to_sym)
+                            resp[pfunc] = {
+                                arity: meth.arity,
+                                params: meth.parameters
+                            }
                         end
 
                         render json: resp
