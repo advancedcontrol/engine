@@ -66,6 +66,10 @@ module Orchestrator
                 send_direct(msg)
             end
 
+            # TODO:: Expire System Cache
+            # TODO:: Reload module, system, dependency, zone (settings update)
+            # ------> Might also need to pass the settings down the wire to avoid race conditions
+
             def reload(dep_id)
                 msg = {
                     type: :push,
@@ -104,6 +108,13 @@ module Orchestrator
                 end
             end
 
+            def restore
+                msg = {
+                    type: :restore
+                }
+                send_direct(msg)
+            end
+
 
             # -------------------------------------
             # Processing data from the remote node:
@@ -112,13 +123,19 @@ module Orchestrator
             def process(msg)
                 case msg[:type].to_sym
                 when :cmd
+                    puts "\nexec #{msg[:mod]}.#{msg[:func]} -> as #{msg[:user]}"
                     exec(msg[:id], msg[:mod], msg[:func], msg[:args] || [], msg[:user])
                 when :stat
                     get_status(msg[:id], msg[:mod], msg[:stat])
                 when :resp
+                    puts "\nresp #{msg}"
                     response(msg)
                 when :push
+                    puts "\n#{msg[:push]} #{msg[:mod]}"
                     command(msg)
+                when :restore
+                    puts "\nServer requested we restore control"
+                    @ctrl.nodes[NodeId].slave_control_restored
                 end
             end
 
@@ -189,8 +206,6 @@ module Orchestrator
             # This is a request that isn't looking for a response
             def command(msg)
                 msg_type = msg[:push].to_sym
-
-                puts "\n#{msg_type} #{msg[:mod]}"
 
                 case msg_type
                 when :shutdown

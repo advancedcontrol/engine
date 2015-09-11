@@ -10,6 +10,7 @@ module Orchestrator
             def post_init(this_node, master)
                 @node = this_node
                 @master_node = master
+                @boot_time = Time.now.to_i
 
                 # Delay retry by default if connection fails on load
                 @retries = 1        # Connection retries
@@ -44,7 +45,7 @@ module Orchestrator
                 @logger.info "Connection made to master: #{ip}"
 
                 # Authenticate with the remote server
-                write("\x02#{NodeId} #{@node.password}\x03")
+                write("\x02#{NodeId} #{@boot_time} #{@node.password}\x03")
                 @proxy = Proxy.new(@ctrl, @dep_man, transport)
             end
 
@@ -58,7 +59,7 @@ module Orchestrator
                 @retries += 1
                 the_time = @loop.now
 
-                @node.node_disconnected
+                @node.master_disconnected
 
                 # 1.5 seconds is the minimum time between successful connections
                 # Faster than this and there is probably something seriously wrong
@@ -85,22 +86,28 @@ module Orchestrator
             }.freeze
             def on_read(data, *_)
                 @tokenise.extract(data).each do |msg|
-                    if msg[0] == '{'.freeze && @validated
-                        @proxy.process ::JSON.parse(msg, DECODE_OPTIONS)
-                    elsif msg[0] == 'p'.freeze
-                        write("\x02pong\x03".freeze)
-                    elsif msg[0] == 'h'.freeze
-                        # Message is: 'hello password'
-                        # This very basic auth gives us some confidence that the remote is who they claim to be
-                        _, pass = msg.split(' '.freeze)
-                        if @master_node.password == pass
-                            @validated = true
-                            @node.node_connected @proxy
-                        else
-                            ip, _ = @transport.peername
-                            close_connection
-                            @logger.warn "Connection to #{ip} was closed due to bad credentials"
+                    begin
+                        if msg[0] == '{'.freeze && @validated
+                            @proxy.process ::JSON.parse(msg, DECODE_OPTIONS)
+                        elsif msg[0] == 'p'.freeze
+                            write("\x02pong\x03".freeze)
+                        elsif msg[0] == 'h'.freeze
+                            # Message is: 'hello password'
+                            # This very basic auth gives us some confidence that the remote is who they claim to be
+                            _, pass, time = msg.split(' '.freeze)
+                            if @master_node.password == pass
+                                @validated = true
+                                @node.master_connected(@proxy, @boot_time, time ? time.to_i : nil)
+                            else
+                                ip, _ = @transport.peername
+                                close_connection
+                                @logger.warn "Connection to #{ip} was closed due to bad credentials"
+                            end
                         end
+                    rescue => e
+                        ip, _ = @transport.peername
+                        close_connection
+                        @logger.warn "Connection from #{ip} was closed due to bad data"
                     end
                 end
             end

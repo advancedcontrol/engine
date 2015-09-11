@@ -7,7 +7,7 @@ module Orchestrator
     module Remote
         SERVER_PORT = 17400
 
-        Connection = Struct.new(:tokeniser, :parser, :node_id, :timeout, :io, :poll) do
+        Connection = Struct.new(:tokeniser, :edge, :parser, :node_id, :timeout, :io, :poll) do
             def validated?
                 !!self.node_id
             end
@@ -25,6 +25,7 @@ module Orchestrator
                 @logger = ::SpiderGazelle::Logger.instance
                 @ctrl = ::Orchestrator::Control.instance
                 @dep_man = ::Orchestrator::DependencyManager.instance
+                @boot_time = Time.now.to_i
 
                 @connections = {}
                 @connected_to = Set.new
@@ -89,7 +90,7 @@ module Orchestrator
 
                         # We may not have noticed the disconnect
                         if edge.proxy == connection.parser
-                            edge.node_disconnected
+                            edge.slave_disconnected
                             @connected_to.delete connection.node_id
                         end
                     else
@@ -127,23 +128,37 @@ module Orchestrator
                         # TODO:: Log the error here
                     end
                 else
-                    # Will send an auth message: node_id password
-                    node_str, pass = msg.split(' '.freeze)
-                    node_id = node_str.to_sym
-                    edge = @ctrl.nodes[node_id]
-                    if edge.password == pass
-                        connection.timeout.cancel
-                        connection.timeout = nil
-                        connection.node_id = node_id
-                        connection.parser = Proxy.new(@ctrl, @dep_man, connection.io)
+                    begin
+                        # Will send an auth message: node_id password
+                        node_str, start_times, pass = msg.split(' '.freeze)
+                        node_id = node_str.to_sym
+                        start_time = start_times.to_i
+                        edge = @ctrl.nodes[node_id]
 
-                        connection.io.write "\x02hello #{@node.password}\x03"
-                        @connected_to << node_id
-                        edge.node_connected connection.parser
-                    else
+                        if edge.password == pass
+                            connection.timeout.cancel
+                            connection.timeout = nil
+                            connection.node_id = node_id
+                            connection.parser = Proxy.new(@ctrl, @dep_man, connection.io)
+                            connection.edge = edge
+
+                            # Provide the edge node with our failover data
+                            if edge.is_failover_host && edge.host_active?
+                                connection.io.write "\x02hello #{@node.password} #{edge.failover_time}\x03"
+                            else
+                                connection.io.write "\x02hello #{@node.password}\x03"
+                            end
+                            @connected_to << node_id
+                            edge.slave_connected connection.parser, start_time
+                        else
+                            ip, _ = connection.io.peername
+                            connection.io.close
+                            @logger.warn "Connection from #{ip} was closed due to bad credentials: #{edge.password} !== #{pass}"
+                        end
+                    rescue => e
                         ip, _ = connection.io.peername
                         connection.io.close
-                        @logger.warn "Connection from #{ip} was closed due to bad credentials: #{edge.password} !== #{pass}"
+                        @logger.warn "Connection from #{ip} was closed due to bad data"
                     end
                 end
             end
@@ -155,9 +170,7 @@ module Orchestrator
                 @node.start_modules if @node.is_only_master?
 
                 @ctrl.nodes.each_pair do |id, node|
-                    if id == NodeId
-                        node.node_disconnected
-                    end
+                    node.slave_disconnected if id != NodeId
                 end
             end
 

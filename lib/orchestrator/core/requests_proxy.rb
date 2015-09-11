@@ -70,7 +70,7 @@ module Orchestrator
                                 if instance.nil?
                                     err = StandardError.new "method '#{name}' request failed as the module '#{mod.settings.id}' is currently stopped"
                                     defer.reject(err)
-                                elsif instance.is_a? EdgeControl
+                                elsif instance.class == ::Orchestrator::EdgeControl
                                     proxy = instance.proxy
                                     if proxy
                                         defer.resolve(

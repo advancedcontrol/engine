@@ -91,7 +91,7 @@ module Orchestrator
                                         defer.reject(err)
                                     end
                                 end
-                            elsif instance.is_a? EdgeControl
+                            elsif instance.class == ::Orchestrator::EdgeControl
                                 proxy = instance.proxy
                                 if proxy
                                     defer.resolve(proxy.execute(@mod.settings.id, name, args, @user ? @user.id : nil))

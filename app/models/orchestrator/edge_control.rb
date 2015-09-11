@@ -114,6 +114,8 @@ module Orchestrator
         # Status variables
         attribute :online,          default: true
         attribute :failover_active, default: false
+        attribute :failover_time,   default: 0  # Last time there was a failover event
+        attribute :startup_time,    default: 0  # Last known time the edge node booted up
 
         attribute :settings,    default: lambda { {} }
         attribute :admins,      default: lambda { [] }
@@ -132,7 +134,7 @@ module Orchestrator
 
 
         attr_reader :proxy
-        def node_connected(proxy)
+        def slave_connected(proxy, started_at)
             @proxy = proxy
 
             if @failover_timer
@@ -142,38 +144,48 @@ module Orchestrator
             
             if is_failover_host || is_only_master?
                 self.online = true
-                self.failover_active = false
+                self.startup_time = started_at
+
+                if self.failover_active == true && self.failover_time < started_at
+                    if window_start.nil?
+                        restore_slave_control
+                    else
+                        # TODO implement recovery window timer
+                    end
+                else
+                    # Ensure nothing is running
+                    stop_modules
+                end
+
+                # TODO:: These saves should use the CAS method as per
+                # Module manager status values
                 @thread.work do
                     self.save!
-                end
-
-                if window_start.nil?
-                    stop_modules
-                else
-                    # TODO implement recovery window
-                end
-            elsif should_run_on_this_host
-                if window_start.nil?
-                    self.online = true
-                    self.failover_active = false
-
-                    start_modules
-                else
-                    # TODO implement recovery window
                 end
             end
         end
 
-        def node_disconnected
+        def restore_slave_control
+            stop_modules
+            # TODO:: send module status dump to slave
+            @proxy.restore
+        end
+
+
+
+        def slave_disconnected
             @proxy = nil
 
-            if !host_active? && @failover_timer.nil? && is_failover_host
+            if @failover_timer.nil? && is_failover_host && @modules_started != true
                 @failover_timer = @thread.scheduler.in(self.timeout) do
                     @failover_timer = nil
 
                     self.online = false
                     self.failover_active = true
+                    self.failover_time = Time.now.to_i
 
+                    # TODO:: These saves should use the CAS method as per
+                    # Module manager status values
                     @thread.work do
                         self.save!
                     end
@@ -182,11 +194,44 @@ module Orchestrator
                 end
 
                 self.online = false
+                self.failover_active = false
 
                 @thread.work do
                     self.save!
                 end
             end
+        end
+
+        def master_connected(proxy, started_at, failover_at)
+            @proxy = proxy
+
+            if should_run_on_this_host
+                if failover_at && failover_at < started_at
+                    # Master is in control - we wait for a signal
+                    self.online = false
+                    self.failover_active = true
+                else
+                    # We are in control - make sure we are online
+                    self.online = true
+                    self.failover_active = false
+                    start_modules
+
+                    # TODO:: Send all status values to master
+                end
+            end
+        end
+
+        def slave_control_restored
+            self.online = true
+            self.failover_active = false
+            start_modules
+        end
+
+        def master_disconnected
+            # We don't wait for any recover windows.
+            # If the master is down then we should be taking control
+            @proxy = nil
+            slave_control_restored
         end
 
 
@@ -210,7 +255,7 @@ module Orchestrator
         end
 
         def host_active?
-            (should_run_on_this_host && online) || (is_failover_host && failover_active)
+            @modules_started == true
         end
 
         def boot(all_systems)
@@ -257,7 +302,11 @@ module Orchestrator
 
 
         # Soft start and stop modules (no database updates)
+        # TODO:: We need to prevent overlapps
         def start_modules
+            return if @modules_started == true
+            @modules_started = true
+
             wait_start(@start_order.device).then do
                 wait_start(@start_order.logic).then do
                     wait_start(@start_order.trigger)
@@ -266,6 +315,9 @@ module Orchestrator
         end
 
         def stop_modules
+            return if @modules_started == false
+            @modules_started = false
+
             stopping = []
 
             @start_order.reverse_each do |mod_man|
