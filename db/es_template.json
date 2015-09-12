@@ -110,6 +110,8 @@
 
                         "role"              : {"type": "string", "store": true, "index": "not_analyzed" },
                         "zone_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "edge_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "master_id"         : {"type": "string", "store": true, "index": "not_analyzed" },
                         "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
                         "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
                         "trigger_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
@@ -124,6 +126,16 @@
 
         "grp": {},
             "ugj": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "cgj": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "cha": {
                 "_parent": {
                     "type": "grp"
                 }
