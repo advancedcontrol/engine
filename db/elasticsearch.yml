@@ -21,7 +21,7 @@ couchbase.documentTypes.zone: ^zone(-|_).+$
 couchbase.documentTypes.trigger: ^trigger(-|_).+$
 couchbase.documentTypes.trig: ^trig(-|_).+$
 couchbase.documentTypes.stats: ^zzz(-|_).+$
-couchbase.documentTypes.stats: ^edge(-|_).+$
+couchbase.documentTypes.edge: ^edge(-|_).+$
 
 # Module to dependency mapping
 couchbase.documentTypeParentFields.mod: doc.dependency_id
