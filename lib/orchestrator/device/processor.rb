@@ -362,7 +362,7 @@ module Orchestrator
             # If a callback was in place for the current
             def call_emit(cmd)
                 callback = cmd[:emit]
-                if callback
+                if callback.respond_to? :call
                     @thread.next_tick do
                         begin
                             callback.call

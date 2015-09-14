@@ -63,7 +63,7 @@ module Orchestrator
                 # Start the triggers if not already running (must occur on the same thread)
                 cs = self
                 ctrl.loop.schedule do
-                    ctrl.nodes[cs.edge_id].load_triggers_for(cs)
+                    ctrl.nodes[cs.edge_id.to_sym].load_triggers_for(cs)
                 end
 
                 # Reload the running modules

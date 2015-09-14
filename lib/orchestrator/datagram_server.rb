@@ -51,7 +51,7 @@ module Orchestrator
         end
 
         def send(ip, port, data)
-            @loop.schedule do 
+            @loop.schedule do
                 send_datagram(data, ip, port)
             end
         end
@@ -62,49 +62,41 @@ end
 module Libuv
     class Loop
         def udp_service
-            if @udp_service
-                @udp_service
-            else
+            if @udp_service.nil?
                 CRITICAL.synchronize {
                     return @udp_service if @udp_service
 
-                    port = Rails.configuration.orchestrator.datagram_port || 0
-
-                    if port == 0
-                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService)
-                    elsif defined? @@udp_service
+                    if defined? @@udp_service
                         @udp_service = @@udp_service
                     else # define a class variable at the specified port
-                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService, '0.0.0.0', port)
-                        @@udp_service = @udp_service
+                        bind_port = Rails.configuration.orchestrator.datagram_port || 0
+                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService, '0.0.0.0', bind_port)
+                        @@udp_service = @udp_service if bind_port != 0
                     end
                 }
             end
+            
+            @udp_service
         end
 
         def udp_broadcast(data, port = 9, ip = nil)
             ip = ip || '255.255.255.255'
 
-            if @udp_broadcast
-                @udp_broadcast.send(ip, port, data)
-            else
+            if @udp_broadcast.nil?
                 CRITICAL.synchronize {
                     return @udp_broadcast.send(ip, port, data) if @udp_broadcast
                     
-                    port = Rails.configuration.orchestrator.broadcast_port || 0
-
-                    if port == 0
-                        @udp_broadcast = ::UV.open_datagram_socket(::Orchestrator::UdpBroadcast)
-                    elsif defined? @@udp_broadcast
+                    if defined? @@udp_broadcast
                         @udp_broadcast = @@udp_broadcast
-                    else # define a class variable at the specified port
-                        @udp_broadcast = ::UV.open_datagram_socket(::Orchestrator::UdpBroadcast, '0.0.0.0', port)
-                        @@udp_broadcast = @udp_broadcast
+                    else
+                        bind_port = Rails.configuration.orchestrator.broadcast_port || 0
+                        @udp_broadcast = ::UV.open_datagram_socket(::Orchestrator::UdpBroadcast, '0.0.0.0', bind_port)
+                        @@udp_broadcast = @udp_broadcast if bind_port != 0
                     end
-
-                    @udp_broadcast.send(ip, port, data)
                 }
             end
+
+            @udp_broadcast.send(ip, port, data)
         end
 
         def wake_device(mac, ip = nil)
