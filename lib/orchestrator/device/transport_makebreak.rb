@@ -228,10 +228,8 @@ module Orchestrator
                 end
 
                 # Notify module
-                if @retries > 1
-                    @processor.queue.online
-                    @processor.connected
-                end
+                @processor.queue.online if not @processor.queue.online?
+                @processor.connected if not @processor.connected?
                 @retries = 0
 
                 # Start inactivity timeout
