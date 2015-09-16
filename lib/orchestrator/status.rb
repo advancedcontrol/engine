@@ -60,25 +60,28 @@ module Orchestrator
         # Subscribes to updates from a system module
         # Modules do not have to exist and updates will be triggered as soon as they are
         def subscribe(opt)     # sys_name, mod_name, index, status, callback, on_thread
-            if opt[:sys_name] && !opt[:sys_id]
-                @thread.work(proc {
-                    id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys_name}")
-                    opt[:sys_id] = id
+            # Build the subscription object (as loosely coupled as we can)
+            sub = Subscription.new(as_sym(opt[:sys_name]), as_sym(opt[:sys_id]), as_sym(opt[:mod_name]), as_sym(opt[:mod_id]), opt[:index].to_i, as_sym(opt[:status]), opt[:callback], opt[:on_thread])
 
-                    # Grabbing system here as thread-safe and has the potential to block
-                    ::Orchestrator::System.get(id)
-                }).then(proc { |sys|
-                    mod = sys.get(opt[:mod_name], opt[:index].to_i - 1)
-                    if mod
-                        opt[:mod_id] = mod.settings.id.to_sym
-                        opt[:mod] = mod
-                    end
-
-                    do_subscribe(opt)
-                })
-            else
-                do_subscribe(opt)
+            if sub.sys_id
+                @systems[sub.sys_id] ||= {}
+                @systems[sub.sys_id][sub.sub_id] = sub
             end
+
+            # Now if the module is added later we'll still receive updates
+            # and also support direct module status bindings
+            if sub.mod_id
+                @subscriptions[sub.mod_id] ||= {}
+                @subscriptions[sub.mod_id][sub.status] ||= {}
+                @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
+
+                # Check for existing status to send to subscriber
+                value = opt[:mod].status[sub.status]
+                sub.notify(value) unless value.nil?
+            end
+
+            # return the subscription
+            sub
         end
 
         # Removes subscription callback from the lookup
@@ -232,31 +235,6 @@ module Orchestrator
 
         protected
 
-
-        def do_subscribe(opt)
-            # Build the subscription object (as loosely coupled as we can)
-            sub = Subscription.new(as_sym(opt[:sys_name]), as_sym(opt[:sys_id]), as_sym(opt[:mod_name]), as_sym(opt[:mod_id]), opt[:index].to_i, as_sym(opt[:status]), opt[:callback], opt[:on_thread])
-
-            if sub.sys_id
-                @systems[sub.sys_id] ||= {}
-                @systems[sub.sys_id][sub.sub_id] = sub
-            end
-
-            # Now if the module is added later we'll still receive updates
-            # and also support direct module status bindings
-            if sub.mod_id
-                @subscriptions[sub.mod_id] ||= {}
-                @subscriptions[sub.mod_id][sub.status] ||= {}
-                @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
-
-                # Check for existing status to send to subscriber
-                value = opt[:mod].status[sub.status]
-                sub.notify(value) unless value.nil?
-            end
-
-            # return the subscription
-            sub
-        end
 
         def as_sym(obj)
             obj.to_sym if obj.respond_to?(:to_sym)
