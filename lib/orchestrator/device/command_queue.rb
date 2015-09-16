@@ -53,7 +53,7 @@ module Orchestrator
                 if length > 0
                     next_cmd = @pending_commands.pop
 
-                    if next_cmd.is_a? Symbol # (named command)
+                    if next_cmd.class == Symbol # (named command)
                         result = @named_commands[next_cmd]
                         result[0].shift
                         cmd = result[1]
@@ -127,6 +127,10 @@ module Orchestrator
                 shift_next_tick
             end
 
+            def online?
+                @state == :online
+            end
+
             def offline(clear = false)
                 @state = :offline
 
@@ -140,7 +144,7 @@ module Orchestrator
 
                     while length > 0
                         cmd = @pending_commands.pop
-                        if cmd.is_a? Symbol
+                        if cmd.class == Symbol
                             res = @named_commands[cmd][0]
                             pri = res.shift
                             res << pri
@@ -162,7 +166,7 @@ module Orchestrator
             def cancel_all(msg)
                 while length > 0
                     cmd = @pending_commands.pop
-                    if cmd.is_a? Symbol
+                    if cmd.class == Symbol
                         res = @named_commands[cmd]
                         if res
                             res[1][:defer].reject(msg)
