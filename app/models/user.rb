@@ -8,7 +8,7 @@ class User < Couchbase::Model
 
 
     view :is_sys_admin
-    def find_sys_admins
+    def self.find_sys_admins
         is_sys_admin(key: true, stale: false)
     end
 end
