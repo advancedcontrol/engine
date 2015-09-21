@@ -31,7 +31,11 @@ module Orchestrator
                 user = User.find(id)
 
                 # We only want to provide limited 'public' information
-                respond_with user, User::PUBLIC_DATA
+                if current_user.sys_admin
+                    respond_with user, ADMIN_DATA
+                else
+                    respond_with user, User::PUBLIC_DATA
+                end
             end
 
             def current
