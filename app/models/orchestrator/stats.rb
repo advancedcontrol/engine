@@ -74,6 +74,13 @@ module Orchestrator
             # => Modules disconnected
             #------------------------
             query = @@disconnected.query
+            query.raw_filter({
+                range: {
+                    updated_at: {
+                        lte: Time.now.to_i - 30
+                    }
+                }
+            })
             query.filter({
                 ignore_connected: [false],
                 connected: [false],
