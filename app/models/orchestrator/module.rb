@@ -31,6 +31,7 @@ module Orchestrator
         attribute :custom_name
         attribute :settings,    default: lambda { {} }
 
+        attribute :updated_at,  default: lambda { Time.now.to_i }
         attribute :created_at,  default: lambda { Time.now.to_i }
         attribute :role         # cache the dependency role locally for load order
 

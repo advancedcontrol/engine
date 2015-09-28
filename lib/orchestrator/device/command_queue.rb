@@ -200,6 +200,11 @@ module Orchestrator
 
 
             # Queue related methods
+            # This ensures that the highest priorities (largest values)
+            # Are processed first, if they have the same priority then they are
+            # processed in the order that the commands were queued
+            #
+            # See: http://www.rubydoc.info/github/kanwei/algorithms/Containers/MaxHeap#initialize-instance_method
             def comparison(x, y)
                 if x[0] == y[0]
                     x[1] < y[1]

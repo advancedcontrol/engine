@@ -1,4 +1,4 @@
-require 'thread'    # For Mutex
+require 'monitor'
 require 'set'
 
 
@@ -7,8 +7,12 @@ module Orchestrator
         include Singleton
 
 
+        def self.load(classname, role, force = false)
+            DependencyManager.instance.load_helper(classname.to_s, role.to_sym, !!force)
+        end
+
         def initialize
-            @load_mutex = Mutex.new
+            @critical = Monitor.new
             @dependencies = ThreadSafe::Cache.new
             @loop = ::Libuv::Loop.default
             @loop.next_tick do
@@ -27,13 +31,35 @@ module Orchestrator
             if class_object && force == false
                 defer.resolve(class_object)
             else
-                # We need to ensure only one file loads at a time
-                @load_mutex.synchronize {
-                    perform_load(dependency, defer, classname, class_lookup, force)
-                }
+                begin
+                    # We need to ensure only one file loads at a time
+                    klass = @critical.synchronize {
+                        perform_load(dependency.role, classname, class_lookup, force)
+                    }
+                    defer.resolve klass
+                rescue Error::FileNotFound => e
+                    # This avoids printing a stack trace that we don't need
+                    defer.reject(Error::FileNotFound.new(e.message))
+                rescue Exception => e
+                    defer.reject(e)
+                    print_error(e, 'error loading dependency')
+                end
             end
 
             defer.promise
+        end
+
+        def load_helper(classname, role, force = false)
+            class_lookup = classname.to_sym
+            class_object = @dependencies[class_lookup]
+
+            if class_object && force == false
+                class_object
+            else
+                @critical.synchronize {
+                    perform_load(role, classname, class_lookup, force)
+                }
+            end
         end
 
         def force_load(file)
@@ -41,7 +67,7 @@ module Orchestrator
 
             if File.exists?(file)
                 begin
-                    @load_mutex.synchronize {
+                    @critical.synchronize {
                         load file
                     }
                     defer.resolve(file)
@@ -61,47 +87,35 @@ module Orchestrator
 
 
         # Always called from within a Mutex
-        def perform_load(dependency, defer, classname, class_lookup, force)
-            if force == false
-                class_object = @dependencies[class_lookup]
-                if class_object
-                    defer.resolve(class_object)
-                    return
-                end
-            end
+        def perform_load(role, classname, class_lookup, force)
+            file = "#{classname.underscore}.rb"
+            class_object = nil
 
-            begin
-                file = "#{classname.underscore}.rb"
-                class_object = nil
+            ::Rails.configuration.orchestrator.module_paths.each do |path|
+                if ::File.exists?("#{path}/#{file}")
 
-                ::Rails.configuration.orchestrator.module_paths.each do |path|
-                    if ::File.exists?("#{path}/#{file}")
+                    ::Kernel.load "#{path}/#{file}"
+                    class_object = classname.constantize
 
-                        ::Kernel.load "#{path}/#{file}"
-                        class_object = classname.constantize
-
-                        case dependency.role
-                        when :device
-                            include_device(class_object)
-                        when :service
-                            include_service(class_object)
-                        else
-                            include_logic(class_object)
-                        end
-
-                        @dependencies[class_lookup] = class_object
-                        defer.resolve(class_object)
-                        break
+                    case role
+                    when :device
+                        include_device(class_object)
+                    when :service
+                        include_service(class_object)
+                    else
+                        include_logic(class_object)
                     end
+
+                    @dependencies[class_lookup] = class_object
+                    break
                 end
-                
-                if class_object.nil?
-                    defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
-                end
-            rescue Exception => e
-                defer.reject(e)
-                print_error(e, 'error loading dependency')
             end
+
+            if class_object.nil?
+                raise Error::FileNotFound.new("could not find '#{file}'")
+            end
+
+            class_object
         end
 
         def include_logic(klass)
@@ -124,7 +138,7 @@ module Orchestrator
 
         def print_error(e, msg = '')
             msg << "\n#{e.message}"
-            msg << "\n#{e.backtrace.join("\n")}" if e.respond_to? :backtrace
+            msg << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace.respond_to?(:join)
             @logger.error(msg)
         end
     end

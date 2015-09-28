@@ -30,6 +30,13 @@ module Orchestrator
             # if not zero all UDP sockets must be transmitted from a single thread
             app.config.orchestrator.datagram_port = 0    # ephemeral port (random selection)
             app.config.orchestrator.broadcast_port = 0   # ephemeral port (random selection)
+
+            # Don't autoload modules - they could depend on orchestrator features
+            module_paths = []
+            ::Rails.application.config.eager_load_paths.each do |path|
+                module_paths << path if path.end_with? 'app/modules'
+            end
+            ::Rails.application.config.eager_load_paths -= module_paths
         end
         
         #

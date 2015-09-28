@@ -30,7 +30,7 @@ module Orchestrator
 
 
             def index
-                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic)
+                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic, :running)
 
                 # if a system id is present we query the database directly
                 if filters[:system_id]
@@ -52,9 +52,17 @@ module Orchestrator
 
                     if filters[:connected]
                         connected = filters[:connected] == 'true'
-                        query.filter({
+                        filter = {
+                            ignore_connected: [false],
                             connected: [connected]
-                        })
+                        }
+
+                        if filters[:running]
+                            running = filters[:running] == 'true'
+                            filter[:running] = [running]
+                        end
+                        
+                        query.filter(filter)
                     end
 
                     if filters.has_key? :no_logic

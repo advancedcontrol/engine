@@ -9,7 +9,9 @@ module Orchestrator
             # Number of websocket connections (UI's / Users)
             def connections
                 render json: {
-                    period: @pname,
+                    period_name: @pname,
+                    period_start: @period_start,
+                    interval: @period[0],
                     histogram: build_query(:connections_active)
                 }
             end
@@ -17,7 +19,9 @@ module Orchestrator
             # Number of active important triggers
             def triggers
                 render json: {
-                    period: @pname,
+                    period_name: @pname,
+                    period_start: @period_start,
+                    interval: @period[0],
                     histogram: build_query(:triggers_active)
                 }
             end
@@ -25,7 +29,9 @@ module Orchestrator
             # Number of devices that were offline
             def offline
                 render json: {
-                    period: @pname,
+                    period_name: @pname,
+                    period_start: @period_start,
+                    interval: @period[0],
                     histogram: build_query(:modules_disconnected)
                 }
             end
@@ -57,6 +63,7 @@ module Orchestrator
                 args = params.permit(SAFE_PARAMS)
                 @pname = (args[:period] || :day).to_sym
                 @period = PERIODS[@pname]
+                @period_start = @period[1].call
             end
 
 
@@ -68,7 +75,7 @@ module Orchestrator
                                 must: [{
                                     range: {
                                         stat_snapshot_at: {
-                                            gte: @period[1].call
+                                            gte: @period_start
                                         }
                                     }
                                 }]

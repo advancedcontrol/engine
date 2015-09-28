@@ -21,3 +21,24 @@ This is performed once an edge or slave node has come back online
     - Slave is not in control
     - Start restore proceedures (above) either straight away or in the restore window
 
+
+
+
+
+
+
+Control HA TODOs::
+* Edge model update
+  - Master change (effectively need to support add and remove)
+  - Change in failover windows
+* Model Update:
+  - Change of edge node
+* New device (test, should just work, via load / start)
+* New system (test that triggers are loaded properly)
+  - Test trigger updates work properly
+
+
+
+
+BACKOFFICE::
+* Make sure saved versions make their way back to the context they came from
