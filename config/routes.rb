@@ -10,6 +10,7 @@ Orchestrator::Engine.routes.draw do
                 post 'start',   on: :member
                 post 'stop',    on: :member
                 get  'state',   on: :member
+                get  'internal_state', on: :member
             end
         end
 

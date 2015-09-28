@@ -45,7 +45,7 @@ module Orchestrator
                 logger = ::Logger.new(STDOUT)
             end
             logger.formatter = proc { |severity, datetime, progname, msg|
-                "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{progname} - #{msg}\n"
+                "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{msg}\n"
             }
             @logger = ::ActiveSupport::TaggedLogging.new(logger)
         end
@@ -70,7 +70,7 @@ module Orchestrator
                 @server = ::SpiderGazelle::Spider.instance
                 promise = @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)
-                    if @server.mode == :thread
+                    if @server.in_mode? :thread
                         @threads = @server.threads
                     else    # We are either running no_ipc or process (unsupported for control)
                         @threads = Set.new

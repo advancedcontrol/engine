@@ -155,6 +155,10 @@ module Orchestrator
                 end
             end
 
+            def connected?
+                @connected == true
+            end
+
             def disconnected
                 @connected = false
                 @man.notify_disconnected

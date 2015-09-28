@@ -14,7 +14,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.sort = [{name: "asc"}]
+                query.sort = NAME_SORT_ASC
 
                 # Filter systems via zone_id
                 if params.has_key? :zone_id
@@ -32,6 +32,7 @@ module Orchestrator
                     })
                 end
 
+                query.search_field :name
                 respond_with @@elastic.search(query)
             end
 
@@ -129,7 +130,7 @@ module Orchestrator
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :method, {args: []}).tap do |whitelist|
-                        whitelist[:args] = params[:args]
+                        whitelist[:args] = params[:args] || []
                     end
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
@@ -179,14 +180,18 @@ module Orchestrator
                     index = index.nil? ? 0 : (index.to_i - 1);
 
                     mod = sys.get(para[:module].to_sym, index)
-                    inst = mod.instance if mod
-                    if inst
-                        funcs = inst.public_methods(false)
+                    if mod
+                        klass = mod.klass
+                        funcs = klass.public_instance_methods(false)
                         pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
 
                         resp = {}
                         pub.each do |pfunc|
-                            resp[pfunc] = inst.method(pfunc.to_sym).arity
+                            meth = klass.instance_method(pfunc.to_sym)
+                            resp[pfunc] = {
+                                arity: meth.arity,
+                                params: meth.parameters
+                            }
                         end
 
                         render json: resp

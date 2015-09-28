@@ -18,7 +18,7 @@ module Orchestrator
 
 
             attr_reader :thread, :settings, :instance, :running
-            attr_reader :status, :stattrak, :logger
+            attr_reader :status, :stattrak, :logger, :klass
             attr_accessor :current_user
 
 
@@ -238,9 +238,17 @@ module Orchestrator
                         model = ::Orchestrator::Module.find_by_id id
 
                         if model && model.connected != connected
-                            model.connected = connected
-                            model.save!(CAS => model.meta[CAS])
-                            model
+                            tries = 0
+                            begin
+                                model.connected = connected
+                                model.updated_at = Time.now.to_i
+                                model.save!(CAS => model.meta[CAS])
+                                model
+                            rescue
+                                tries += 1
+                                retry if tries < 5
+                                nil
+                            end
                         else
                             nil
                         end
@@ -265,10 +273,18 @@ module Orchestrator
                         model = ::Orchestrator::Module.find_by_id id
 
                         if model && model.running != running
-                            model.running = running
-                            model.connected = false if !running
-                            model.save!(CAS => model.meta[CAS])
-                            model
+                            tries = 0
+                            begin
+                                model.running = running
+                                model.connected = false if !running
+                                model.updated_at = Time.now.to_i
+                                model.save!(CAS => model.meta[CAS])
+                                model
+                            rescue
+                                tries += 1
+                                retry if tries < 5
+                                nil
+                            end
                         else
                             nil
                         end

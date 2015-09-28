@@ -49,7 +49,7 @@ module Orchestrator
             end
 
 
-            def request(name, *args, &block)
+            def request(name, args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
                     err = Error::ProtectedMethod.new "attempt to access a protected method '#{name}' in multiple modules"
                     ::Libuv::Q.reject(@thread, err)
@@ -135,9 +135,8 @@ module Orchestrator
                 @modules.empty?
             end
 
-
             def method_missing(name, *args, &block)
-                @forward.request(name.to_sym, *args, &block)
+                @forward.request(name.to_sym, args, &block)
             end
         end
     end
