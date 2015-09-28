@@ -1,4 +1,4 @@
-require 'thread'    # For Mutex
+require 'monitor'
 require 'set'
 
 
@@ -12,7 +12,7 @@ module Orchestrator
         end
 
         def initialize
-            @load_mutex = Mutex.new
+            @critical = Monitor.new
             @dependencies = ThreadSafe::Cache.new
             @loop = ::Libuv::Loop.default
             @loop.next_tick do
@@ -33,7 +33,7 @@ module Orchestrator
             else
                 begin
                     # We need to ensure only one file loads at a time
-                    klass = @load_mutex.synchronize {
+                    klass = @critical.synchronize {
                         perform_load(dependency.role, classname, class_lookup, force)
                     }
                     defer.resolve klass
@@ -42,7 +42,7 @@ module Orchestrator
                     defer.reject(Error::FileNotFound.new(e.message))
                 rescue Exception => e
                     defer.reject(e)
-                    @logger.print_error(e, 'error loading dependency')
+                    print_error(e, 'error loading dependency')
                 end
             end
 
@@ -56,7 +56,7 @@ module Orchestrator
             if class_object && force == false
                 class_object
             else
-                @load_mutex.synchronize {
+                @critical.synchronize {
                     perform_load(role, classname, class_lookup, force)
                 }
             end
@@ -67,13 +67,13 @@ module Orchestrator
 
             if File.exists?(file)
                 begin
-                    @load_mutex.synchronize {
+                    @critical.synchronize {
                         load file
                     }
                     defer.resolve(file)
                 rescue Exception => e
                     defer.reject(e)
-                    @logger.print_error(e, 'force load failed')
+                    print_error(e, 'force load failed')
                 end
             else
                 defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
@@ -134,6 +134,12 @@ module Orchestrator
             klass.class_eval do
                 include ::Orchestrator::Service::Mixin
             end
+        end
+
+        def print_error(e, msg = '')
+            msg << "\n#{e.message}"
+            msg << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace.respond_to?(:join)
+            @logger.error(msg)
         end
     end
 end
