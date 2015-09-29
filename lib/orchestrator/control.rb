@@ -230,6 +230,9 @@ module Orchestrator
         # Get a fresh version of the settings from the database
         # load the module
         def update(mod_id)
+            mod = loaded?(mod_id)
+            running = mod && mod.running
+
             unload(mod_id).then(proc {
                 # Grab database model in the thread pool
                 res = @loop.work do
@@ -238,7 +241,18 @@ module Orchestrator
 
                 # Load the module if model found
                 res.then(proc { |config|
-                    load(config)    # Promise chaining to here
+                    # Promise chaining to here
+                    promise = load(config)
+
+                    if running
+                        promise.then(proc { |mod_man|
+                            mod.thread.schedule do
+                                mod.start
+                            end
+                        })
+                    end
+
+                    promise
                 })
             })
         end
