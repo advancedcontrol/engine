@@ -113,7 +113,8 @@ module Orchestrator
         # Used to maintain subscriptions where module is moved to another thread
         # or even another server.
         def move(mod_id, to_thread)
-            return if to_thread == self
+            # Also called from edge_control.load
+            return if to_thread == @thread
 
             mod_id = mod_id.to_sym
 

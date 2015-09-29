@@ -365,9 +365,15 @@ module Orchestrator
                             # We do this for all modules after boot is complete as
                             # Observers can exist before modules are instantiated
                             if @boot_complete
-                                new_thread = thread.observer
                                 @threads.each do |thr|
-                                    thr.observer.move(mod_id, new_thread)
+                                    thr.observer.move(mod_id, thread)
+                                end
+
+                                # run the module if it should be running
+                                if host_active? && mod_manager.settings.running
+                                    thread.schedule do
+                                        mod_manager.start_local
+                                    end
                                 end
                             end
 
