@@ -30,7 +30,7 @@ module Orchestrator
 
 
             def index
-                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic, :running)
+                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic, :running, :as_of)
 
                 # if a system id is present we query the database directly
                 if filters[:system_id]
@@ -43,34 +43,38 @@ module Orchestrator
                     }
                 else # we use elastic search
                     query = @@elastic.query(params)
+                    filter = {}
 
                     if filters[:dependency_id]
-                        query.filter({
-                            dependency_id: [filters[:dependency_id]]
-                        })
+                        filter[:dependency_id] = [filters[:dependency_id]]
                     end
 
                     if filters[:connected]
                         connected = filters[:connected] == 'true'
-                        filter = {
-                            ignore_connected: [false],
-                            connected: [connected]
-                        }
+                        filter[:ignore_connected] = [false]
+                        filter[:connected] = [connected]
+                    end
 
-                        if filters[:running]
-                            running = filters[:running] == 'true'
-                            filter[:running] = [running]
-                        end
-                        
-                        query.filter(filter)
+                    if filters[:running]
+                        running = filters[:running] == 'true'
+                        filter[:running] = [running]
                     end
 
                     if filters.has_key? :no_logic
-                        query.filter({
-                            role: [1, 2]
+                        filter[:role] = [1, 2]
+                    end
+
+                    if filters.has_key? :as_of
+                        query.raw_filter({
+                            range: {
+                                updated_at: {
+                                    lte: filters[:as_of].to_i
+                                }
+                            }
                         })
                     end
 
+                    query.filter(filter) unless filter.empty?
                     query.has_parent Dependency
 
                     results = @@elastic.search(query)
@@ -188,7 +192,7 @@ module Orchestrator
             MOD_PARAMS = [
                 :dependency_id, :control_system_id,
                 :ip, :tls, :udp, :port, :makebreak,
-                :uri, :custom_name, :notes
+                :uri, :custom_name, :notes, :ignore_connected
             ]
             def safe_params
                 settings = params[:settings]

@@ -156,9 +156,8 @@ module Orchestrator
                             if @ready && @unloaded.include?(mod_id)
                                 @unloaded.delete(mod_id)
                                 
-                                new_thread = thread.observer
                                 @threads.each do |thr|
-                                    thr.observer.move(mod_id, new_thread)
+                                    thr.observer.move(mod_id, thread)
                                 end
                             end
 
@@ -230,6 +229,9 @@ module Orchestrator
         # Get a fresh version of the settings from the database
         # load the module
         def update(mod_id)
+            mod = loaded?(mod_id)
+            running = mod && mod.running
+
             unload(mod_id).then(proc {
                 # Grab database model in the thread pool
                 res = @loop.work do
@@ -238,7 +240,18 @@ module Orchestrator
 
                 # Load the module if model found
                 res.then(proc { |config|
-                    load(config)    # Promise chaining to here
+                    # Promise chaining to here
+                    promise = load(config)
+
+                    if running
+                        promise.then(proc { |mod_man|
+                            mod.thread.schedule do
+                                mod.start
+                            end
+                        })
+                    end
+
+                    promise
                 })
             })
         end
