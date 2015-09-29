@@ -156,9 +156,8 @@ module Orchestrator
                             if @ready && @unloaded.include?(mod_id)
                                 @unloaded.delete(mod_id)
                                 
-                                new_thread = thread.observer
                                 @threads.each do |thr|
-                                    thr.observer.move(mod_id, new_thread)
+                                    thr.observer.move(mod_id, thread)
                                 end
                             end
 
