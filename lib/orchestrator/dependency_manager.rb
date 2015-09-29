@@ -7,8 +7,8 @@ module Orchestrator
         include Singleton
 
 
-        def self.load(classname, role, force = false)
-            DependencyManager.instance.load_helper(classname.to_s, role.to_sym, !!force)
+        def self.load(classname, role, force = true)
+            DependencyManager.instance.load_helper(classname.to_s, role.to_sym, force)
         end
 
         def initialize
