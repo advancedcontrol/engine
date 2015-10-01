@@ -64,7 +64,7 @@ module Orchestrator
         def value?(val)
             val.deep_symbolize_keys!
 
-            if val[:const]
+            if val.has_key?(:const)
                 # Should only store the constant
                 val.keep_if { |k, _| k == :const }
                 true
