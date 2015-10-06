@@ -15,6 +15,11 @@
                     "type": "pattern",
                     "pattern": "(\\-|\\.|\\_|\\@|\\#|\\$|\\^|\\%|\\*|=|\\+|\\!|\\,|\/|\\'|\"|\\:|\\||\\;|\\[|\\]|\\{|\\}|\\)|\\(|\\`|\\~|\\>|\\<|\\?|\\W)+",
                     "filter": ["lowercase", "custom_ascii_folding"]
+                },
+                "lowercase_ordering": {
+                    "type": "pattern",
+                    "pattern": "$",
+                    "filter": ["lowercase"]
                 }
             },
             "filter" : {
@@ -88,8 +93,29 @@
                         "ending"         : {"type": "integer", "store": true },
                         "end_int"        : {"type": "integer", "store": true },
 
-                        "title"          : {"type": "string", "store": true, "analyzer": "aggressive_tokenisation" },
-                        "name"           : {"type": "string", "store": true, "analyzer": "aggressive_tokenisation" },
+                        "title": {
+                            "type": "string",
+                            "store": true,
+                            "analyzer": "aggressive_tokenisation",
+                            "fields": {
+                                "sort": {
+                                    "type":  "string",
+                                    "analyzer": "lowercase_ordering"
+                                }
+                            }
+                        },
+                        "name": {
+                            "type": "string",
+                            "store": true,
+                            "analyzer": "aggressive_tokenisation",
+                            "fields": {
+                                "sort": { 
+                                    "type":  "string",
+                                    "analyzer": "lowercase_ordering"
+                                }
+                            }
+                        },
+
                         "email"          : {"type": "string", "analyzer": "searchable" },
                         "uri"            : {"type": "string", "analyzer": "searchable" },
                         "ip"             : {"type": "string", "analyzer": "searchable" },
