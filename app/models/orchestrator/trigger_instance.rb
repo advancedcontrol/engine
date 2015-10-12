@@ -80,15 +80,23 @@ module Orchestrator
         # START / STOP HELPERS
         # --------------------
         def load
-            mod_man = get_module_manager
-            mod = mod_man.instance if mod_man
+            if @ignore_update != true
+                mod_man = get_module_manager
+                mod = mod_man.instance if mod_man
 
-            if mod_man && mod
-                trig = self
-                mod_man.thread.schedule do
-                    mod.reload trig
+                if mod_man && mod
+                    trig = self
+                    mod_man.thread.schedule do
+                        mod.reload trig
+                    end
                 end
+            else
+                @ignore_update = false
             end
+        end
+
+        def ignore_update
+            @ignore_update = true
         end
 
         def unload

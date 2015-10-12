@@ -55,13 +55,13 @@ module Orchestrator
             end
 
             def reload(trig)
-                # Check trigger belongs to this system
-                if system.id == trig[:system_id]
-                    # Unload any previous trigger with the same ID
-                    old = @triggers[trig.id]
-                    remove(old) if old
+                # Unload any previous trigger with the same ID
+                old = @triggers[trig.id]
+                remove(old) if old
 
-                    logger.debug { "loading trigger: #{trig.name} -> #{trig.id}" }
+                # Check trigger belongs to this system (this should always be true)
+                if system.id == trig.control_system_id.to_sym
+                    logger.info { "loading trigger: #{trig.name} -> #{trig.id}" }
 
                     # Load the new trigger
                     @triggers[trig.id] = trig
@@ -79,11 +79,13 @@ module Orchestrator
 
                     # enable the triggers
                     state.enabled(trig.enabled)
+                else
+                    logger.info "not loading trigger #{trig.name} -> #{trig.id} due to system mismatch: #{system.id} != #{trig.control_system_id}"
                 end
             end
 
             def remove(trig)
-                logger.debug { "removing trigger: #{trig.name} -> #{trig.id}" }
+                logger.info { "removing trigger: #{trig.name} -> #{trig.id}" }
 
                 @trigger_names.delete(trig.name)
                 @subscriptions[trig.id].each do |sub|
@@ -176,6 +178,7 @@ module Orchestrator
                         model = ::Orchestrator::TriggerInstance.find_by_id id
 
                         if model
+                            model.ignore_update
                             model.triggered = state
                             model.save!(CAS => model.meta[CAS])
                             model.name  # Load the parent model
@@ -189,7 +192,7 @@ module Orchestrator
                     if model
                         @triggers[id] = model
                         @trigger_names[model.name] = model
-                        logger.debug { "trigger model updated: #{model.name} -> #{model.id}" }
+                        logger.info { "trigger model updated: #{model.name} -> #{model.id}" }
                     else
                         model = @triggers[id]
                         model.triggered = state
@@ -213,10 +216,10 @@ module Orchestrator
                         case act[:type].to_sym
                         when :exec
                             # Execute the action
-                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
+                            logger.info { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
                             system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
                         when :email
-                            logger.debug { "sending email to: #{act[:to]}" }
+                            logger.info { "sending email to: #{act[:to]}" }
                             # TODO:: provide hooks into action mailer
                         end
                     rescue => e

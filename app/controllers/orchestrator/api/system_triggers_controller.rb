@@ -13,12 +13,12 @@ module Orchestrator
             @@elastic ||= Elastic.new(TriggerInstance)
 
 
-            QUERY_PARAMS = [:system_id]
+            QUERY_PARAMS = [:control_system_id]
             def index
                 query = @@elastic.query(params)
 
                 # Filter by system ID
-                sys_id = params.permit(QUERY_PARAMS)[:system_id]
+                sys_id = params.permit(QUERY_PARAMS)[:control_system_id]
                 query.filter({
                     control_system_id: [sys_id]
                 })
@@ -33,12 +33,12 @@ module Orchestrator
             end
 
             def update
-                @trig.assign_attributes(safe_params)
+                @trig.assign_attributes(safe_update)
                 save_and_respond(@trig)
             end
 
             def create
-                trig = TriggerInstance.new(safe_params)
+                trig = TriggerInstance.new(safe_create)
                 save_and_respond trig
             end
 
@@ -52,15 +52,18 @@ module Orchestrator
 
 
             # Better performance as don't need to create the object each time
-            INSTANCE_PARAMS = [
+            CREATE_PARAMS = [
                 :enabled, :important, :control_system_id, :trigger_id
             ]
-            REQUIRED_PARAMS = [
-                :control_system_id, :trigger_id
+            def safe_create
+                params.permit(CREATE_PARAMS)
+            end
+            
+            UPDATE_PARAMS = [
+                :enabled, :important
             ]
-            def safe_params
-                params.require(REQUIRED_PARAMS)
-                params.permit(INSTANCE_PARAMS)
+            def safe_update
+                params.permit(UPDATE_PARAMS)
             end
 
             def find_instance
