@@ -42,6 +42,16 @@ module Orchestrator
             trigger.debounce_period
         end
 
+        def binding
+            return @binding if @binding || self.id.nil?
+            chars = self.id.split('_'.freeze, 2)[1]
+            @binding = 't'
+            chars.each_byte do |byte|
+                @binding << byte.to_s(16)
+            end
+            @binding
+        end
+
 
         # ------------
         # VIEWS ACCESS
@@ -67,7 +77,8 @@ module Orchestrator
             :name,
             :description,
             :conditions,
-            :actions
+            :actions,
+            :binding
         ].freeze
         def serializable_hash(options = {})
             options = options || {}
@@ -80,7 +91,9 @@ module Orchestrator
         # START / STOP HELPERS
         # --------------------
         def load
-            if @ignore_update != true
+            if @ignore_update == true
+                @ignore_update = false
+            else
                 mod_man = get_module_manager
                 mod = mod_man.instance if mod_man
 
@@ -90,8 +103,6 @@ module Orchestrator
                         mod.reload trig
                     end
                 end
-            else
-                @ignore_update = false
             end
         end
 
@@ -105,8 +116,9 @@ module Orchestrator
 
             if mod_man && mod
                 trig = self
+                old_id = trig.id # This is removed once delete has completed
                 mod_man.thread.schedule do
-                    mod.remove trig
+                    mod.remove old_id
                 end
             end
         end

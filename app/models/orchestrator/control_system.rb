@@ -105,6 +105,7 @@ module Orchestrator
 
         # For trigger logic module compatibility
         def running; true; end
+        def custom_name; :__Triggers__; end
 
 
         protected

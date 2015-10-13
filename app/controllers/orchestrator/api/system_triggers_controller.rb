@@ -39,7 +39,8 @@ module Orchestrator
 
             def create
                 trig = TriggerInstance.new(safe_create)
-                save_and_respond trig
+                trig.save
+                render json: trig
             end
 
             def destroy
