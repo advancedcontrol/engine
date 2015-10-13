@@ -65,7 +65,7 @@ module Orchestrator
 
                 # Check trigger belongs to this system (this should always be true)
                 if system.id == trig.control_system_id.to_sym
-                    logger.info { "loading trigger: #{trig.name} (#{trig.id})" }
+                    logger.debug { "loading trigger: #{trig.name} (#{trig.id})" }
 
                     # Load the new trigger
                     @triggers[trig.id] = trig
@@ -93,7 +93,7 @@ module Orchestrator
                 trig = @triggers[trig_id]
 
                 if trig
-                    logger.info { "removing trigger: #{trig.name} (#{trig_id})" }
+                    logger.debug { "removing trigger: #{trig.name} (#{trig_id})" }
 
                     @trigger_names.delete(trig.name)
                     @subscriptions[trig_id].each do |sub|
@@ -213,7 +213,7 @@ module Orchestrator
                         @triggers[id] = model
                         @trigger_names[model.name] = model
                         self[model.binding] = state
-                        logger.info { "trigger model updated: #{model.name} (#{model.id}) -> #{state}" }
+                        logger.info "trigger model updated: #{model.name} (#{model.id}) -> #{state}"
                     else
                         model = @triggers[id]
                         model.triggered = state
@@ -239,17 +239,17 @@ module Orchestrator
             def perform_trigger_actions(id)
                 model = @triggers[id]
 
-                logger.info "running trigger actions for #{model.name} (#{model.id})"
+                logger.debug "running trigger actions for #{model.name} (#{model.id})"
 
                 model.actions.each do |act|
                     begin
                         case act[:type].to_sym
                         when :exec
                             # Execute the action
-                            logger.info { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
+                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
                             system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
                         when :email
-                            logger.info { "sending email to: #{act[:to]}" }
+                            logger.debug { "sending email to: #{act[:to]}" }
                             # TODO:: provide hooks into action mailer
                         end
                     rescue => e
