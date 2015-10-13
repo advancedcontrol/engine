@@ -11,7 +11,7 @@ module Orchestrator
 
             # Access to other modules in the same control system
             def system(user = nil)
-                ::Orchestrator::Core::SystemProxy.new(@thread, @settings.control_system_id, nil, user)
+                ::Orchestrator::Core::SystemProxy.new(@thread, @settings.control_system_id, self, user)
             end
         end
     end

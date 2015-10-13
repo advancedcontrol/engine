@@ -65,7 +65,7 @@ module Orchestrator
 
                 # Check trigger belongs to this system (this should always be true)
                 if system.id == trig.control_system_id.to_sym
-                    logger.info { "loading trigger: #{trig.name} -> #{trig.id}" }
+                    logger.info { "loading trigger: #{trig.name} (#{trig.id})" }
 
                     # Load the new trigger
                     @triggers[trig.id] = trig
@@ -76,15 +76,16 @@ module Orchestrator
 
                     subs = []
                     sys_proxy = system
+                    sub_callback = state.method(:set_value)
                     state.subscriptions.each do |sub|
-                        subs << subscribe(sys_proxy, state, sub[:mod], sub[:index], sub[:status])
+                        subs << sys_proxy.subscribe(sub[:mod], sub[:index], sub[:status], sub_callback)
                     end
                     @subscriptions[trig.id] = subs
 
                     # enable the triggers
                     state.enabled(trig.enabled)
                 else
-                    logger.info "not loading trigger #{trig.name} -> #{trig.id} due to system mismatch: #{system.id} != #{trig.control_system_id}"
+                    logger.info "not loading trigger #{trig.name} (#{trig.id}) due to system mismatch: #{system.id} != #{trig.control_system_id}"
                 end
             end
 
@@ -92,7 +93,7 @@ module Orchestrator
                 trig = @triggers[trig_id]
 
                 if trig
-                    logger.info { "removing trigger: #{trig.name} -> #{trig_id}" }
+                    logger.info { "removing trigger: #{trig.name} (#{trig_id})" }
 
                     @trigger_names.delete(trig.name)
                     @subscriptions[trig_id].each do |sub|
@@ -238,7 +239,7 @@ module Orchestrator
             def perform_trigger_actions(id)
                 model = @triggers[id]
 
-                logger.info "running trigger actions for #{model.name} -> #{model.id}"
+                logger.info "running trigger actions for #{model.name} (#{model.id})"
 
                 model.actions.each do |act|
                     begin
