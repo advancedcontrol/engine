@@ -199,6 +199,7 @@ module Orchestrator
 
                         if model
                             model.ignore_update
+                            model.updated_at = Time.now.to_i
                             model.triggered = state
                             model.save!(CAS => model.meta[CAS])
                             model.name  # Load the parent model

@@ -8,6 +8,8 @@ module Orchestrator
         belongs_to :trigger, :class_name => "Orchestrator::Trigger".freeze
 
         attribute :created_at, default: lambda { Time.now.to_i }
+        attribute :updated_at, default: lambda { Time.now.to_i }
+        
         attribute :enabled,    default: true
         attribute :triggered,  default: false
         attribute :important,  default: false

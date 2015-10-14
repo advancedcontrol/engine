@@ -13,18 +13,44 @@ module Orchestrator
             @@elastic ||= Elastic.new(TriggerInstance)
 
 
-            QUERY_PARAMS = [:control_system_id]
+            QUERY_PARAMS = [:control_system_id, :as_of]
             def index
                 query = @@elastic.query(params)
+                safe_query = params.permit(QUERY_PARAMS)
+                filter = {}
 
                 # Filter by system ID
-                sys_id = params.permit(QUERY_PARAMS)[:control_system_id]
-                query.filter({
-                    control_system_id: [sys_id]
-                })
+                if safe_query.has_key? :control_system_id
+                    sys_id = params.permit(QUERY_PARAMS)[:control_system_id]
+                    filter[:control_system_id] = [sys_id]
+                end
+
+                # Filter by importance
+                if params.has_key? :important
+                    filter[:important] = [true]
+                end
+
+                # Filter by triggered
+                if params.has_key? :triggered
+                    filter[:triggered] = [true]
+                end
+
+                # That occured before a particular time
+                if safe_query.has_key? :as_of
+                    query.raw_filter({
+                        range: {
+                            updated_at: {
+                                lte: safe_query[:as_of].to_i
+                            }
+                        }
+                    })
+                end
+
+                query.filter(filter)
 
                 # Include parent documents in the search
                 query.has_parent Trigger
+
                 respond_with @@elastic.search(query)
             end
 

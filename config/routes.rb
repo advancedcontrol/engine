@@ -40,7 +40,8 @@ Orchestrator::Engine.routes.draw do
             get 'current',  on: :collection
         end
         resources :logs
-        
+        resources :system_triggers
+
         concerns  :mods
 
         resources :stats do
