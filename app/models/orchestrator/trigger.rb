@@ -30,7 +30,6 @@ module Orchestrator
         # VALIDATIONS
         # -----------
         validates :name,       presence: true
-        validates :conditions, presence: true
 
         validate  :condition_list
         validate  :action_list
