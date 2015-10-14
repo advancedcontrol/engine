@@ -13,7 +13,16 @@ module Orchestrator
             @@elastic ||= Elastic.new(TriggerInstance)
 
 
-            QUERY_PARAMS = [:control_system_id, :as_of]
+            SYS_INCLUDE = {
+                include: {
+                    # include control system on logic modules so it is possible
+                    # to display the inherited settings
+                    control_system: {
+                        only: [:name, :id],
+                    }
+                }
+            }
+            QUERY_PARAMS = [:control_system_id, :trigger_id, :as_of]
             def index
                 query = @@elastic.query(params)
                 safe_query = params.permit(QUERY_PARAMS)
@@ -21,8 +30,12 @@ module Orchestrator
 
                 # Filter by system ID
                 if safe_query.has_key? :control_system_id
-                    sys_id = params.permit(QUERY_PARAMS)[:control_system_id]
-                    filter[:control_system_id] = [sys_id]
+                    filter[:control_system_id] = [safe_query[:control_system_id]]
+                end
+
+                # Filter by trigger ID
+                if safe_query.has_key? :trigger_id
+                    filter[:trigger_id] = [safe_query[:trigger_id]]
                 end
 
                 # Filter by importance
@@ -50,8 +63,12 @@ module Orchestrator
 
                 # Include parent documents in the search
                 query.has_parent Trigger
-
-                respond_with @@elastic.search(query)
+                results = @@elastic.search(query)
+                if safe_query.has_key? :trigger_id
+                    respond_with results, SYS_INCLUDE
+                else
+                    respond_with results
+                end
             end
 
             def show
