@@ -48,7 +48,7 @@ module Orchestrator
                     if cond.length < 3
                         valid = CONST_KEYS.include?(cond[0].to_sym)
                     else
-                        valid = value?(cond[0]) && KEYS.include?(cond[1].to_sym) && value?(cond[2])
+                        valid = value?(cond[0]) && cond[1] && KEYS.include?(cond[1].to_sym) && value?(cond[2])
                     end
                     break if not valid
                 end
@@ -61,9 +61,8 @@ module Orchestrator
 
         STATUS_KEYS = Set.new([:mod, :index, :status, :keys])
         # TODO:: Should also check types
-        def value?(val)
-            val.deep_symbolize_keys!
-
+        def value?(strong_val)
+            val = strong_val.to_h.deep_symbolize_keys
             if val.has_key?(:const)
                 # Should only store the constant
                 val.keep_if { |k, _| k == :const }
@@ -90,9 +89,11 @@ module Orchestrator
         end
 
         ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args])
-        def check_action(act)
-            act.deep_symbolize_keys!
+        def check_action(strong_act)
+            act = strong_act.to_h.deep_symbolize_keys
             act.keep_if { |k, _| ACTION_KEYS.include? k }
+
+            return false if act.empty? || act[:type].nil?
 
             case act[:type].to_sym
             when :exec
