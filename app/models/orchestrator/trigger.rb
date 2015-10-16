@@ -26,6 +26,13 @@ module Orchestrator
             end
         end
 
+        after_save :reload_all
+        def reload_all
+            TriggerInstance.of(self.id).each do |trig|
+                trig.load
+            end
+        end
+
         # -----------
         # VALIDATIONS
         # -----------
@@ -99,7 +106,7 @@ module Orchestrator
                 act[:index].is_a?(Fixnum) && act.has_key?(:mod) && act.has_key?(:func) && act[:args].is_a?(Array)
             when :email
                 # TODO:: 
-                false
+                true
             else
                 false
             end
