@@ -62,7 +62,7 @@ module Orchestrator
                 query.filter(filter)
 
                 # Include parent documents in the search
-                query.has_parent Trigger
+                query.has_parent :trigger
                 results = @@elastic.search(query)
                 if safe_query.has_key? :trigger_id
                     respond_with results, SYS_INCLUDE

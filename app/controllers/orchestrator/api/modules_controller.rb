@@ -75,7 +75,7 @@ module Orchestrator
                     end
 
                     query.filter(filter) unless filter.empty?
-                    query.has_parent Dependency
+                    query.has_parent :dep
 
                     results = @@elastic.search(query)
                     respond_with results, MOD_INCLUDE
