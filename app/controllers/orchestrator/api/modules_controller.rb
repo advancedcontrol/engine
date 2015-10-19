@@ -13,7 +13,6 @@ module Orchestrator
             @@elastic ||= Elastic.new(::Orchestrator::Module)
 
             # Constant for performance
-            Dependency = 'dep'.freeze
             MOD_INCLUDE = {
                 include: {
                     # Most human readable module data is contained in dependency
