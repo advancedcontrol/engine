@@ -45,9 +45,11 @@ Orchestrator::Engine.routes.draw do
         concerns  :mods
 
         resources :stats do
-            get 'connections', on: :collection
-            get 'triggers',    on: :collection
-            get 'offline',     on: :collection
+            get  'connections', on: :collection
+            get  'triggers',    on: :collection
+            get  'offline',     on: :collection
+            get  'ignore_list', on: :collection
+            post 'ignore',      on: :collection
         end
     end
 
