@@ -11,6 +11,7 @@ module Orchestrator
             @@elastic ||= Elastic.new(::Orchestrator::AccessLog)
 
 
+            UserId = 'doc.user_id'.freeze
             def index
                 query = @@elastic.query(params)
 
@@ -18,7 +19,7 @@ module Orchestrator
                 if params.has_key? :user_id
                     user_id = params.permit(:user_id)[:user_id]
                     query.filter({
-                        user_id: [user_id]
+                        UserId => [user_id]
                     })
                 end
 
