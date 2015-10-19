@@ -22,15 +22,15 @@ module Orchestrator
                     }
                 }
             }
-            QUERY_PARAMS = [:control_system_id, :trigger_id, :as_of]
+            QUERY_PARAMS = [:sys_id, :trigger_id, :as_of]
             def index
                 query = @@elastic.query(params)
                 safe_query = params.permit(QUERY_PARAMS)
                 filter = {}
 
                 # Filter by system ID
-                if safe_query.has_key? :control_system_id
-                    filter[:control_system_id] = [safe_query[:control_system_id]]
+                if safe_query.has_key? :sys_id
+                    filter[:control_system_id] = [safe_query[:sys_id]]
                 end
 
                 # Filter by trigger ID
