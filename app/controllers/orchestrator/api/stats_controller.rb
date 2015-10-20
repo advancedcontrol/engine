@@ -19,6 +19,16 @@ module Orchestrator
                 }
             end
 
+            # Number of interface panels are connected
+            def panels
+                render json: {
+                    period_name: @pname,
+                    period_start: @period_start,
+                    interval: @period[0],
+                    histogram: build_query(:fixed_connections)
+                }
+            end
+
             # Number of active important triggers
             def triggers
                 render json: {

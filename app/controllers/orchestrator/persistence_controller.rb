@@ -18,7 +18,8 @@ module Orchestrator
                 user = current_user
                 promise.then do |hijacked|
                     ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
-                    WebsocketManager.new(ws, user)
+                    fixed_device = params.has_key?(:fixed_device)
+                    WebsocketManager.new(ws, user, fixed_device)
                     ws.start
                 end
 

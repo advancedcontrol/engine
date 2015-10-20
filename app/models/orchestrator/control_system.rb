@@ -21,6 +21,10 @@ module Orchestrator
         attribute :name
         attribute :description
 
+        # The number of UI devices that are always available in the room
+        # i.e. the number of iPads mounted on the wall
+        attribute :installed_ui_devices, default: 0
+
         attribute :zones,       default: lambda { [] }
         attribute :modules,     default: lambda { [] }
         attribute :settings,    default: lambda { {} }

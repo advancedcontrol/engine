@@ -231,7 +231,7 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
-                :name, :description, :support_url,
+                :name, :description, :support_url, :installed_ui_devices,
                 {
                     zones: [],
                     modules: []
@@ -242,11 +242,13 @@ module Orchestrator
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
                 settings = params[:settings]
-                {
+                args = {
                     modules: [],
                     zones: [],
                     settings: settings.is_a?(::Hash) ? settings : {}
-                }.merge(params.permit(CS_PARAMS))
+                }.merge!(params.permit(CS_PARAMS))
+                args[:installed_ui_devices] = args[:installed_ui_devices].to_i if args.has_key? :installed_ui_devices
+                args
             end
 
             def find_system
