@@ -313,32 +313,21 @@ module Orchestrator
         # This function is always run from the thread pool
         # Batch loads the system triggers on to the main thread
         def load_all_triggers
+            defer = @loop.defer
             begin
-                systems = []
-                ControlSystem.all.each do |cs|
-                    systems << cs
-                    if systems.length >= 20
-                        schedule_triggers_for(systems)
-                        systems = []
+                systems = ControlSystem.all.to_a
+                @loop.schedule do
+                    systems.each do |sys|
+                        load_triggers_for sys
                     end
-                end
-                if systems.length > 0
-                    schedule_triggers_for(systems)
+                    defer.resolve true
                 end
             rescue => e
                 @logger.warn "exception starting triggers #{e.message}"
                 sleep 1  # Give it a bit of time
                 retry
             end
-        end
-
-        # Schedule the systems for loading on the default thread
-        def schedule_triggers_for(systems)
-            @loop.schedule do
-                systems.each do |sys|
-                    load_triggers_for sys
-                end
-            end
+            defer.promise
         end
 
         # This will always be called on the thread reactor here
@@ -398,7 +387,11 @@ module Orchestrator
             end
 
             # Once load is complete we'll accept websockets
-            ::Libuv::Q.finally(@loop, *loading).finally method(:notify_ready)
+            ::Libuv::Q.finally(@loop, *loading).finally do
+                load_all_triggers.then do
+                    notify_ready
+                end
+            end
         end
 
 

@@ -44,6 +44,10 @@ module Orchestrator
                 end
             end
 
+            def remote_address
+                @__config__.settings.uri
+            end
+
             def clear_cookies
                 # TODO::
             end

@@ -30,6 +30,14 @@ module Orchestrator
                     @__config__.processor.send_options(options)
                 end
             end
+
+            def remote_address
+                @__config__.settings.ip
+            end
+
+            def remote_port
+                @__config__.settings.port
+            end
         end
     end
 end

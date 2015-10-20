@@ -106,13 +106,15 @@ module Orchestrator
             ##
             # Helper functions ------------------
             def send_options(options)
-                @defaults.merge!(options)
+                @defaults.merge!(options) if options
             end
 
             def config=(options)
-                @config.merge!(options)
-                # use tokenize to signal a buffer update
-                new_buffer if options.include?(:tokenize)
+                if options
+                    @config.merge!(options)
+                    # use tokenize to signal a buffer update
+                    new_buffer if options.include?(:tokenize)
+                end
             end
 
             #

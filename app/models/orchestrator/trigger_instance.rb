@@ -8,6 +8,8 @@ module Orchestrator
         belongs_to :trigger, :class_name => "Orchestrator::Trigger".freeze
 
         attribute :created_at, default: lambda { Time.now.to_i }
+        attribute :updated_at, default: lambda { Time.now.to_i }
+        
         attribute :enabled,    default: true
         attribute :triggered,  default: false
         attribute :important,  default: false
@@ -42,6 +44,16 @@ module Orchestrator
             trigger.debounce_period
         end
 
+        def binding
+            return @binding if @binding || self.id.nil?
+            chars = self.id.split('_'.freeze, 2)[1]
+            @binding = 't'
+            chars.each_byte do |byte|
+                @binding << byte.to_s(16)
+            end
+            @binding
+        end
+
 
         # ------------
         # VIEWS ACCESS
@@ -67,7 +79,8 @@ module Orchestrator
             :name,
             :description,
             :conditions,
-            :actions
+            :actions,
+            :binding
         ].freeze
         def serializable_hash(options = {})
             options = options || {}
@@ -80,15 +93,23 @@ module Orchestrator
         # START / STOP HELPERS
         # --------------------
         def load
-            mod_man = get_module_manager
-            mod = mod_man.instance if mod_man
+            if @ignore_update == true
+                @ignore_update = false
+            else
+                mod_man = get_module_manager
+                mod = mod_man.instance if mod_man
 
-            if mod_man && mod
-                trig = self
-                mod_man.thread.schedule do
-                    mod.reload trig
+                if mod_man && mod
+                    trig = self
+                    mod_man.thread.schedule do
+                        mod.reload trig
+                    end
                 end
             end
+        end
+
+        def ignore_update
+            @ignore_update = true
         end
 
         def unload
@@ -97,8 +118,9 @@ module Orchestrator
 
             if mod_man && mod
                 trig = self
+                old_id = trig.id # This is removed once delete has completed
                 mod_man.thread.schedule do
-                    mod.remove trig
+                    mod.remove old_id
                 end
             end
         end

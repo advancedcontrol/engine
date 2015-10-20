@@ -12,6 +12,7 @@ module Orchestrator
         attribute :modules_disconnected, default: 0
         attribute :triggers_active,      default: 0
         attribute :connections_active,   default: 0
+        attribute :fixed_connections,    default: 0
 
         # Unique field in the index
         attribute :stat_snapshot_at
@@ -53,6 +54,23 @@ module Orchestrator
                 }
             }])
             self.connections_active = @@accessing.count(query).to_i
+
+            #----------------------------
+            # => Fixed connections active
+            #----------------------------
+            query = @@accessing.query
+            query.missing(:ended_at)    # Still active
+            query.filter({
+                installed_device: [true]
+            })
+            query.raw_filter([{         # Model was updated in the last 2min
+                range: {
+                    last_checked_at: {
+                        gte: self.stat_snapshot_at - 120
+                    }
+                }
+            }])
+            self.fixed_connections = @@accessing.count(query).to_i
 
             #-------------------
             # => Triggers active
