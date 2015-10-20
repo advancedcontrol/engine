@@ -34,41 +34,82 @@ module Orchestrator
 
             # Who accessed a particular system and when
             Systems = 'doc.systems'.freeze
-            LOG_PARAMS = [:system_id, :from, :until, :installed]
+            LOG_PARAMS = [:sys_id, :starting, :ending, :installed, :suspected, :user]
             def system_logs
                 params.require(:sys_id)
                 args = params.permit(LOG_PARAMS)
 
                 query = @@elastic.query(params)
 
-                # Filter systems via user_id
-                query.filter({
-                    Systems => [args[:sys_id]]
-                })
-
-                custom = {}
+                # Filter systems via sys_id
+                custom = [{
+                    term: {
+                        Systems => args[:sys_id]
+                    }
+                }]
 
                 # All connections who end after this
-                if args.has_key? :from
-                    custom
+                if args.has_key? :starting
+                    custom << {
+                        or: [
+                            # Never ending
+                            {
+                                missing: { field: :ended_at }
+                            },
+
+                            # Or ends after the start time we requested
+                            {
+                                range: {
+                                    ending: {
+                                        gt: args[:starting].to_i
+                                    }
+                                }
+                            }
+                        ]
+                    }
                 end
 
                 # All connections who started before this
-                if args.has_key? :until
-
+                if args.has_key? :ending
+                    custom << {
+                        range: {
+                            created_at: {
+                                lt: args[:ending].to_i
+                            }
+                        }
+                    }
                 end
 
                 # Remove or include installation hardware
-                installed = args[:installed] == 'true'
-                if installed
-                    #custom[]
-                else
-
+                if args.has_key? :installed
+                    installed = args[:installed] == 'true'
+                    custom << {
+                        term: {
+                            installed_device: installed
+                        }
+                    }
                 end
 
-                if not custom.empty?
-
+                if args.has_key? :suspected
+                    suspected = args[:suspected] == 'true'
+                    custom << {
+                        term: {
+                            suspected: suspected
+                        }
+                    }
                 end
+
+                if args.has_key? :user
+                    custom << {
+                        term: {
+                            user_id: args[:user]
+                        }
+                    }
+                end
+
+                query.raw_filter({
+                    and: custom
+                })
 
                 results = @@elastic.search(query)
                 respond_with results, {
