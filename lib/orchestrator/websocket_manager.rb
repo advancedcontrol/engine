@@ -347,10 +347,10 @@ module Orchestrator
                         if mod_man
                             mod_man.settings.id.to_sym
                         else
-                            ::Libuv::Q.reject(@loop, 'debug failed: module #{sys}->#{mod}_#{index} not found')
+                            ::Libuv::Q.reject(@loop, "debug failed: module #{sys}->#{mod}_#{index} not found")
                         end
                     else
-                        ::Libuv::Q.reject(@loop, 'debug failed: system #{sys} lookup failed')
+                        ::Libuv::Q.reject(@loop, "debug failed: system #{sys} lookup failed")
                     end
                 }).then(proc { |mod_id|
                     do_debug(id, mod_id, sys, mod, index)
