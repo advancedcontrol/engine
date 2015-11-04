@@ -78,7 +78,7 @@ module Orchestrator
             query = @@triggers.query
             query.filter({
                 triggered: [true],
-                important: [true],
+                # important: [true],  # Might as well grab stats for all triggers
                 enabled: [true]
             })
             self.triggers_active = @@triggers.count(query).to_i
