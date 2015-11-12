@@ -134,8 +134,8 @@ module Orchestrator
                 })
                 search_json = @@cs.generate_body(query)
                 body = search_json[:body]
-                body.delete(:from)
-                body.delete(:size)
+                body[:from] = 0
+                body[:size] = 100_000_000
                 result = ::Elastic.search(search_json)
 
                 system_ids = result[::Elastic::HITS][::Elastic::HITS].map {|entry| entry[::Elastic::ID]} || []
@@ -204,7 +204,9 @@ module Orchestrator
                                         field: :system_id
                                     }
                                 }
-                            }
+                            },
+                            from: 0,
+                            size: 1_000_000_000
                         }
                     }
 
