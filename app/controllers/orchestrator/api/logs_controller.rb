@@ -201,12 +201,13 @@ module Orchestrator
                             aggs: {
                                 system_count: {
                                     terms: {
-                                        field: :system_id
+                                        field: :system_id,
+                                        size: 0
                                     }
                                 }
                             },
                             from: 0,
-                            size: 1_000_000_000
+                            size: 0
                         }
                     }
 
