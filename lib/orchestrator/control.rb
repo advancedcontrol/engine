@@ -39,7 +39,7 @@ module Orchestrator
             # We keep track of unloaded modules so we can optimise loading them again
             @unloaded = Set.new
 
-            if Rails.env.production?
+            if Rails.env.production? && ENV['ORC_NO_BOOT'].nil?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
             else
                 logger = ::Logger.new(STDOUT)
