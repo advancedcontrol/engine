@@ -95,9 +95,6 @@ require 'libuv'
 loop = Libuv::Loop.default
 loop.run do
     udp = loop.udp
-    udp.progress do |data, ip, port|
-        puts "received #{data} from #{ip}:#{port}"
-    end
     udp.bind('0.0.0.0', 0)
     udp.enable_broadcast
     udp.send('239.255.250.250', 9131, "AMXB <-SDKClass=VideoProjector> <-UUID=DEADBEEF> <-Make=Epson> <-Model=EB-4950WU>\r")
