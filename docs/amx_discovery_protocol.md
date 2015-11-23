@@ -9,10 +9,14 @@ Device will broadcast messages that look like:
 ```ruby
 
 "AMXB <-SDKClass=VideoProjector> <-UUID=DEADBEEF> <-Make=Epson> <-Model=EB-4950WU>\r"
+# OR
+"AMXB<-UUID=001122334455><-SDKClass=AudioConferencer><-Make=Polycom>
+<-Model=SoundStructureC16><-Revision=1.0.0><Config-Name=SoundStructure C16
+Configuration> <Config-URL=http://172.22.2.109/>\r"
 
 ```
 
-## Field Names
+## Common Field Names
 
 * Device-SDKClass
 * -SDKClass
