@@ -61,7 +61,7 @@ module Orchestrator
                 end
             end
 
-            puts "Discovered #{count} modules"
+            puts "Discovered #{count} drivers"
         end
 
 

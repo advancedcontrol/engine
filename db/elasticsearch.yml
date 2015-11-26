@@ -21,7 +21,7 @@ couchbase.documentTypes.zone: ^zone(-|_).+$
 couchbase.documentTypes.trigger: ^trigger(-|_).+$
 couchbase.documentTypes.trig: ^trig(-|_).+$
 couchbase.documentTypes.stats: ^zzz(-|_).+$
-couchbase.documentTypes.disc: ^disc-.+$
+couchbase.documentTypes.disc: ^disc-.+$   # Disc is different to all the other IDs
 
 # Module to dependency mapping
 couchbase.documentTypeParentFields.mod: doc.dependency_id
