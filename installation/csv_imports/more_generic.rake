@@ -1,4 +1,4 @@
-# Usage: rake import:devices_csv filename create!
+# Usage: rake import:devices_csv['/file/path.csv','test']
 
 # csv filename as argument
 # Rows are:
@@ -90,6 +90,8 @@ namespace :import do
 
                 if raw[IpAdress] && !raw[IpAdress].empty?
                     device.ip = raw[IpAdress]
+                else
+                    device.control_system_id = system.id
                 end
                 
                 if raw[MacAddress] && !raw[MacAddress].empty?
@@ -129,7 +131,7 @@ namespace :import do
 
 
         # Complete the system configuration
-        systems.each do |sys|
+        systems.each do |name, sys|
             sys.support_url = "https://avcontrol.oc.rabonet.com/meeting/#/?ctrl=#{sys.id}"
 
             tries = 0
@@ -150,5 +152,5 @@ namespace :import do
                 end
             end
         end
-	end	
+	end
 end

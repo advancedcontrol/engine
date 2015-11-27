@@ -1,5 +1,11 @@
-# csv filename as argument
-# Room #,Model,Equipment Description,Device Qty,Location,Serial Number,MAC Address,VLAN,IP Address,Subnet,Gateway,ACA interface URL
+# NOTE:: ONLY FOR USE WITH THE 2015 Abercrombie project
+# -- UPDATE ZONES and Room names for future imports
+
+# USAGE: rake import:learning_hubs_2015['/file/path.csv','test']
+# csv file to be formatted like:
+#   Room #,Model,Equipment Description,Device Qty,Location,Serial Number,MAC Address,VLAN,IP Address,Subnet,Gateway,ACA interface URL
+
+
 namespace :import do
 
     desc 'System Import tool for 2015 Abercrombie project'
@@ -8,6 +14,7 @@ namespace :import do
         f = args[:file_name]
         func = args[:run_type]
 
+        # Room names were not provided in the CSV
         RM_NAME = {
             1010 => 'BSB Learning Hub South',
             1220 => 'BSB Learning Hub North' ,
@@ -18,14 +25,14 @@ namespace :import do
             3190 => 'BSB 60P LS',
             3300 => 'BSB 30P LS'
         }
-        BLD_ID = {
-            1001 => '',
-        }
+
         ZONES = {
+                    # Pod Type    # Std Pod    # Building   # Sydney Uni
             1010 => ["zone_2-17", "zone_2-15", "zone_2-1O", "zone_2-10"],
             1220 => ["zone_2-17", "zone_2-15", "zone_2-1O", "zone_2-10"],
             1230 => ["zone_2-17", "zone_2-15", "zone_2-1O", "zone_2-10"],
 
+                    # Join Zone   # Join Pod   # Building   # Sydney Uni
             2100 => ["zone_2-1C", "zone_2-1B", "zone_2-1O", "zone_2-10"],
             3090 => ["zone_2-1D", "zone_2-1B", "zone_2-1O", "zone_2-10"],
             3100 => ["zone_2-1E", "zone_2-1B", "zone_2-1O", "zone_2-10"],
@@ -33,6 +40,8 @@ namespace :import do
             3190 => ["zone_2-1G", "zone_2-1B", "zone_2-1O", "zone_2-10"],
             3300 => ["zone_2-1H", "zone_2-1B", "zone_2-1O", "zone_2-10"],
         }
+
+        # We store the AddSys struct instances in here
         systems = []
 
         AddSys = Struct.new(
@@ -58,12 +67,15 @@ namespace :import do
             def create!
                 sys = Orchestrator::ControlSystem.find_by_name system_name
 
+                # Only create new systems if they don't exist already (might have needed IDs early)
                 unless sys
                     sys = Orchestrator::ControlSystem.new
                     sys.name = system_name
                 end
                 sys.zones = ZONES[room_num]
 
+
+                # Deal with the database (just in case it doesn't want to play ball)
                 tries = 0
                 begin
                     sys.save!
@@ -146,12 +158,15 @@ namespace :import do
             def test
                 sys = Orchestrator::ControlSystem.find_by_name system_name
 
+                # Only create new systems if they don't exist already (might have needed IDs)
                 unless sys
                     puts "NEW Building: #{system_name}"
                     sys = Orchestrator::ControlSystem.new
                     sys.name = system_name
                 else
-                    puts "EXI Building: #{system_name}"
+                    # We output like this so that after the import is complete
+                    # we can run test again for a CSV of system IDs
+                    puts "#{system_name},#{sys.id}"
                 end
                 sys.zones = ZONES[room_num]
                 
@@ -163,35 +178,44 @@ namespace :import do
                 logic = Orchestrator::Module.new
                 logic.control_system_id = sys.id
                 logic.dependency_id = 'dep_2-1A'
+
+                sys.support_url = support_url('temp-id')
             end
         end
 
         # read line by line
         File.foreach(f).with_index do |line, line_num|
+
             # skip first line (headings)
             next if line_num == 0 || line.strip.empty?
+
+            # Skip the iPads (we don't control them)
             raw = line.split(",")
             next if raw[1] =~ /ipad/i
-                
+            
+            # Fill out our storage object
             system = AddSys.new
             system.room_num = raw[0].to_i
             system.display_ip = raw[8]
             system.notes = "Subnet: #{raw[9]}\nGateway: #{raw[10]}\nMAC Address: #{raw[6]}\nSerial: #{raw[5]}\nVLAN: #{raw[7]}"
             system.pod = raw[4]
             
+            # Check for device type
             if raw[1] =~ /^"*PN/i
-                # Sharp Display
+                # Sharp LCD Display
                 system.display_id = 'dep_2-17'
             else
-                # NEC Display
+                # NEC LCD Display
                 system.display_id = 'dep_2-15'
             end
             
             systems << system
         end
 
+        # Check if we are testing or going for it
         if func != 'create!'
             func = :test
+            puts "System Name,System ID"
         else
             func = :create!
         end
