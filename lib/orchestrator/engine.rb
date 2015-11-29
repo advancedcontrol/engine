@@ -51,8 +51,8 @@ module Orchestrator
             ActiveSupport::Dependencies.autoload_paths.each do |path|
                 Pathname.new(path).ascend do |v|
                     if ['app', 'vendor', 'lib'].include?(v.basename.to_s)
-                        app.config.orchestrator.module_paths << File.join(v.to_s, '../modules')
-                        app.config.orchestrator.module_paths << File.join(v.to_s, 'modules')
+                        app.config.orchestrator.module_paths << File.expand_path(File.join(v.to_s, '../modules'))
+                        app.config.orchestrator.module_paths << File.expand_path(File.join(v.to_s, 'modules'))
                         break
                     end
                 end
