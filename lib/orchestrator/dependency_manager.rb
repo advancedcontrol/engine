@@ -92,9 +92,10 @@ module Orchestrator
             class_object = nil
 
             ::Rails.configuration.orchestrator.module_paths.each do |path|
-                if ::File.exists?("#{path}/#{file}")
+                file_path = File.join(path, file)
+                if ::File.exists?(file_path)
 
-                    ::Kernel.load "#{path}/#{file}"
+                    ::Kernel.load file_path
                     class_object = classname.constantize
 
                     case role
