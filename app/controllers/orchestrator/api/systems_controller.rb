@@ -171,6 +171,7 @@ module Orchestrator
             end
 
             # returns a list of functions available to call
+            Ignore = [Object, Kernel, BasicObject]
             def funcs
                 params.require(:module)
                 sys = System.get(id)
@@ -182,9 +183,18 @@ module Orchestrator
                     mod = sys.get(para[:module].to_sym, index)
                     if mod
                         klass = mod.klass
-                        funcs = klass.public_instance_methods(false)
+
+                        # Find all the public methods available for calling
+                        # Including those methods from ancestor classes
+                        funcs = []
+                        klass.ancestors.each do |methods|
+                            break if Ignore.include? methods 
+                            funcs += methods.public_instance_methods(false)
+                        end
+                        # Remove protected methods
                         pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
 
+                        # Provide details on the methods
                         resp = {}
                         pub.each do |pfunc|
                             meth = klass.instance_method(pfunc.to_sym)
