@@ -171,7 +171,11 @@ module Orchestrator
             end
 
             # returns a list of functions available to call
-            Ignore = [Object, Kernel, BasicObject]
+            Ignore = Set.new([
+                Object, Kernel, BasicObject,
+                Constants, Transcoder,
+                Core::Mixin, Logic::Mixin, Device::Mixin, Service::Mixin
+            ])
             def funcs
                 params.require(:module)
                 sys = System.get(id)
@@ -192,7 +196,7 @@ module Orchestrator
                             funcs += methods.public_instance_methods(false)
                         end
                         # Remove protected methods
-                        pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
+                        pub = funcs.select { |func| !Core::PROTECTED.include?(func) }
 
                         # Provide details on the methods
                         resp = {}
