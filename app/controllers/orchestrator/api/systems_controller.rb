@@ -196,7 +196,7 @@ module Orchestrator
                             funcs += methods.public_instance_methods(false)
                         end
                         # Remove protected methods
-                        pub = funcs.select { |func| !Core::PROTECTED.include?(func) }
+                        pub = funcs.select { |func| !Core::PROTECTED[func] }
 
                         # Provide details on the methods
                         resp = {}
