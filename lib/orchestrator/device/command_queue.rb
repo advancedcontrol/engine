@@ -178,7 +178,11 @@ module Orchestrator
                 end
 
                 # Ensure we do no inadvertently hang future processing
-                @pause = 0 if @waiting
+                if @waiting
+                    @pause = 1
+                else
+                    @pause = 0
+                end
             end
 
 
