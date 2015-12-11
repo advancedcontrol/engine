@@ -176,6 +176,13 @@ module Orchestrator
                         cmd[:defer].reject(msg)
                     end
                 end
+
+                # Ensure we do no inadvertently hang future processing
+                if @waiting
+                    @pause = 1
+                else
+                    @pause = 0
+                end
             end
 
 
@@ -187,12 +194,13 @@ module Orchestrator
             # If the new push is a waiting command then the next
             # tick shift will discard it which is undesirable
             def pause_shift
-                @pause -= 1
+                @pause -= 1 unless @pause == 0
+
                 shift
             end
 
             def move_forward
-                @pause -= 1
+                @pause -= 1 unless @pause == 0
                 if !@waiting && length > 0
                     shift
                 end
