@@ -14,6 +14,7 @@ module Orchestrator
         # Called from:
         # * control
         class ModuleNotFound < Error; end
+        class WatchdogResuscitation < Error; end
 
         # Called from:
         # * Device -> Processor
