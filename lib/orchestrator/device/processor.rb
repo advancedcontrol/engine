@@ -293,7 +293,7 @@ module Orchestrator
                         cmd = @queue.waiting
                         debug = "with #{result}: <#{cmd[:name] || UNNAMED}> "
                         if cmd[:data]
-                            debug << "#{cmd[:data].inspect}" 
+                            debug << "#{cmd[:data].inspect}"
                         else
                             debug << cmd[:path]
                         end

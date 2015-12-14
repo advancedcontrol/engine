@@ -25,11 +25,23 @@ module Orchestrator
 
                 # TODO:: Support multiple simultaneous requests (multiple servers)
 
+                # Log the requests
+                @manager.logger.debug {
+                    "requesting #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}"
+                }
+
                 @server.request(cmd[:method], cmd).then(
                     proc { |result|
                         # Make sure the request information is always available
                         result[:request] = cmd
                         @processor.buffer(result)
+
+                        @manager.logger.debug {
+                            msg = "success #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n"
+                            msg << "result: #{result}"
+                            msg
+                        }
+
                         nil
                     },
                     proc { |failure|
@@ -38,7 +50,14 @@ module Orchestrator
                             @processor.__send__(:resp_failure, :failed)
                         end
 
-                        # TODO:: Log failure with more detail
+                        @manager.logger.debug {
+                            msg = "failed #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n"
+                            msg << "req headers: #{cmd[:headers]}\n"
+                            msg << "req body: #{cmd[:body]}\n"
+                            msg << "result: #{failure}"
+                            msg
+                        }
+
                         nil
                     }
                 )
