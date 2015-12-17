@@ -320,8 +320,8 @@ module Orchestrator
 
             nodes = ::Orchestrator::EdgeControl.all
             nodes.each do |node|
-                loading << node.boot(@loaded)
                 @nodes[node.id.to_sym] = node
+                loading << node.boot(@loaded)
             end
 
             # Once load is complete we'll accept websockets

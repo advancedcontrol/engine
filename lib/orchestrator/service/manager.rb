@@ -11,16 +11,20 @@ module Orchestrator
 
             attr_reader :processor, :connection
 
-            def start
+            def start_local(online = @settings.running)
+                return false if not online
+                return true if @processor
+
                 @processor = Orchestrator::Device::Processor.new(self)
 
-                super # Calls on load (allows setting of tls certs)
+                super online # Calls on load (allows setting of tls certs)
 
                 @connection = TransportHttp.new(self, @processor)
                 @processor.transport = @connection
+                true
             end
 
-            def stop
+            def stop_local
                 super
                 @processor.terminate if @processor
                 @processor = nil

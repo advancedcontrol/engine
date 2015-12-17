@@ -4,8 +4,8 @@ module Orchestrator
             attr_reader :processor, :connection
 
             def start_local(online = @settings.running)
-                return false unless online
-                return true unless @processor.nil?
+                return false if not online
+                return true if @processor
                 @processor = Processor.new(self)
 
                 super online # Calls on load (allows setting of tls certs)

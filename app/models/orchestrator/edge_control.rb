@@ -7,15 +7,6 @@ module Orchestrator
         design_document :edge
         include ::CouchbaseId::Generator
 
-        begin
-            # edge_1-10 is common for development
-            # export ENGINE_NODE_ID=edge_1-10
-            LocalNodeId = ENV['ENGINE_NODE_ID'].to_sym
-        rescue => e
-            puts "\nENGINE_NODE_ID env var not set\n"
-            raise e
-        end
-
 
         StartOrder = Struct.new(:device, :logic, :trigger) do
             def initialize(logger, *args)
@@ -248,12 +239,12 @@ module Orchestrator
         end
 
         def should_run_on_this_host
-            @run_here ||= LocalNodeId == self.node_id
+            @run_here ||= Remote::NodeId == self.node_id
             @run_here
         end
 
         def is_failover_host
-            @fail_here ||= LocalNodeId == self.node_master_id
+            @fail_here ||= Remote::NodeId == self.node_master_id
             @fail_here
         end
 

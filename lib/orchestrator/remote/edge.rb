@@ -3,8 +3,15 @@ require 'set'
 
 module Orchestrator
     module Remote
-        tmp_node_id = ENV['ENGINE_NODE_ID']
-        NodeId = tmp_node_id ? tmp_node_id.to_sym : nil
+        begin
+            # edge_1-10 is common for development
+            # export ENGINE_NODE_ID=edge_1-10
+            NodeId = ENV['ENGINE_NODE_ID'].to_sym
+        rescue => e
+            puts "\nENGINE_NODE_ID env var not set\n"
+            raise e
+        end
+
 
         class Edge < ::UV::OutboundConnection
             def post_init(this_node, master)
