@@ -15,6 +15,7 @@ Orchestrator::Engine.routes.draw do
         end
 
         # Trusted Sessions - Create Trust (returns id), Update Session and Destroy Trust
+        # This is located in coauth
         resources :trusts
 
         resources(:systems, {as: :control_system}) do       # systems have settings and define what zone they are in
@@ -39,14 +40,25 @@ Orchestrator::Engine.routes.draw do
         resources :users do
             get 'current',  on: :collection
         end
-        resources :logs
+        resources :logs do
+            get 'missing_connections', on: :collection
+            get 'system_logs',         on: :collection
+        end
+        resources :system_triggers
         
         concerns  :mods
 
         resources :stats do
-            get 'connections', on: :collection
-            get 'triggers',    on: :collection
-            get 'offline',     on: :collection
+            get  'connections', on: :collection
+            get  'panels',      on: :collection
+            get  'triggers',    on: :collection
+            get  'offline',     on: :collection
+            get  'ignore_list', on: :collection
+            post 'ignore',      on: :collection
+        end
+
+        resources :discovery do
+            post 'scan',        on: :collection
         end
     end
 

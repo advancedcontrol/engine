@@ -170,7 +170,8 @@ module Orchestrator
 
                     # Check for changes (order, removal, replacement)
                     if old_id != sub.mod_id
-                        @subscriptions[old_id][sub.status].delete(sub.sub_id)
+                        old_sub = @subscriptions[old_id]
+                        old_sub[sub.status].delete(sub.sub_id) if old_sub
 
                         # Update to the new module
                         if mod
@@ -189,9 +190,9 @@ module Orchestrator
                         end
 
                         # Perform any required cleanup
-                        if @subscriptions[old_id][sub.status].empty?
-                            @subscriptions[old_id].delete(sub.status)
-                            if @subscriptions[old_id].empty?
+                        if old_sub && old_sub[sub.status].empty?
+                            old_sub.delete(sub.status)
+                            if old_sub.empty?
                                 @subscriptions.delete(old_id)
                             end
                         end

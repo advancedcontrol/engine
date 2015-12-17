@@ -6,6 +6,9 @@ module Orchestrator
             before_action :set_period
 
 
+            before_action :doorkeeper_authorize!, only: [:ignore_list, :ignore]
+
+
             # Number of websocket connections (UI's / Users)
             def connections
                 render json: {
@@ -13,6 +16,16 @@ module Orchestrator
                     period_start: @period_start,
                     interval: @period[0],
                     histogram: build_query(:connections_active)
+                }
+            end
+
+            # Number of interface panels are connected
+            def panels
+                render json: {
+                    period_name: @pname,
+                    period_start: @period_start,
+                    interval: @period[0],
+                    histogram: build_query(:fixed_connections)
                 }
             end
 
@@ -34,6 +47,44 @@ module Orchestrator
                     interval: @period[0],
                     histogram: build_query(:modules_disconnected)
                 }
+            end
+
+            # Used on the metrics page for ignoring issues
+            # By storing this list in the database we ensure the view is consitent for all users
+            def ignore_list
+                render json: (Stats.bucket.get(:metrics_ignore_list, quiet: true) || {})
+            end
+
+            IGNORE_PARAMS = [:id, :sys_id, :klass, :timeout, :remove, :title, :reason]
+            def ignore
+                args = params.permit(IGNORE_PARAMS)
+                user = current_user
+
+                list = Stats.bucket.get(:metrics_ignore_list, quiet: true) || {}
+                list.deep_symbolize_keys!
+                time = Time.now.to_i
+
+                # Perform list maintenance
+                list.delete_if {|key, value| value[:timeout] < time }
+
+                if args.has_key? :remove
+                    list.delete args[:id].to_sym
+                else
+                    list[args[:id]] = {
+                        id: args[:id],
+                        sys_id: args[:sys_id],
+                        user_id: user.id,
+                        email_digest: user.email_digest,
+                        name: user.name,
+                        klass: args[:klass],
+                        timeout: args[:timeout].to_i,
+                        title: args[:title],
+                        reason: args[:reason] || '',
+                    }
+                end
+
+                Stats.bucket.set(:metrics_ignore_list, list)
+                render nothing: true
             end
 
 

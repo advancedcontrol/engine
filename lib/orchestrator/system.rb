@@ -34,6 +34,11 @@ module Orchestrator
             @controller = ::Orchestrator::Control.instance
 
             @modules = {}
+            
+            # Index triggers (exposed as __Triggers__)
+            index_module control_system.id
+
+            # Index the real modules
             @config.modules.each &method(:index_module)
 
             # Build an ordered zone cache for setting lookup

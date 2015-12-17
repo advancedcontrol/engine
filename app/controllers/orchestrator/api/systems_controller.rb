@@ -166,6 +166,11 @@ module Orchestrator
             end
 
             # returns a list of functions available to call
+            Ignore = Set.new([
+                Object, Kernel, BasicObject,
+                Constants, Transcoder,
+                Core::Mixin, Logic::Mixin, Device::Mixin, Service::Mixin
+            ])
             def funcs
                 params.require(:module)
                 sys = System.get(id)
@@ -177,9 +182,18 @@ module Orchestrator
                     mod = sys.get(para[:module].to_sym, index)
                     if mod
                         klass = mod.klass
-                        funcs = klass.public_instance_methods(false)
-                        pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
 
+                        # Find all the public methods available for calling
+                        # Including those methods from ancestor classes
+                        funcs = []
+                        klass.ancestors.each do |methods|
+                            break if Ignore.include? methods 
+                            funcs += methods.public_instance_methods(false)
+                        end
+                        # Remove protected methods
+                        pub = funcs.select { |func| !Core::PROTECTED[func] }
+
+                        # Provide details on the methods
                         resp = {}
                         pub.each do |pfunc|
                             meth = klass.instance_method(pfunc.to_sym)
@@ -226,7 +240,7 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
-                :name, :description, :support_url,
+                :name, :description, :support_url, :installed_ui_devices,
                 {
                     zones: [],
                     modules: []
@@ -237,11 +251,13 @@ module Orchestrator
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
                 settings = params[:settings]
-                {
+                args = {
                     modules: [],
                     zones: [],
                     settings: settings.is_a?(::Hash) ? settings : {}
-                }.merge(params.permit(CS_PARAMS))
+                }.merge!(params.permit(CS_PARAMS))
+                args[:installed_ui_devices] = args[:installed_ui_devices].to_i if args.has_key? :installed_ui_devices
+                args
             end
 
             def find_system

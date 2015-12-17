@@ -25,9 +25,9 @@ module Orchestrator
 
             def stop_local
                 super
-                @processor.terminate unless @processor.nil?
+                @processor.terminate if @processor
                 @processor = nil
-                @connection.terminate unless @connection.nil?
+                @connection.terminate if @connection
                 @connection = nil
             end
 

@@ -5,8 +5,10 @@ namespace :migrate do
     task :stats => :environment do
         # This adds support for statistics collection via elasticsearch
 
+        time = Time.now.to_i
         ::Orchestrator::Module.all.each do |mod|
             mod.ignore_connected = false
+            mod.updated_at = time if mod.updated_at.nil?
             mod.save!
         end
     end

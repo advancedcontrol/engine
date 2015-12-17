@@ -13,7 +13,6 @@ module Orchestrator
             @@elastic ||= Elastic.new(::Orchestrator::Module)
 
             # Constant for performance
-            Dependency = 'dep'.freeze
             MOD_INCLUDE = {
                 include: {
                     # Most human readable module data is contained in dependency
@@ -75,7 +74,7 @@ module Orchestrator
                     end
 
                     query.filter(filter) unless filter.empty?
-                    query.has_parent Dependency
+                    query.has_parent :dep
 
                     results = @@elastic.search(query)
                     respond_with results, MOD_INCLUDE

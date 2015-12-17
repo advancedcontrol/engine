@@ -22,6 +22,7 @@ couchbase.typeSelector.documentTypesRegex.trigger: ^trigger(-|_).+$
 couchbase.typeSelector.documentTypesRegex.trig: ^trig(-|_).+$
 couchbase.typeSelector.documentTypesRegex.stats: ^zzz(-|_).+$
 couchbase.typeSelector.documentTypesRegex.edge: ^edge(-|_).+$
+couchbase.typeSelector.documentTypesRegex.disc: ^disc-.+$   # Disc is different to all the other IDs
 
 
 # Module to dependency mapping

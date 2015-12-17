@@ -7,7 +7,14 @@ module Orchestrator
         design_document :edge
         include ::CouchbaseId::Generator
 
-        LocalNodeId = ENV['ENGINE_NODE_ID'].to_sym
+        begin
+            # edge_1-10 is common for development
+            # export ENGINE_NODE_ID=edge_1-10
+            LocalNodeId = ENV['ENGINE_NODE_ID'].to_sym
+        rescue => e
+            puts "\nENGINE_NODE_ID env var not set\n"
+            raise e
+        end
 
 
         StartOrder = Struct.new(:device, :logic, :trigger) do

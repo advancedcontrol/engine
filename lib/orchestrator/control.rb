@@ -36,7 +36,7 @@ module Orchestrator
                 @ready = true
             end
 
-            if Rails.env.production?
+            if Rails.env.production? && ENV['ORC_NO_BOOT'].nil?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
             else
                 logger = ::Logger.new(STDOUT)
@@ -68,11 +68,18 @@ module Orchestrator
                 promise = @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)
                     if @server.in_mode? :thread
+                        start_watchdog
                         @threads = @server.threads
+                        @threads.each do |thread|
+                            thread.schedule do
+                                attach_watchdog(thread)
+                            end
+                        end
                     else    # We are either running no_ipc or process (unsupported for control)
                         @threads = []
 
                         cpus = ::Libuv.cpu_count || 1
+                        start_watchdog
                         cpus.times &method(:start_thread)
 
                         @loop.signal :INT, method(:kill_workers)
@@ -352,9 +359,11 @@ module Orchestrator
         def start_thread(num)
             thread = Libuv::Loop.new
             @threads << thread
+
             Thread.new do
                 thread.run do |promise|
                     promise.progress @exceptions
+                    attach_watchdog thread
 
                     thread.signal :INT do
                         thread.stop
@@ -364,8 +373,105 @@ module Orchestrator
         end
 
         def kill_workers(*args)
+            @watchdog.stop if @watchdog
             @loop.stop
         end
+
+
+        # =============
+        # WATCHDOG CODE
+        # =============
+        def attach_watchdog(thread)
+            @watchdog.schedule do
+                @last_seen[thread] = @watchdog.now
+            end
+
+            thread.scheduler.every 1000 do
+                @watchdog.schedule do
+                    @last_seen[thread] = @watchdog.now
+                end
+            end
+        end
+
+        # Monitors threads to make sure they continue to checkin
+        # If a thread is hung then we log what it happening
+        # If it still doesn't checked in then we raise an exception
+        # If it still doesn't checkin then we shutdown
+        def start_watchdog
+            thread = Libuv::Loop.new
+            @last_seen = {}
+            @watching = {}
+
+            Thread.new do
+                thread.run do |promise|
+                    promise.progress @exceptions
+
+                    thread.scheduler.every 2000 do
+                        check_threads
+                    end
+
+                    thread.signal :INT do
+                        thread.stop
+                    end
+                end
+            end
+            @watchdog = thread
+        end
+
+        def check_threads
+            now = @watchdog.now
+
+            @threads.each do |thread|
+                difference = now - (@last_seen[thread] || 0)
+                thr_actual = nil
+
+                if difference > 2000
+                    # we want to start logging
+                    thr_actual = thread.reactor_thread
+                    
+                    if difference > 4000
+                        if @watching[thread]
+                            thr_actual = @watching.delete thread
+                            thr_actual.set_trace_func nil
+                        end
+
+                        @logger.warn "WATCHDOG PERFORMING CPR"
+                        thr_actual.raise Error::WatchdogResuscitation.new("thread failed to checkin, performing CPR")
+
+                        # Kill the process if the system is unresponsive
+                        if difference > 6000
+                            @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                            kill_workers
+                            exit!
+                        end
+                    else
+                        if @watching[thread].nil?
+                            @logger.warn "WATCHDOG ACTIVATED"
+
+                            @watching[thread] = thr_actual
+
+                            thr_actual.set_trace_func proc { |event, file, line, id, binding, classname|
+                                watchdog_trace(event, file, line, id, binding, classname)
+                            }
+                        end
+                    end
+
+                elsif @watching[thread]
+                    thr_actual = @watching.delete thread
+                    thr_actual.set_trace_func nil
+                end
+            end
+        end
+
+        TraceEvents = ['line', 'call', 'return', 'raise']
+        def watchdog_trace(event, file, line, id, binding, classname)
+            if TraceEvents.include?(event)
+                @logger.info "tracing #{event} from line #{line} in #{file}"
+            end
+        end
+        # =================
+        # END WATCHDOG CODE
+        # =================
 
 
         # Edge node connections
