@@ -20,6 +20,7 @@ require 'orchestrator/system'               # This is the source of truth for al
 require 'orchestrator/status'               # Manages status subscriptions across threads
 require 'orchestrator/logger'               # Logs events of interest as well as coordinating live log feedback
 require 'orchestrator/errors'               # A list of errors that can occur within the system
+require 'orchestrator/command_queue'        # A priority queue with name lookup so similar items are not queued twice
 
 # Core Abstractions
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers

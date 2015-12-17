@@ -24,7 +24,7 @@ module Orchestrator
             end
 
             def transmit(cmd)
-                return if @terminated
+                return ::Libuv::Q.reject(@processor.thread, :transport_terminated) if @terminated
 
                 if @connected
                     # This is the same as TCP
@@ -36,39 +36,21 @@ module Orchestrator
                         rescue => err
                             @manager.logger.print_error(err, 'error in before_transmit callback')
 
-                            if @processor.queue.waiting == cmd
-                                # Fail fast
-                                @processor.thread.next_tick do
-                                    @processor.__send__(:resp_failure, err)
-                                end
-                            else
-                                cmd[:defer].reject(err)
-                            end
-
                             # Don't try and send anything
-                            return
+                            return ::Libuv::Q.reject(@processor.thread, :before_transmit_error)
                         end
                     end
 
                     promise = write(data)
                     reset_timeout
-                    if cmd[:wait]
-                        promise.catch do |err|
-                            if @processor.queue.waiting == cmd
-                                # Fail fast
-                                @processor.thread.next_tick do
-                                    @processor.__send__(:resp_failure, err)
-                                end
-                            else
-                                cmd[:defer].reject(err)
-                            end
-                        end
-                    end
+                    promise
                 elsif @retries < 2
-                    @write_queue << cmd
+                    defer = @processor.thread.defer
+                    @write_queue << [cmd, defer]
                     reconnect unless @disconnecting
+                    defer.promise
                 else
-                    cmd[:defer].reject(Error::CommandFailure.new "transmit aborted as disconnected")
+                    ::Libuv::Q.reject(@processor.thread, :transport_disconnected)
                 end
                 # discards data when officially disconnected
             end
@@ -224,7 +206,8 @@ module Orchestrator
                 queue = @write_queue
                 @write_queue = []
                 while queue.length > 0
-                    transmit(queue.shift)
+                    cmd, defer = queue.shift
+                    defer.resolve transmit(cmd)
                 end
 
                 # Notify module

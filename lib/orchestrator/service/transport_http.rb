@@ -30,7 +30,8 @@ module Orchestrator
                     "requesting #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}"
                 }
 
-                @server.request(cmd[:method], cmd).then(
+                request = @server.request(cmd[:method], cmd)
+                request.then(
                     proc { |result|
                         # Make sure the request information is always available
                         result[:request] = cmd
@@ -45,11 +46,6 @@ module Orchestrator
                         nil
                     },
                     proc { |failure|
-                        # Fail fast (no point waiting for the timeout)
-                        if @processor.queue.waiting #== cmd
-                            @processor.__send__(:resp_failure, :failed)
-                        end
-
                         @manager.logger.debug {
                             msg = "failed #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n"
                             msg << "req headers: #{cmd[:headers]}\n"
@@ -62,12 +58,18 @@ module Orchestrator
                     }
                 )
 
-                nil
+                defer = @manager.thread.defer
+                defer.resolve(true)
+                defer.promise
             end
 
             def terminate
                 @terminated = true
                 @server.close_connection(:after_writing)
+            end
+
+            def disconnect
+                @server.close_connection
             end
         end
     end

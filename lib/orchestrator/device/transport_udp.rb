@@ -31,7 +31,7 @@ module Orchestrator
             end
 
             def transmit(cmd)
-                return if @terminated
+                return ::Libuv::Q.reject(@processor.thread, :transport_terminated) if @terminated
                 @udp_server.send(@attached_ip, @port, cmd[:data])
             end
 

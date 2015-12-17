@@ -64,7 +64,7 @@ module Orchestrator
             UNNAMED = 'unnamed'
 
 
-            attr_reader :config, :queue, :thread
+            attr_reader :config, :queue, :thread, :schedule
             attr_accessor :transport
 
             # For statistics only
@@ -75,13 +75,22 @@ module Orchestrator
             # So config can be set in on_load if desired
             def initialize(man)
                 @man = man
+                @schedule = @man.get_scheduler
 
                 @thread = @man.thread
                 @logger = @man.logger
                 @defaults = SEND_DEFAULTS.dup
                 @config = CONFIG_DEFAULTS.dup
 
-                @queue = CommandQueue.new(@thread, method(:send_next))
+                # Method variables
+                @resp_failure = method(:resp_failure)
+                @transport_send = method(:transport_send)
+                @transmit_failure = method(:transmit_failure)
+
+                # Setup the queue
+                @queue = ::Orchestrator::CommandQueue.new(@thread)
+                @queue.pop(@transport_send)
+
                 @responses = []
                 @wait = false
                 @connected = false
@@ -90,17 +99,6 @@ module Orchestrator
 
                 @last_sent_at = 0
                 @last_receive_at = 0
-
-
-                # Used to indicate when we can start the next response processing
-                @head = ::Libuv::Q::ResolvedPromise.new(@thread, true)
-                @tail = ::Libuv::Q::ResolvedPromise.new(@thread, true)
-
-                # Method variables
-                @resolver = proc { |resp| @thread.schedule { resolve_callback(resp) } }
-
-                @resp_success = proc { |result| @thread.next_tick { resp_success(result) } }
-                @resp_failure = proc { |reason| @thread.next_tick { resp_failure(reason) } }
             end
 
             ##
@@ -123,7 +121,7 @@ module Orchestrator
                 # Make sure we are sending appropriately formatted data
                 raw = options[:data]
 
-                if raw.is_a?(Array)
+                if raw.class == Array
                     options[:data] = array_to_str(raw)
                 elsif options[:hex_string] == true
                     options[:data] = hex_to_byte(raw)
@@ -132,7 +130,7 @@ module Orchestrator
                 data = options[:data]
                 options[:retries] = 0 if options[:wait] == false
 
-                if options[:name].is_a? String
+                if options[:name].class == String
                     options[:name] = options[:name].to_sym
                 end
 
@@ -146,8 +144,16 @@ module Orchestrator
                 @logger.print_error(e, 'error queuing command')
             end
 
-            ##
-            # Callbacks -------------------------
+
+            def terminate
+                @thread.schedule method(:do_terminate)
+            end
+
+
+
+            # ===================
+            # TRANSPORT CALLBACKS
+            # ===================
             def connected
                 @connected = true
                 new_buffer
@@ -172,10 +178,19 @@ module Orchestrator
                 end
                 @buffer = nil
 
-                if @queue.waiting
+                if @current_cmd
                     resp_failure(:disconnected)
                 end
             end
+            # =======================
+            # END TRANSPORT CALLBACKS
+            # =======================
+            
+
+
+            # =========
+            # BUFFERING
+            # =========
 
             def buffer(data)
                 @last_receive_at = @thread.now
@@ -199,10 +214,6 @@ module Orchestrator
                 if !@wait
                     check_next
                 end
-            end
-
-            def terminate
-                @thread.schedule method(:do_terminate)
             end
 
             def check_next
@@ -233,12 +244,15 @@ module Orchestrator
                 end
             end
 
-            def do_terminate
-                if @queue.waiting
-                    @queue.waiting[:defer].reject(TERMINATE_MSG)
-                end
-                @queue.cancel_all(TERMINATE_MSG)
-            end
+            # =============
+            # END BUFFERING
+            # =============
+
+
+
+            # ===================
+            # RESPONSE PROCESSING
+            # ===================
 
             # Check transport response data
             def check_data(data)
@@ -246,80 +260,88 @@ module Orchestrator
 
                 # Provide commands with a bonus in this section
                 @bonus = @config[:priority_bonus]
+                cmd = @current_cmd
 
-                begin
-                    cmd = @queue.waiting
+                begin    
                     if cmd
                         @wait = true
-                        @defer = @thread.defer
-                        @defer.promise.then @resp_success, @resp_failure
-
-                        # Disconnect before processing the response
-                        transport.disconnect if cmd[:force_disconnect]
+                        callback_complete = false
 
                         # Send response, early resolver and command
-                        resp = @man.notify_received(data, @resolver, cmd)
+                        resolver = proc { |resp|
+                            @thread.schedule {
+                                resolve_callback(resp) unless callback_complete || cmd != @current_cmd
+                                callback_complete = true
+                            }
+                        }
+                        resp = @man.notify_received(data, resolver, cmd)
+                        resolve_callback(resp) unless callback_complete || resp == :async
+                        callback_complete = true
                     else
-                        resp = @man.notify_received(data, DUMMY_RESOLVER, nil)
+                        @man.notify_received(data, DUMMY_RESOLVER, nil)
+                        clear_timeout
+                        @wait = false
+                        check_next
                         # Don't need to trigger Queue next here as we are not waiting on anything
                     end
                 rescue => e
                     # NOTE:: This error should never be called
-                    @logger.print_error(e, 'error processing response data')
-                    @defer.reject :abort if @defer
+                    callback_complete = true
+                    @logger.print_error(e, 'internal error processing response data')
+                    resp_failure :abort if cmd
                 ensure
                     @bonus = 0
                 end
-
-                # Check if response is a success or failure
-                resolve_callback(resp) unless resp == :async
             end
 
             def resolve_callback(resp)
-                if @defer
-                    if FAILURE.include? resp
-                        @defer.reject resp
-                    else
-                        @defer.resolve resp
-                    end
-                    @defer = nil
+                if FAILURE.include? resp
+                    resp_failure(resp)
+                else
+                    resp_success(resp)
                 end
             end
 
-            def resp_failure(result_raw)
-                if @queue.waiting
+            def resp_failure(result_raw, timeout = nil)
+                cmd = @current_cmd
+
+                if cmd
                     begin
-                        result = result_raw.is_a?(Fixnum) ? :timeout : result_raw
-                        cmd = @queue.waiting
-                        debug = "with #{result}: <#{cmd[:name] || UNNAMED}> "
-                        if cmd[:data]
-                            debug << "#{cmd[:data].inspect}"
-                        else
-                            debug << cmd[:path]
-                        end
-                        @logger.debug "command failed #{debug}"
+                        result = timeout.nil? ? result_raw : :timeout
+                        
+                        # Debug in proc so we don't perform needless processing
+                        debug_proc = proc { |text|
+                            debug = "#{text} with #{result}: <#{cmd[:name] || UNNAMED}> "
+                            if cmd[:data]
+                                debug << "#{cmd[:data].inspect}"
+                            else
+                                debug << cmd[:path]
+                            end
+                            debug
+                        }
 
                         if cmd[:retries] == 0
-                            err = Error::CommandFailure.new "command aborted #{debug}"
+                            err = Error::CommandFailure.new debug_proc.call('command aborted')
                             cmd[:defer].reject(err)
                             @logger.warn err.message
                         else
+                            @logger.debug { debug_proc.call 'command failed' }
                             cmd[:retries] -= 1
                             cmd[:wait_count] = 0      # reset our ignore count
                             @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
                         end
                     rescue => e
                         # Prevent the queue from ever pausing - this should never be called
-                        @logger.print_error(e, 'error handling request failure')
+                        @logger.print_error(e, 'internal error handling request failure')
                     end
+
+                    ready_next(cmd)
+                else
+                    @logger.warn "failure during response processing: #{result_raw} (no command provided)"
                 end
 
-                clear_timers
-
                 @wait = false
-                @queue.waiting = nil
                 check_next                    # Process already received
-                @queue.shift if @connected    # Then send a new command
             end
 
             # We only care about queued commands here
@@ -327,26 +349,26 @@ module Orchestrator
             #  is guaranteed to have completed
             # Check for queue wait as we may have gone offline
             def resp_success(result)
-                if @queue.waiting && result && result != :ignore
+                cmd = @current_cmd
+
+                if result && result != :ignore
+                    # Disconnect if this was desired
+                    transport.disconnect if cmd[:force_disconnect]
+
                     if result == :abort
-                        cmd = @queue.waiting
                         err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{(cmd[:data] || cmd[:path]).inspect}"
-                        @queue.waiting[:defer].reject(err)
+                        cmd[:defer].reject(err)
                     else
-                        @queue.waiting[:defer].resolve(result)
-                        call_emit @queue.waiting
+                        cmd[:defer].resolve(result)
                     end
 
-                    clear_timers
-
+                    # Continue processing commands
+                    ready_next(cmd)
                     @wait = false
-                    @queue.waiting = nil
                     check_next      # Process pending
-                    @queue.shift    # Send the next command
 
-                    # Else it must have been a nil or :ignore
-                elsif @queue.waiting
-                    cmd = @queue.waiting
+                # Else it must have been a nil or :ignore
+                else
                     cmd[:wait_count] ||= 0
                     cmd[:wait_count] += 1
                     if cmd[:wait_count] > cmd[:max_waits]
@@ -355,15 +377,35 @@ module Orchestrator
                         @wait = false
                         check_next
                     end
-
-                else  # ensure consistent state (offline event may have occurred)
-
-                    clear_timers
-
-                    @wait = false
-                    check_next
                 end
             end
+
+
+            # =======================
+            # END RESPONSE PROCESSING
+            # =======================
+
+
+            def do_terminate
+                # Reject the current command
+                if @current_cmd
+                    @current_cmd[:defer].reject(TERMINATE_MSG)
+                end
+
+                # Stop any timers
+                clear_timeout
+                @delay_timer.cancel if @delay_timer
+
+                # Clear the queue
+                @queue.cancel_all(TERMINATE_MSG)
+                @queue.pop nil
+            end
+
+
+            # =============
+            # COMMAND QUEUE
+            # =============
+
 
             # If a callback was in place for the current
             def call_emit(cmd)
@@ -379,83 +421,105 @@ module Orchestrator
                 end
             end
 
-
-            # Callback for queued commands
-            def send_next(command)
-                # Check for any required delays between sends
-                if command[:delay] > 0
-                    gap = @last_sent_at + command[:delay] - @thread.now
-                    if gap > 0
-                        defer = @thread.defer
-                        sched = schedule.in(gap) do
-                            defer.resolve(process_send(command))
-                        end
-                        # in case of shutdown we need to resolve this promise
-                        sched.catch do
-                            defer.reject(:shutdown)
-                        end
-                        defer.promise
-                    else
-                        process_send(command)
-                    end
-                else
-                    process_send(command)
-                end
-            end
-
-            def process_send(command)
-                # delay on receive
-                if command[:delay_on_receive] > 0
-                    gap = @last_receive_at + command[:delay_on_receive] - @thread.now
-
-                    if gap > 0
-                        defer = @thread.defer
-                        
-                        sched = schedule.in(gap) do
-                            defer.resolve(process_send(command))
-                        end
-                        # in case of shutdown we need to resolve this promise
-                        sched.catch do
-                            defer.reject(:shutdown)
-                        end
-                        defer.promise
-                    else
-                        transport_send(command)
-                    end
-                else
-                    transport_send(command)
-                end
-            end
-
             def transport_send(command)
-                @transport.transmit(command)
-                @last_sent_at = @thread.now
+                @logger.info "next command popped from queue"
 
-                if @queue.waiting
-                    # Set up timers for command timeout
-                    @timeout = schedule.in(command[:timeout], @resp_failure)
-                else
-                    # resole the send promise early as we are not waiting for the response
-                    command[:defer].resolve(:no_wait)
-                    call_emit command   # the command has been sent
+                # Delay the current commad if desired
+                delay_on_rec = command[:delay_on_receive]
+                current_time = @thread.now
+                if delay_on_rec && delay_on_rec > 0
+                    gap = @last_receive_at + delay_on_rec - current_time
+                    if gap > 0
+                        @delay_timer = schedule.in(gap) do
+                            @delay_timer = nil
+                            transport_send(command)
+                        end
+
+                        return
+                    end
                 end
 
-                # Useful for emergency stops etc
+                @current_cmd = command
+
+                # Clear the queue if required (useful for emergency stops etc)
                 if command[:clear_queue]
                     @queue.cancel_all("Command #{command[:name]} cleared the queue")
+                end
+
+                # Perform the transmit
+                transmitted = @transport.transmit(command)
+                @last_sent_at = current_time
+
+                # Disconnect if the transmit is taking longer than the response timeout
+                @timeout = schedule.in(command[:timeout], proc { |time, sched|
+                    transmit_failure(command, :transmit_timeout)
+                })
+
+                # if the command is waiting for a response (after transmit)
+                # * setup processing timeout (device might send multiple responses that are ignored)
+                # else
+                # * request the next command
+                transmitted.then do
+                    @timeout.cancel
+
+                    if command[:wait]
+                        @timeout = schedule.in(command[:timeout], @resp_failure)
+                    else
+                        # resolve the send promise early as we are not waiting for the response
+                        command[:defer].resolve(:no_wait)
+                        ready_next(command)
+                    end
+
+                    command[:defer].promise.finally do
+                        call_emit command
+                    end
+                end
+
+                # Disconnect if transmit failed
+                transmitted.catch do |reason|
+                    transmit_failure(command, reason)
                 end
 
                 nil # ensure promise chain is not propagated
             end
 
-            def clear_timers
+            def ready_next(old_cmd)
+                clear_timeout
+                @current_cmd = nil
+
+                delay = old_cmd[:delay]
+                if delay && delay > 0
+                    gap = @last_sent_at + delay - @thread.now
+                    if gap > 0
+                        @delay_timer = schedule.in(gap) do
+                            @delay_timer = nil
+                            @queue.pop(@transport_send)
+                        end
+                    else
+                        @queue.pop(@transport_send)
+                    end
+                else
+                    @queue.pop(@transport_send)
+                end
+            end
+
+            def clear_timeout
                 @timeout.cancel if @timeout
                 @timeout = nil
             end
 
-            def schedule
-                @schedule ||= @man.get_scheduler
+            def transmit_failure(cmd, reason)
+                clear_timeout
+                transport.disconnect
+
+                ready_next cmd if @current_cmd.nil?
+
+                resp_failure reason
             end
+
+            # =================
+            # END COMMAND QUEUE
+            # =================
         end
     end
 end

@@ -17,7 +17,7 @@ module Orchestrator
             end
 
             def transmit(cmd)
-                return if @terminated
+                return ::Libuv::Q.reject(@processor.thread, :transport_terminated) if @terminated
 
                 # This is the same as MakeBreak
                 data = cmd[:data]
@@ -28,33 +28,13 @@ module Orchestrator
                     rescue => err
                         @manager.logger.print_error(err, 'error in before_transmit callback')
 
-                        if @processor.queue.waiting == cmd
-                            # Fail fast
-                            @processor.thread.next_tick do
-                                @processor.__send__(:resp_failure, err)
-                            end
-                        else
-                            cmd[:defer].reject(err)
-                        end
-
                         # Don't try and send anything
-                        return
+                        return ::Libuv::Q.reject(@processor.thread, :before_transmit_error)
                     end
                 end
 
-                promise = write(data)
-                if cmd[:wait]
-                    promise.catch do |err|
-                        if @processor.queue.waiting == cmd
-                            # Fail fast
-                            @processor.thread.next_tick do
-                                @processor.__send__(:resp_failure, err)
-                            end
-                        else
-                            cmd[:defer].reject(err)
-                        end
-                    end
-                end
+                # This returns a promise
+                write(data)
             end
 
             def on_connect(transport)
