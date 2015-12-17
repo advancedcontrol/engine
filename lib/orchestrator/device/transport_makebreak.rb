@@ -153,6 +153,15 @@ module Orchestrator
             end
 
             def on_read(data, *args)
+                if @config[:before_buffering]
+                    begin
+                        data = @config[:before_buffering].call(data)
+                    rescue => err
+                        # We'll continue buffering and provide feedback as to the error
+                        @manager.logger.print_error(err, 'error in before_buffering callback')
+                    end
+                end
+                
                 if @delaying
                     @delaying << data
                     result = @delaying.split(@config[:wait_ready], 2)
