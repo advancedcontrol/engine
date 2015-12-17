@@ -54,6 +54,7 @@ module Orchestrator
                 # * wait_ready (wait for some signal before signaling connected)
                 # * encoding (BINARY) (force encoding on incoming data)
                 # * before_transmit (callback for last min data modifications)
+                # * before_buffering (callback for pre-buffering manipulation)
             }
 
 

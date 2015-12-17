@@ -38,6 +38,15 @@ module Orchestrator
             def on_read(data)
                 # We schedule as UDP server may be on a different thread
                 @loop.schedule do
+                    if @config[:before_buffering]
+                        begin
+                            data = @config[:before_buffering].call(data)
+                        rescue => err
+                            # We'll continue buffering and provide feedback as to the error
+                            @manager.logger.print_error(err, 'error in before_buffering callback')
+                        end
+                    end
+                
                     @processor.buffer(data)
                 end
             end
