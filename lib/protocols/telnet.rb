@@ -159,16 +159,16 @@ class Protocols::Telnet
         msg
     end
 
-    def write(command)
+    def prepare(command)
         if @telnet_option["BINARY"] and @telnet_option["SGA"]
             # IAC WILL SGA IAC DO BIN send EOL --> CR
-            @write.call(command + CR)
+            "#{command}#{CR}"
         elsif @telnet_option["SGA"]
             # IAC WILL SGA send EOL --> CR+NULL
-            @write.call(command + CR + NULL)
+            "#{command}#{CR}#{NULL}"
         else
             # NONE send EOL --> CR+LF
-            @write.call(command + EOL)
+            "#{command}#{EOL}"
         end
     end
 end

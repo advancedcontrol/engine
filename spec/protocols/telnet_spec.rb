@@ -22,7 +22,7 @@ describe "telnet protocol helper" do
         @telnet.buffer("\xFF\xFD\x18\xFF\xFD \xFF\xFD#\xFF\xFD'")
         @log.clear
 
-        @telnet.write("hello")
+        @log << @telnet.prepare("hello")
         expect(@log).to eq(["hello\r\n"])
     end
 end
