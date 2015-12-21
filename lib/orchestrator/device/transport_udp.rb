@@ -5,6 +5,7 @@ module Orchestrator
                 @manager = manager
                 @loop = manager.thread
                 @processor = processor
+                @config = @processor.config
 
                 settings = manager.settings
                 @ip = settings.ip
