@@ -363,7 +363,7 @@ module Orchestrator
                             # We do this for all modules after boot is complete as
                             # Observers can exist before modules are instantiated
                             if @boot_complete
-                                @threads.each do |thr|
+                                @control.threads.each do |thr|
                                     thr.observer.move(mod_id, thread)
                                 end
 

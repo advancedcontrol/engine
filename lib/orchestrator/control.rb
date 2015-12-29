@@ -244,7 +244,7 @@ module Orchestrator
 
                 mod.thread.schedule do
                     mod.stop
-                    defer.resolve(true)
+                    defer.resolve(mod)
                 end
             else
                 err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', might not be loaded"
