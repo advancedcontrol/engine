@@ -187,9 +187,9 @@ module Orchestrator
 
 
             MOD_PARAMS = [
-                :dependency_id, :control_system_id,
-                :ip, :tls, :udp, :port, :makebreak,
-                :uri, :custom_name, :notes, :ignore_connected
+                :dependency_id, :control_system_id, :edge_id,
+                :ip, :tls, :udp, :port, :makebreak, :uri,
+                :custom_name, :notes, :ignore_connected
             ]
             def safe_params
                 settings = params[:settings]
