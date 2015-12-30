@@ -88,9 +88,16 @@ module Orchestrator
             def update
                 para = safe_params
                 @mod.assign_attributes(para)
+                was_running = @mod.running
+
                 save_and_respond(@mod) do
                     # Update the running module
-                    control.update(id)
+                    promise = control.update(id)
+                    if was_running
+                        promise.finally do
+                            control.start id
+                        end
+                    end
                 end
             end
 
