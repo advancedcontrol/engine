@@ -180,6 +180,11 @@ module Orchestrator
                 @request[:keepalive] = !!val
             end
 
+            def ntlm_credentials(opts)
+                @config ||= {}
+                @config[:ntlm] = opts
+            end
+
 
         end
 
