@@ -68,6 +68,13 @@ module Orchestrator
                     end
 
                     if @config[:wait_ready]
+                        # Don't wait forever
+                        @manager.get_scheduler.in(@processor.defaults[:timeout]) do
+                            if @delaying
+                                @manager.logger.warn 'timeout waiting for device to be ready'
+                                close_connection
+                            end
+                        end
                         @delaying = ''
                     else
                         init_connection

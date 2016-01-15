@@ -65,7 +65,7 @@ module Orchestrator
             UNNAMED = 'unnamed'
 
 
-            attr_reader :config, :queue, :thread
+            attr_reader :config, :queue, :thread, :defaults
             attr_accessor :transport
 
             # For statistics only
