@@ -68,6 +68,11 @@ module Orchestrator
                     end
 
                     if @config[:wait_ready]
+                        # Don't wait forever
+                        @delay_timer = @manager.get_scheduler.in(@processor.defaults[:timeout]) do
+                            @manager.logger.warn 'timeout waiting for device to be ready'
+                            close_connection
+                        end
                         @delaying = ''
                     else
                         init_connection
@@ -132,6 +137,8 @@ module Orchestrator
                     result = @delaying.split(@config[:wait_ready], 2)
                     if result.length > 1
                         @delaying = false
+                        @delay_timer.cancel
+                        @delay_timer = nil
                         rem = result[-1]
                         @processor.buffer(rem) unless rem.empty?
                         init_connection
@@ -144,10 +151,16 @@ module Orchestrator
             def terminate
                 @terminated = true
                 @connecting.cancel if @connecting
+                @delay_timer.cancel if @delay_timer
                 close_connection(:after_writing) if @transport.connected
             end
 
             def disconnect
+                if @delay_timer
+                    @delay_timer.cancel
+                    @delay_timer = nil
+                end
+                
                 # Shutdown quickly
                 close_connection
             end
