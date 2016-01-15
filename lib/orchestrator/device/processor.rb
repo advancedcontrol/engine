@@ -140,7 +140,11 @@ module Orchestrator
                 # merge in the defaults
                 options = @defaults.merge(options)
 
-                @queue.push(options, options[:priority] + @bonus)
+                if @transport.delaying
+                    @transport.transmit(options)
+                else
+                    @queue.push(options, options[:priority] + @bonus)
+                end
 
             rescue => e
                 options[:defer].reject(e)

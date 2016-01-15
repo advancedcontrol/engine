@@ -31,6 +31,8 @@ module Orchestrator
                 end
             end
 
+            def delaying; false; end
+
             def transmit(cmd)
                 return if @terminated
                 @udp_server.send(@attached_ip, @port, cmd[:data])

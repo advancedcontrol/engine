@@ -16,6 +16,8 @@ module Orchestrator
                 @last_retry = 0
             end
 
+            attr_reader :delaying
+
             def transmit(cmd)
                 return if @terminated
 
@@ -72,6 +74,7 @@ module Orchestrator
                         @delay_timer = @manager.get_scheduler.in(@processor.defaults[:timeout]) do
                             @manager.logger.warn 'timeout waiting for device to be ready'
                             close_connection
+                            @manager.notify_disconnected
                         end
                         @delaying = ''
                     else

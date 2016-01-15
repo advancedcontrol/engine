@@ -23,6 +23,8 @@ module Orchestrator
                 @reset_timeout = method(:reset_timeout)
             end
 
+            attr_reader :delaying
+
             def transmit(cmd)
                 return if @terminated
 
@@ -96,6 +98,7 @@ module Orchestrator
                         @delay_timer = @manager.get_scheduler.in(@processor.defaults[:timeout]) do
                             @manager.logger.warn 'timeout waiting for device to be ready'
                             close_connection
+                            @manager.notify_disconnected
                         end
                         @delaying = ''
                     else
