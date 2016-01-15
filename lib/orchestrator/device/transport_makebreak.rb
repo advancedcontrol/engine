@@ -23,6 +23,8 @@ module Orchestrator
                 @reset_timeout = method(:reset_timeout)
             end
 
+            attr_reader :delaying
+
             def transmit(cmd)
                 return if @terminated
 

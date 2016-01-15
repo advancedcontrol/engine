@@ -20,6 +20,8 @@ module Orchestrator
                 end
             end
 
+            def delaying; false; end
+
             def transmit(cmd)
                 return if @terminated
 

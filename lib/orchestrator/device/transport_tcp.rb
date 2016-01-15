@@ -16,6 +16,8 @@ module Orchestrator
                 @last_retry = 0
             end
 
+            attr_reader :delaying
+
             def transmit(cmd)
                 return if @terminated
 
