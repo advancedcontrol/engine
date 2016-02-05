@@ -1,3 +1,4 @@
+
 {
     "template": "*",
     "order": 10,
@@ -9,6 +10,16 @@
                     "type": "custom",
                     "tokenizer": "whitespace",
                     "filter": ["lowercase", "custom_ascii_folding"]
+                },
+                "aggressive_tokenisation": {
+                    "type": "pattern",
+                    "pattern": "(\\-|\\.|\\_|\\@|\\#|\\$|\\^|\\%|\\*|=|\\+|\\!|\\,|\/|\\'|\"|\\:|\\||\\;|\\[|\\]|\\{|\\}|\\)|\\(|\\`|\\~|\\>|\\<|\\?|\\W)+",
+                    "filter": ["lowercase", "custom_ascii_folding"]
+                },
+                "lowercase_ordering": {
+                    "type": "pattern",
+                    "pattern": "$",
+                    "filter": ["lowercase"]
                 }
             },
             "filter" : {
@@ -67,6 +78,7 @@
 
                         "dependency_id"      : {"type": "string", "store": true, "index": "not_analyzed" },
                         "control_system_id"  : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "system_id"          : {"type": "string", "store": true, "index": "not_analyzed" },
                         "ip"                 : {"type": "ip", "store": true },
 
                         "location_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
@@ -74,26 +86,50 @@
                         "in_reply_to_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
                         "channel_id"         : {"type": "string", "store": true, "index": "not_analyzed" },
                         "default_playlist_id": {"type": "string", "store": true, "index": "not_analyzed" },
-                        "owner_id_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "owner_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
                         "moment"             : {"type": "string", "store": true },
-                        "created_at"         : {"type": "integer", "store": true },
 
+                        "created_at"     : {"type": "integer", "store": true },
+                        "starting"       : {"type": "integer", "store": true },
+                        "ending"         : {"type": "integer", "store": true },
+                        "end_int"        : {"type": "integer", "store": true },
 
+                        "title": {
+                            "type": "string",
+                            "store": true,
+                            "analyzer": "aggressive_tokenisation",
+                            "fields": {
+                                "sort": {
+                                    "type":  "string",
+                                    "analyzer": "lowercase_ordering"
+                                }
+                            }
+                        },
+                        "name": {
+                            "type": "string",
+                            "store": true,
+                            "analyzer": "aggressive_tokenisation",
+                            "fields": {
+                                "sort": { 
+                                    "type":  "string",
+                                    "analyzer": "lowercase_ordering"
+                                }
+                            }
+                        },
 
-                        "name"           : {"type": "string", "analyzer": "searchable" },
                         "email"          : {"type": "string", "analyzer": "searchable" },
                         "uri"            : {"type": "string", "analyzer": "searchable" },
                         "ip"             : {"type": "string", "analyzer": "searchable" },
                         "settings"       : {
-                            "type" : "object",
+                            "type"   : "object",
                             "enabled": false
                         },
                         "conditions"     : {
-                            "type" : "object",
+                            "type"   : "object",
                             "enabled": false
                         },
                         "actions"        : {
-                            "type" : "object",
+                            "type"   : "object",
                             "enabled": false
                         },
                         "systems"        : {"type": "string", "store": true, "index": "not_analyzed" },
@@ -101,6 +137,8 @@
 
                         "role"              : {"type": "string", "store": true, "index": "not_analyzed" },
                         "zone_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "edge_id"           : {"type": "string", "store": true, "index": "not_analyzed" },
+                        "master_id"         : {"type": "string", "store": true, "index": "not_analyzed" },
                         "dependency_id"     : {"type": "string", "store": true, "index": "not_analyzed" },
                         "control_system_id" : {"type": "string", "store": true, "index": "not_analyzed" },
                         "trigger_id"        : {"type": "string", "store": true, "index": "not_analyzed" },
@@ -111,23 +149,59 @@
                 }
             }
         },
-        "art": {},
-        "com": {
-            "_parent": {
-                "type": "art"
-            }
-        },
+
+
+        "grp": {},
+            "ugj": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "cgj": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "cha": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "ply": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "inv": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+            "art": {
+                "_parent": {
+                    "type": "grp"
+                }
+            },
+                "com": {
+                    "_parent": {
+                        "type": "art"
+                    }
+                },
+
+
         "dep": {},
-        "mod": {
-            "_parent": {
-                "type": "dep"
-            }
-        },
+            "mod": {
+                "_parent": {
+                    "type": "dep"
+                }
+            },
+
+
         "trigger": {},
-        "trig": {
-            "_parent": {
-                "type": "trigger"
+            "trig": {
+                "_parent": {
+                    "type": "trigger"
+                }
             }
-        }
     }
 }

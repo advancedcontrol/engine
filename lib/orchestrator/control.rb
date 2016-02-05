@@ -39,13 +39,13 @@ module Orchestrator
             # We keep track of unloaded modules so we can optimise loading them again
             @unloaded = Set.new
 
-            if Rails.env.production?
+            if Rails.env.production? && ENV['ORC_NO_BOOT'].nil?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
             else
                 logger = ::Logger.new(STDOUT)
             end
             logger.formatter = proc { |severity, datetime, progname, msg|
-                "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{progname} - #{msg}\n"
+                "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{msg}\n"
             }
             @logger = ::ActiveSupport::TaggedLogging.new(logger)
         end
@@ -70,12 +70,19 @@ module Orchestrator
                 @server = ::SpiderGazelle::Spider.instance
                 promise = @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)
-                    if @server.mode == :thread
+                    if @server.in_mode? :thread
+                        start_watchdog
                         @threads = @server.threads
+                        @threads.each do |thread|
+                            thread.schedule do
+                                attach_watchdog(thread)
+                            end
+                        end
                     else    # We are either running no_ipc or process (unsupported for control)
                         @threads = Set.new
 
                         cpus = ::Libuv.cpu_count || 1
+                        start_watchdog
                         cpus.times &method(:start_thread)
 
                         @loop.signal :INT, method(:kill_workers)
@@ -156,9 +163,8 @@ module Orchestrator
                             if @ready && @unloaded.include?(mod_id)
                                 @unloaded.delete(mod_id)
                                 
-                                new_thread = thread.observer
                                 @threads.each do |thr|
-                                    thr.observer.move(mod_id, new_thread)
+                                    thr.observer.move(mod_id, thread)
                                 end
                             end
 
@@ -230,6 +236,9 @@ module Orchestrator
         # Get a fresh version of the settings from the database
         # load the module
         def update(mod_id)
+            mod = loaded?(mod_id)
+            running = mod && mod.running
+
             unload(mod_id).then(proc {
                 # Grab database model in the thread pool
                 res = @loop.work do
@@ -238,7 +247,18 @@ module Orchestrator
 
                 # Load the module if model found
                 res.then(proc { |config|
-                    load(config)    # Promise chaining to here
+                    # Promise chaining to here
+                    promise = load(config)
+
+                    if running
+                        promise.then(proc { |mod_man|
+                            mod.thread.schedule do
+                                mod.start
+                            end
+                        })
+                    end
+
+                    promise
                 })
             })
         end
@@ -300,32 +320,21 @@ module Orchestrator
         # This function is always run from the thread pool
         # Batch loads the system triggers on to the main thread
         def load_all_triggers
+            defer = @loop.defer
             begin
-                systems = []
-                ControlSystem.all.each do |cs|
-                    systems << cs
-                    if systems.length >= 20
-                        schedule_triggers_for(systems)
-                        systems = []
+                systems = ControlSystem.all.to_a
+                @loop.schedule do
+                    systems.each do |sys|
+                        load_triggers_for sys
                     end
-                end
-                if systems.length > 0
-                    schedule_triggers_for(systems)
+                    defer.resolve true
                 end
             rescue => e
                 @logger.warn "exception starting triggers #{e.message}"
                 sleep 1  # Give it a bit of time
                 retry
             end
-        end
-
-        # Schedule the systems for loading on the default thread
-        def schedule_triggers_for(systems)
-            @loop.schedule do
-                systems.each do |sys|
-                    load_triggers_for sys
-                end
-            end
+            defer.promise
         end
 
         # This will always be called on the thread reactor here
@@ -385,7 +394,11 @@ module Orchestrator
             end
 
             # Once load is complete we'll accept websockets
-            ::Libuv::Q.finally(@loop, *loading).finally method(:notify_ready)
+            ::Libuv::Q.finally(@loop, *loading).finally do
+                load_all_triggers.then do
+                    notify_ready
+                end
+            end
         end
 
 
@@ -395,21 +408,110 @@ module Orchestrator
         def start_thread(num)
             thread = Libuv::Loop.new
             @threads << thread
+
             Thread.new do
                 thread.run do |promise|
                     promise.progress @exceptions
 
-                    thread.async do
-                        p 'noop'
-                    end
+                    attach_watchdog thread
                 end
             end
         end
+
+        def attach_watchdog(thread)
+            @watchdog.schedule do
+                @last_seen[thread] = @watchdog.now
+            end
+
+            thread.scheduler.every 1000 do
+                @watchdog.schedule do
+                    @last_seen[thread] = @watchdog.now
+                end
+            end
+        end
+
+        # Monitors threads to make sure they continue to checkin
+        # If a thread is hung then we log what it happening
+        # If it still doesn't checked in then we raise an exception
+        # If it still doesn't checkin then we shutdown
+        def start_watchdog
+            thread = Libuv::Loop.new
+            @last_seen = {}
+            @watching = {}
+
+            Thread.new do
+                thread.run do |promise|
+                    promise.progress @exceptions
+
+                    thread.scheduler.every 2000 do
+                        check_threads
+                    end
+                end
+            end
+            @watchdog = thread
+        end
+
+        def check_threads
+            now = @watchdog.now
+
+            @threads.each do |thread|
+                difference = now - (@last_seen[thread] || 0)
+                thr_actual = nil
+
+                if difference > 2000
+                    # we want to start logging
+                    thr_actual = thread.reactor_thread
+                    
+                    if difference > 4000
+                        if @watching[thread]
+                            thr_actual = @watching.delete thread
+                            thr_actual.set_trace_func nil
+                        end
+
+                        @logger.warn "WATCHDOG PERFORMING CPR"
+                        thr_actual.raise Error::WatchdogResuscitation.new("thread failed to checkin, performing CPR")
+
+                        # Kill the process if the system is unresponsive
+                        if difference > 6000
+                            @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                            kill_workers
+                            exit!
+                        end
+                    else
+                        if @watching[thread].nil?
+                            @logger.warn "WATCHDOG ACTIVATED"
+
+                            @watching[thread] = thr_actual
+
+                            thr_actual.set_trace_func proc { |event, file, line, id, binding, classname|
+                                watchdog_trace(event, file, line, id, binding, classname)
+                            }
+                        end
+                    end
+
+                elsif @watching[thread]
+                    thr_actual = @watching.delete thread
+                    thr_actual.set_trace_func nil
+                end
+            end
+        end
+
+        TraceEvents = ['line', 'call', 'return', 'raise']
+        def watchdog_trace(event, file, line, id, binding, classname)
+            if TraceEvents.include?(event)
+                @logger.info "tracing #{event} from line #{line} in #{file}"
+            end
+        end
+        # =================
+        # END WATCHDOG CODE
+        # =================
+
 
         def kill_workers(*args)
             @threads.each do |thread|
                 thread.stop
             end
+            @watchdog.stop if @watchdog
             @loop.stop
         end
     end

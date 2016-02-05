@@ -7,8 +7,10 @@ module Orchestrator
 
 
         # Supply a bearer_token param for oauth
+        HIJACK = 'rack.hijack'.freeze
+
         def websocket
-            hijack = request.env['rack.hijack']
+            hijack = request.env[HIJACK]
             if hijack && CONTROL.ready
                 promise = hijack.call
 
@@ -16,11 +18,12 @@ module Orchestrator
                 user = current_user
                 promise.then do |hijacked|
                     ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
-                    WebsocketManager.new(ws, user)
+                    fixed_device = params.has_key?(:fixed_device)
+                    WebsocketManager.new(ws, user, fixed_device)
                     ws.start
                 end
 
-                throw :async     # to prevent rails from complaining 
+                throw :async     # to prevent rails from complaining
             else
                 render nothing: true, status: :method_not_allowed
             end

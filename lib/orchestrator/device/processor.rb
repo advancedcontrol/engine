@@ -54,6 +54,7 @@ module Orchestrator
                 # * wait_ready (wait for some signal before signaling connected)
                 # * encoding (BINARY) (force encoding on incoming data)
                 # * before_transmit (callback for last min data modifications)
+                # * before_buffering (callback for pre-buffering manipulation)
             }
 
 
@@ -64,7 +65,7 @@ module Orchestrator
             UNNAMED = 'unnamed'
 
 
-            attr_reader :config, :queue, :thread
+            attr_reader :config, :queue, :thread, :defaults
             attr_accessor :transport
 
             # For statistics only
@@ -106,13 +107,15 @@ module Orchestrator
             ##
             # Helper functions ------------------
             def send_options(options)
-                @defaults.merge!(options)
+                @defaults.merge!(options) if options
             end
 
             def config=(options)
-                @config.merge!(options)
-                # use tokenize to signal a buffer update
-                new_buffer if options.include?(:tokenize)
+                if options
+                    @config.merge!(options)
+                    # use tokenize to signal a buffer update
+                    new_buffer if options.include?(:tokenize)
+                end
             end
 
             #
@@ -137,7 +140,11 @@ module Orchestrator
                 # merge in the defaults
                 options = @defaults.merge(options)
 
-                @queue.push(options, options[:priority] + @bonus)
+                if transport.delaying
+                    @transport.transmit(options)
+                else
+                    @queue.push(options, options[:priority] + @bonus)
+                end
 
             rescue => e
                 options[:defer].reject(e)
@@ -153,6 +160,10 @@ module Orchestrator
                 if @config[:update_status]
                     @man.trak(:connected, true)
                 end
+            end
+
+            def connected?
+                @connected == true
             end
 
             def disconnected
@@ -287,7 +298,7 @@ module Orchestrator
                         cmd = @queue.waiting
                         debug = "with #{result}: <#{cmd[:name] || UNNAMED}> "
                         if cmd[:data]
-                            debug << "#{cmd[:data].inspect}" 
+                            debug << "#{cmd[:data].inspect}"
                         else
                             debug << cmd[:path]
                         end

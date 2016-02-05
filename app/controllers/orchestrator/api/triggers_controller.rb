@@ -15,7 +15,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.sort = [{name: "asc"}]
+                query.sort = NAME_SORT_ASC
                 respond_with @@elastic.search(query)
             end
 
@@ -44,19 +44,32 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             TRIGGER_PARAMS = [
-                :name, :description, :debounce_period
+                :name, :description, :debounce_period, :conditions, :actions
             ]
             # We need to support an arbitrary settings hash so have to
             # work around safe params as per 
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
-                conditions = params[:conditions]
-                actions = params[:actions]
+                safe = params.permit(TRIGGER_PARAMS)
+                resp = {}.merge(safe)
+                cond = safe[:conditions]
+                act = safe[:actions]
 
-                {
-                    conditions: conditions.is_a?(::Array) ? conditions : nil,
-                    actions: actions.is_a?(::Array) ? actions : []
-                }.merge(params.permit(TRIGGER_PARAMS))
+                if cond.class == String
+                    cond = JSON.parse cond
+                    if cond.is_a?(::Array)
+                        resp[:conditions] = cond
+                    end
+                end
+
+                if act.class == String
+                    act = JSON.parse act
+                    if act.is_a?(::Array)
+                        resp[:actions] = act
+                    end
+                end
+
+                resp
             end
 
             def find_trigger

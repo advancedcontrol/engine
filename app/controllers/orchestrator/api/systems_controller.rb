@@ -14,7 +14,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.sort = [{name: "asc"}]
+                query.sort = NAME_SORT_ASC
 
                 # Filter systems via zone_id
                 if params.has_key? :zone_id
@@ -32,6 +32,7 @@ module Orchestrator
                     })
                 end
 
+                query.search_field :name
                 respond_with @@elastic.search(query)
             end
 
@@ -129,7 +130,7 @@ module Orchestrator
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :method, {args: []}).tap do |whitelist|
-                        whitelist[:args] = params[:args]
+                        whitelist[:args] = params[:args] || []
                     end
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
@@ -170,6 +171,11 @@ module Orchestrator
             end
 
             # returns a list of functions available to call
+            Ignore = Set.new([
+                Object, Kernel, BasicObject,
+                Constants, Transcoder,
+                Core::Mixin, Logic::Mixin, Device::Mixin, Service::Mixin
+            ])
             def funcs
                 params.require(:module)
                 sys = System.get(id)
@@ -179,14 +185,27 @@ module Orchestrator
                     index = index.nil? ? 0 : (index.to_i - 1);
 
                     mod = sys.get(para[:module].to_sym, index)
-                    inst = mod.instance if mod
-                    if inst
-                        funcs = inst.public_methods(false)
-                        pub = funcs.select { |func| !::Orchestrator::Core::PROTECTED[func] }
+                    if mod
+                        klass = mod.klass
 
+                        # Find all the public methods available for calling
+                        # Including those methods from ancestor classes
+                        funcs = []
+                        klass.ancestors.each do |methods|
+                            break if Ignore.include? methods 
+                            funcs += methods.public_instance_methods(false)
+                        end
+                        # Remove protected methods
+                        pub = funcs.select { |func| !Core::PROTECTED[func] }
+
+                        # Provide details on the methods
                         resp = {}
                         pub.each do |pfunc|
-                            resp[pfunc] = inst.method(pfunc.to_sym).arity
+                            meth = klass.instance_method(pfunc.to_sym)
+                            resp[pfunc] = {
+                                arity: meth.arity,
+                                params: meth.parameters
+                            }
                         end
 
                         render json: resp
@@ -226,7 +245,7 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
-                :name, :description, :support_url,
+                :name, :description, :support_url, :installed_ui_devices,
                 {
                     zones: [],
                     modules: []
@@ -237,11 +256,13 @@ module Orchestrator
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
                 settings = params[:settings]
-                {
+                args = {
                     modules: [],
                     zones: [],
                     settings: settings.is_a?(::Hash) ? settings : {}
-                }.merge(params.permit(CS_PARAMS))
+                }.merge!(params.permit(CS_PARAMS))
+                args[:installed_ui_devices] = args[:installed_ui_devices].to_i if args.has_key? :installed_ui_devices
+                args
             end
 
             def find_system

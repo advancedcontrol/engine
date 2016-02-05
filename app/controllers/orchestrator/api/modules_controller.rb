@@ -13,7 +13,6 @@ module Orchestrator
             @@elastic ||= Elastic.new(::Orchestrator::Module)
 
             # Constant for performance
-            Dependency = 'dep'.freeze
             MOD_INCLUDE = {
                 include: {
                     # Most human readable module data is contained in dependency
@@ -30,7 +29,7 @@ module Orchestrator
 
 
             def index
-                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic)
+                filters = params.permit(:system_id, :dependency_id, :connected, :no_logic, :running, :as_of)
 
                 # if a system id is present we query the database directly
                 if filters[:system_id]
@@ -43,27 +42,39 @@ module Orchestrator
                     }
                 else # we use elastic search
                     query = @@elastic.query(params)
+                    filter = {}
 
                     if filters[:dependency_id]
-                        query.filter({
-                            dependency_id: [filters[:dependency_id]]
-                        })
+                        filter[:dependency_id] = [filters[:dependency_id]]
                     end
 
                     if filters[:connected]
                         connected = filters[:connected] == 'true'
-                        query.filter({
-                            connected: [connected]
-                        })
+                        filter[:ignore_connected] = [false]
+                        filter[:connected] = [connected]
+                    end
+
+                    if filters[:running]
+                        running = filters[:running] == 'true'
+                        filter[:running] = [running]
                     end
 
                     if filters.has_key? :no_logic
-                        query.filter({
-                            role: [1, 2]
+                        filter[:role] = [1, 2]
+                    end
+
+                    if filters.has_key? :as_of
+                        query.raw_filter({
+                            range: {
+                                updated_at: {
+                                    lte: filters[:as_of].to_i
+                                }
+                            }
                         })
                     end
 
-                    query.has_parent Dependency
+                    query.filter(filter) unless filter.empty?
+                    query.has_parent :dep
 
                     results = @@elastic.search(query)
                     respond_with results, MOD_INCLUDE
@@ -138,9 +149,38 @@ module Orchestrator
                 end
             end
 
+            # Returns the value of the requested status variable
+            # Or dumps the complete status state of the module
             def state
                 lookup_module do |mod|
-                    render json: mod.status[params.permit(:lookup)[:lookup].to_sym]
+                    para = params.permit(:lookup)
+                    if para.has_key?(:lookup)
+                        render json: mod.status[para[:lookup].to_sym]
+                    else
+                        render json: mod.status.marshal_dump
+                    end
+                end
+            end
+
+            # Dumps internal state out of the logger at debug level
+            # and returns the internal state
+            def internal_state
+                lookup_module do |mod|
+                    mod.thread.next_tick do
+                        respHeaders = {}
+                        begin
+                            output = mod.instance.__STATS__
+                            respHeaders['Content-Length'] = output.bytesize
+                            respHeaders['Content-Type'] = 'application/json'
+                            env['async.callback'].call([200, respHeaders, [output]])
+                        rescue => err
+                            output = err.message
+                            respHeaders['Content-Length'] = output.bytesize
+                            respHeaders['Content-Type'] = 'text/plain'
+                            env['async.callback'].call([500, respHeaders, [output]])
+                        end
+                    end
+                    throw :async
                 end
             end
 
@@ -151,7 +191,7 @@ module Orchestrator
             MOD_PARAMS = [
                 :dependency_id, :control_system_id,
                 :ip, :tls, :udp, :port, :makebreak,
-                :uri, :custom_name, :notes
+                :uri, :custom_name, :notes, :ignore_connected
             ]
             def safe_params
                 settings = params[:settings]

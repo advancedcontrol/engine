@@ -23,6 +23,8 @@ module Orchestrator
                 @reset_timeout = method(:reset_timeout)
             end
 
+            attr_reader :delaying
+
             def transmit(cmd)
                 return if @terminated
 
@@ -92,6 +94,12 @@ module Orchestrator
                     end
 
                     if @config[:wait_ready]
+                        # Don't wait forever
+                        @delay_timer = @manager.get_scheduler.in(@processor.defaults[:timeout]) do
+                            @manager.logger.warn 'timeout waiting for device to be ready'
+                            close_connection
+                            @manager.notify_disconnected
+                        end
                         @delaying = ''
                     else
                         init_connection
@@ -153,11 +161,22 @@ module Orchestrator
             end
 
             def on_read(data, *args)
+                if @config[:before_buffering]
+                    begin
+                        data = @config[:before_buffering].call(data)
+                    rescue => err
+                        # We'll continue buffering and provide feedback as to the error
+                        @manager.logger.print_error(err, 'error in before_buffering callback')
+                    end
+                end
+                
                 if @delaying
                     @delaying << data
                     result = @delaying.split(@config[:wait_ready], 2)
                     if result.length > 1
                         @delaying = false
+                        @delay_timer.cancel
+                        @delay_timer = nil
                         rem = result[-1]
                         @processor.buffer(rem) unless rem.empty?
                         init_connection
@@ -171,12 +190,17 @@ module Orchestrator
                 @terminated = true
                 @connecting.cancel if @connecting
                 @activity.cancel if @activity
+                @delay_timer.cancel if @delay_timer
                 close_connection(:after_writing) if @transport.connected
             end
 
             def disconnect
                 @connected = false
                 @disconnecting = true
+                if @delay_timer
+                    @delay_timer.cancel
+                    @delay_timer = nil
+                end
                 close_connection(:after_writing)
             end
 
@@ -228,10 +252,8 @@ module Orchestrator
                 end
 
                 # Notify module
-                if @retries > 1
-                    @processor.queue.online
-                    @processor.connected
-                end
+                @processor.queue.online if not @processor.queue.online?
+                @processor.connected if not @processor.connected?
                 @retries = 0
 
                 # Start inactivity timeout

@@ -13,6 +13,10 @@ module Orchestrator
                 @subscriptions = {} # Reference to each subscription
                 @updating = Mutex.new
 
+                # In case an update occurs while writing the database
+                @pending = {}
+                @writing = {}
+
                 reload_all
             end
 
@@ -55,13 +59,13 @@ module Orchestrator
             end
 
             def reload(trig)
-                # Check trigger belongs to this system
-                if system.id == trig[:system_id]
-                    # Unload any previous trigger with the same ID
-                    old = @triggers[trig.id]
-                    remove(old) if old
+                # Unload any previous trigger with the same ID
+                old = @triggers[trig.id]
+                remove(old.id) if old
 
-                    logger.debug { "loading trigger: #{trig.name} -> #{trig.id}" }
+                # Check trigger belongs to this system (this should always be true)
+                if system.id == trig.control_system_id.to_sym
+                    logger.debug { "loading trigger: #{trig.name} (#{trig.id})" }
 
                     # Load the new trigger
                     @triggers[trig.id] = trig
@@ -72,29 +76,36 @@ module Orchestrator
 
                     subs = []
                     sys_proxy = system
+                    sub_callback = state.method(:set_value)
                     state.subscriptions.each do |sub|
-                        subs << subscribe(sys_proxy, state, sub[:mod], sub[:index], sub[:status])
+                        subs << sys_proxy.subscribe(sub[:mod], sub[:index], sub[:status], sub_callback)
                     end
                     @subscriptions[trig.id] = subs
 
                     # enable the triggers
                     state.enabled(trig.enabled)
+                else
+                    logger.info "not loading trigger #{trig.name} (#{trig.id}) due to system mismatch: #{system.id} != #{trig.control_system_id}"
                 end
             end
 
-            def remove(trig)
-                logger.debug { "removing trigger: #{trig.name} -> #{trig.id}" }
+            def remove(trig_id)
+                trig = @triggers[trig_id]
 
-                @trigger_names.delete(trig.name)
-                @subscriptions[trig.id].each do |sub|
-                    unsubscribe sub
+                if trig
+                    logger.debug { "removing trigger: #{trig.name} (#{trig_id})" }
+
+                    @trigger_names.delete(trig.name)
+                    @subscriptions[trig_id].each do |sub|
+                        unsubscribe sub
+                    end
+                    @conditions[trig_id].destroy
+
+                    timer = @debounce[trig_id]
+                    timer.cancel if timer
+
+                    @triggers.delete(trig_id)
                 end
-                @conditions[trig.id].destroy
-
-                timer = @debounce[trig.id]
-                timer.cancel if timer
-
-                @triggers.delete(trig.id)
             end
 
             def run_trigger_action(name)
@@ -168,14 +179,27 @@ module Orchestrator
                 end
             end
 
-            CAS = 'cas'.freeze
             def update_model(id, state)
+                # Ensure that updates don't build queues and 
+                if @writing[id]
+                    @pending[id] = state
+                else
+                    perform_update_model(id, state)
+                end
+            end
+
+            CAS = 'cas'.freeze
+            def perform_update_model(id, state)
                 # Access the database in a non-blocking fashion
+                @writing[id] = true
+
                 thread.work(proc {
                     @updating.synchronize {
                         model = ::Orchestrator::TriggerInstance.find_by_id id
 
                         if model
+                            model.ignore_update
+                            model.updated_at = Time.now.to_i
                             model.triggered = state
                             model.save!(CAS => model.meta[CAS])
                             model.name  # Load the parent model
@@ -189,7 +213,8 @@ module Orchestrator
                     if model
                         @triggers[id] = model
                         @trigger_names[model.name] = model
-                        logger.debug { "trigger model updated: #{model.name} -> #{model.id}" }
+                        self[model.binding] = state
+                        logger.info "trigger model updated: #{model.name} (#{model.id}) -> #{state}"
                     else
                         model = @triggers[id]
                         model.triggered = state
@@ -200,20 +225,29 @@ module Orchestrator
                     logger.print_error(e, 'error updating triggered state in database model')
                 }).finally do
                     perform_trigger_actions(id) if state
+
+                    # If an update occured while we were processing
+                    # This means there is no more than a queue of 1 (good for memory)
+                    if @pending[id].nil?
+                        @writing.delete(id)
+                    else
+                        new_state = @pending.delete(id)
+                        perform_update_model(id, new_state) if new_state != state
+                    end
                 end
             end
 
             def perform_trigger_actions(id)
                 model = @triggers[id]
 
-                logger.info "running trigger actions for #{model.name} -> #{model.id}"
+                logger.debug "running trigger actions for #{model.name} (#{model.id})"
 
                 model.actions.each do |act|
                     begin
                         case act[:type].to_sym
                         when :exec
                             # Execute the action
-                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args]})" }
+                            logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
                             system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
                         when :email
                             logger.debug { "sending email to: #{act[:to]}" }

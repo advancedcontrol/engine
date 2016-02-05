@@ -30,6 +30,13 @@ module Orchestrator
             # if not zero all UDP sockets must be transmitted from a single thread
             app.config.orchestrator.datagram_port = 0    # ephemeral port (random selection)
             app.config.orchestrator.broadcast_port = 0   # ephemeral port (random selection)
+
+            # Don't autoload modules - they could depend on orchestrator features
+            module_paths = []
+            ::Rails.application.config.eager_load_paths.each do |path|
+                module_paths << path if path.end_with? 'app/modules'
+            end
+            ::Rails.application.config.eager_load_paths -= module_paths
         end
         
         #
@@ -43,8 +50,9 @@ module Orchestrator
             
             ActiveSupport::Dependencies.autoload_paths.each do |path|
                 Pathname.new(path).ascend do |v|
-                    if ['app', 'vendor'].include?(v.basename.to_s)
-                        app.config.orchestrator.module_paths << "#{v.to_s}/modules"
+                    if ['app', 'vendor', 'lib'].include?(v.basename.to_s)
+                        app.config.orchestrator.module_paths << File.expand_path(File.join(v.to_s, '../modules'))
+                        app.config.orchestrator.module_paths << File.expand_path(File.join(v.to_s, 'modules'))
                         break
                     end
                 end
@@ -54,11 +62,15 @@ module Orchestrator
 
             # Force design documents
             temp = ::Couchbase::Model::Configuration.design_documents_paths
+
             ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/orchestrator'))]
             ::Orchestrator::ControlSystem.ensure_design_document!
             ::Orchestrator::Module.ensure_design_document!
             ::Orchestrator::Zone.ensure_design_document!
             ::Orchestrator::TriggerInstance.ensure_design_document!
+            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models'))]
+            ::User.ensure_design_document!
+
             ::Couchbase::Model::Configuration.design_documents_paths = temp
 
             # Start the control system by initializing it

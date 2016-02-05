@@ -56,7 +56,7 @@ module Orchestrator
 
             attr_reader :trace
 
-            def request(name, *args, &block)
+            def request(name, args, &block)
                 defer = @thread.defer
 
                 if @mod.nil?
@@ -162,7 +162,7 @@ module Orchestrator
 
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
-                @forward.request(name.to_sym, *args, &block)
+                @forward.request(name.to_sym, args, &block)
             end
         end
     end

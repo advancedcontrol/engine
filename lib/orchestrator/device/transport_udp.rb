@@ -5,6 +5,7 @@ module Orchestrator
                 @manager = manager
                 @loop = manager.thread
                 @processor = processor
+                @config = @processor.config
 
                 settings = manager.settings
                 @ip = settings.ip
@@ -30,6 +31,8 @@ module Orchestrator
                 end
             end
 
+            def delaying; false; end
+
             def transmit(cmd)
                 return if @terminated
                 @udp_server.send(@attached_ip, @port, cmd[:data])
@@ -38,6 +41,15 @@ module Orchestrator
             def on_read(data)
                 # We schedule as UDP server may be on a different thread
                 @loop.schedule do
+                    if @config[:before_buffering]
+                        begin
+                            data = @config[:before_buffering].call(data)
+                        rescue => err
+                            # We'll continue buffering and provide feedback as to the error
+                            @manager.logger.print_error(err, 'error in before_buffering callback')
+                        end
+                    end
+                
                     @processor.buffer(data)
                 end
             end

@@ -22,15 +22,20 @@ module Orchestrator
 
             def stop
                 super
-                @processor.terminate
+                @processor.terminate if @processor
                 @processor = nil
-                @connection.terminate
+                @connection.terminate if @connection
                 @connection = nil
             end
 
             def apply_config
-                @processor.config = @klass.__default_config(@instance) if @klass.respond_to? :__default_config
-                @processor.send_options(@klass.__default_opts(@instance)) if @klass.respond_to? :__default_opts
+                cfg = @klass.__default_config(@instance) if @klass.respond_to? :__default_config
+                opts = @klass.__default_opts(@instance) if @klass.respond_to? :__default_opts
+
+                if @processor
+                    @processor.config = cfg
+                    @processor.send_options(opts)
+                end
             end
 
             # NOTE:: Same as Device::Manager:-------

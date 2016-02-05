@@ -180,11 +180,77 @@ module Orchestrator
                 @request[:keepalive] = !!val
             end
 
+            def ntlm_credentials(opts)
+                @config ||= {}
+                @config[:ntlm] = opts
+            end
+
 
         end
 
+
+        # These are helpers for defining module config
+        module DiscoverMethods
+            def __discovery_details
+                @makebreak = false unless @makebreak
+
+                cfg = {}
+                cfg[:role] = @implements if @implements
+                cfg[:name] = @descriptive_name if @descriptive_name
+                cfg[:description] = @driver_description if @driver_description
+                cfg[:default] = @default_value if @default_value
+                cfg[:module_name] = @generic_name if @generic_name
+                cfg[:settings] = @default_settings if @default_settings
+                cfg[:makebreak] = @makebreak
+                cfg
+            end
+
+            def tcp_port(value)
+                @default_value = value.to_i
+                @implements = :device
+            end
+
+            def makebreak!
+                @makebreak = true
+            end
+
+            def udp_port(value)
+                @default_value = value.to_i
+                @implements = :device
+            end
+
+            def uri_base(value)
+                @default_value = value
+                @implements = :service
+            end
+
+            Roles = [:device, :service, :logic]
+            def implements(role)
+                val = role.to_sym
+                @implements = role if Roles.include?(val)
+            end
+
+            def generic_name(name)
+                @generic_name = name
+            end
+
+            def descriptive_name(name)
+                @descriptive_name = name
+            end
+
+            def description(markdown)
+                @driver_description = markdown
+            end
+
+            def default_settings(json)
+                @default_settings = json
+            end
+        end
+
+
         def self.included(klass)
             klass.extend ConfigMethods
+            klass.extend DiscoverMethods
             klass.__reset_config
         end
     end

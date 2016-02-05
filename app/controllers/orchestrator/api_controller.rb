@@ -1,6 +1,11 @@
 
 module Orchestrator
     class ApiController < ::Orchestrator::Base
+        NAME_SORT_ASC ||= [{
+            'doc.name.sort' => {
+                order: :asc
+            }
+        }]
     	
 
         protected
