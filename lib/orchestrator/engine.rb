@@ -85,20 +85,10 @@ module Orchestrator
                         # Issue would have been caused by a database error in the ctrl.mount function
                         # We really need the system to be in a clean state when it starts so our only
                         # option is to kill it and let the service manager restart it.
-                        Thread.new {
-                            while true do
-                                begin
-                                    puts "Failed to load. Killing process."
-                                    sleep 1
-                                    Process.kill 'SIGKILL', Process.pid
-                                    sleep 1
-                                    exit
-                                rescue
-                                    exit
-                                end
-                            end
-                        }
-                        raise e
+                        puts "Failed to load. Killing process."
+                        sleep 1
+                        Process.kill 'SIGKILL', Process.pid
+                        exit
                     end
                 end
             end
