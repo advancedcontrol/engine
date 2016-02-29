@@ -86,8 +86,14 @@ module Orchestrator
                         # We really need the system to be in a clean state when it starts so our only
                         # option is to kill it and let the service manager restart it.
                         Thread.new {
-                            sleep 1
-                            Process.kill 'SIGKILL', Process.pid
+                            while true do
+                                begin
+                                    puts "Failed to load. Killing process."
+                                    sleep 1
+                                    Process.kill 'SIGKILL', Process.pid
+                                rescue
+                                end
+                            end
                         }
                         raise e
                     end
