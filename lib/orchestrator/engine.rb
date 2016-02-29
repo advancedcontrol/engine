@@ -91,6 +91,7 @@ module Orchestrator
                                     puts "Failed to load. Killing process."
                                     sleep 1
                                     Process.kill 'SIGKILL', Process.pid
+                                    sleep 1
                                     exit
                                 rescue
                                     exit
