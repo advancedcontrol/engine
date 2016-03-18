@@ -62,15 +62,21 @@ module Orchestrator
             @critical.synchronize {
                 return if @server   # Protect against multiple mounts
 
+                logger.debug "init: Mounting Engine"
+
                 # Cache all the zones in the system
                 ::Orchestrator::Zone.all.each do |zone|
                     @zones[zone.id] = zone
                 end
 
+                logger.debug "init: Zones loaded"
+
                 @server = ::SpiderGazelle::Spider.instance
                 promise = @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)
                     if @server.in_mode? :thread
+                        logger.debug "init: Running in threaded mode"
+
                         start_watchdog
                         @threads = @server.threads
                         @threads.each do |thread|
@@ -78,12 +84,18 @@ module Orchestrator
                                 attach_watchdog(thread)
                             end
                         end
+
+                        logger.debug "init: Watchdog loaded"
                     else    # We are either running no_ipc or process (unsupported for control)
                         @threads = Set.new
+
+                        logger.debug "init: Running in process mode (starting threads)"
 
                         cpus = ::Libuv.cpu_count || 1
                         start_watchdog
                         cpus.times &method(:start_thread)
+
+                        logger.debug "init: Watchdog loaded"
 
                         @loop.signal :INT, method(:kill_workers)
                     end
@@ -356,6 +368,8 @@ module Orchestrator
             loading = []
             wait = nil
 
+            logger.debug "init: Start loading modules"
+
             modules = ::Orchestrator::Module.all
             modules.each do |mod|
                 if mod.role < 3
@@ -389,14 +403,21 @@ module Orchestrator
         def continue_loading(modules)
             loading = []
 
+            logger.debug "init: Device modules loaded"
+
             modules.each do |mod|
                 loading << load(mod)  # grab the load promises
             end
 
             # Once load is complete we'll accept websockets
             ::Libuv::Q.finally(@loop, *loading).finally do
+                logger.debug "init: Logic modules loaded"
+
                 load_all_triggers.then do
+                    logger.debug "init: Triggers loaded"
                     notify_ready
+
+                    logger.debug "init: Init complete"
                 end
             end
         end
