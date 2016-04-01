@@ -263,32 +263,29 @@ module Orchestrator
             # Don't load anything if this host doesn't have anything to do
             # with the modules in this node
             unless should_run_on_this_host || is_failover_host
-                @logger.debug { "init: Ignoring node #{self.id} - #{self.name}" }
+                @logger.debug { "init: Ignoring node #{self.id}: #{self.name}" }
                 defer.resolve true
                 return defer.promise
             end
 
-            @logger.debug { "init: Start loading modules for node #{self.id} - #{self.name}" }
+            @logger.debug { "init: Start loading modules for node #{self.id}: #{self.name}" }
 
             @global_cache = all_systems
             @loaded = ::ThreadSafe::Cache.new
             @start_order = StartOrder.new @logger
 
-            loading = []
+            # Modules are not start until boot is complete
             modules.each do |mod|
-                loading << load(mod)
+                load(mod)
             end
 
-            # Mark system as ready
-            @loop.finally(*loading).finally do
-                @logger.debug { "init: Modules loaded for #{self.id} - #{self.name}" }
-                defer.resolve load_triggers
-            end
+            # Mark system as ready on triggers are loaded
+            defer.resolve load_triggers
 
             # Clear the system cache
             defer.promise.then do
                 @boot_complete = true
-                @logger.debug { "init: Triggers loaded for #{self.id} - #{self.name}" }
+                @logger.debug { "init: Modules loaded for #{self.id}: #{self.name}" }
                 System.clear_cache
             end
 
@@ -454,7 +451,7 @@ module Orchestrator
             @thread = ::Libuv::Loop.default
             @loader = DependencyManager.instance
             @control = Control.instance
-            @logger = ::SpiderGazelle::Logger.instance
+            @logger = @control.logger
             self.node_id
             self.master_id
         end

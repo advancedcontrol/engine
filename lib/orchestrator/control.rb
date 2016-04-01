@@ -330,7 +330,7 @@ module Orchestrator
         def load_all
             loading = []
 
-            logger.debug 'init: Loading edge nodes'
+            logger.debug 'init: Loading edge node details'
 
             nodes = ::Orchestrator::EdgeControl.all
             nodes.each do |node|
@@ -340,7 +340,7 @@ module Orchestrator
 
             # Once load is complete we'll accept websockets
             @loop.finally(*loading).finally do
-                logger.debug 'init: Module load complete - starting edge server'
+                logger.debug 'init: Connecting to edge nodes'
 
                 # Determine if we are the master node (either single master or load balanced masters)
                 this_node   = @nodes[Remote::NodeId]
