@@ -300,7 +300,7 @@ module Orchestrator
                     respHeaders['Content-Type'] = 'application/json'
                     env['async.callback'].call([200, respHeaders, [output]])
                 }, proc { |err|
-                    output = err.message
+                    output = err.respond_to?(:message) ? err.message : err.to_s
                     respHeaders['Content-Length'] = output.bytesize
                     respHeaders['Content-Type'] = 'text/plain'
                     env['async.callback'].call([500, respHeaders, [output]])
