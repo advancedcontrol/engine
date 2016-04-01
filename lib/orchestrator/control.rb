@@ -59,15 +59,21 @@ module Orchestrator
             @critical.synchronize {
                 return if @server   # Protect against multiple mounts
 
+                logger.debug 'init: Mounting Engine'
+
                 # Cache all the zones in the system
                 ::Orchestrator::Zone.all.each do |zone|
                     @zones[zone.id] = zone
                 end
 
+                logger.debug 'init: Zones loaded'
+
                 @server = ::SpiderGazelle::Spider.instance
                 promise = @server.loaded.then do
                     # Share threads with SpiderGazelle (one per core)
                     if @server.in_mode? :thread
+                        logger.debug 'init: Running in threaded mode'
+
                         start_watchdog
                         @threads = @server.threads
                         @threads.each do |thread|
@@ -75,12 +81,18 @@ module Orchestrator
                                 attach_watchdog(thread)
                             end
                         end
+
+                        logger.debug 'init: Watchdog started'
                     else    # We are either running no_ipc or process (unsupported for control)
                         @threads = []
+
+                        logger.debug 'init: Running in process mode (starting threads)'
 
                         cpus = ::Libuv.cpu_count || 1
                         start_watchdog
                         cpus.times &method(:start_thread)
+
+                        logger.debug 'init: Watchdog started'
 
                         @loop.signal :INT, method(:kill_workers)
                     end
@@ -318,6 +330,8 @@ module Orchestrator
         def load_all
             loading = []
 
+            logger.debug 'init: Loading edge nodes'
+
             nodes = ::Orchestrator::EdgeControl.all
             nodes.each do |node|
                 @nodes[node.id.to_sym] = node
@@ -326,6 +340,8 @@ module Orchestrator
 
             # Once load is complete we'll accept websockets
             @loop.finally(*loading).finally do
+                logger.debug 'init: Module load complete - starting edge server'
+
                 # Determine if we are the master node (either single master or load balanced masters)
                 this_node   = @nodes[Remote::NodeId]
                 master_node = @nodes[this_node.node_master_id]
@@ -337,6 +353,8 @@ module Orchestrator
                     # Save a statistics snapshot every 5min on the master server
                     @loop.scheduler.every(300_000, method(:log_stats))
                 end
+
+                logger.debug 'init: Init complete'
 
                 @ready_defer.resolve(true)
             end

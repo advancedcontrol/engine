@@ -263,9 +263,12 @@ module Orchestrator
             # Don't load anything if this host doesn't have anything to do
             # with the modules in this node
             unless should_run_on_this_host || is_failover_host
+                @logger.debug { "init: Ignoring node #{self.id} - #{self.name}" }
                 defer.resolve true
                 return defer.promise
             end
+
+            @logger.debug { "init: Start loading modules for node #{self.id} - #{self.name}" }
 
             @global_cache = all_systems
             @loaded = ::ThreadSafe::Cache.new
@@ -277,11 +280,15 @@ module Orchestrator
             end
 
             # Mark system as ready
-            defer.resolve load_triggers
+            @loop.finally(*loading).finally do
+                @logger.debug { "init: Modules loaded for #{self.id} - #{self.name}" }
+                defer.resolve load_triggers
+            end
 
             # Clear the system cache
             defer.promise.then do
                 @boot_complete = true
+                @logger.debug { "init: Triggers loaded for #{self.id} - #{self.name}" }
                 System.clear_cache
             end
 
