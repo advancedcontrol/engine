@@ -36,6 +36,7 @@ module Orchestrator
                     proc { |result|
                         # Make sure the request information is always available
                         result[:request] = cmd
+                        result[:body] = result.body  # here for module compatibility
                         @processor.buffer(result)
 
                         @manager.logger.debug {
@@ -69,7 +70,7 @@ module Orchestrator
 
             def terminate
                 @terminated = true
-                @server.close_connection(:after_writing)
+                @server.cancel_all
             end
         end
     end
