@@ -39,6 +39,9 @@ module Orchestrator
                         if @state != :connected
                             @state = :connected
                             @manager.notify_connected
+                            if @processor.config[:update_status]
+                                @manager.trak(:connected, true)
+                            end
                         end
                         
                         # Make sure the request information is always available
@@ -58,6 +61,9 @@ module Orchestrator
                         if failure == :connection_failure && @state != :disconnected
                             @state = :disconnected
                             @manager.notify_disconnected
+                            if @processor.config[:update_status]
+                                @manager.trak(:connected, false)
+                            end
                         end
 
                         # Fail fast (no point waiting for the timeout)
