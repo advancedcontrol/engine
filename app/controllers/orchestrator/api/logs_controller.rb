@@ -4,7 +4,9 @@ module Orchestrator
         class LogsController < ApiController
             respond_to :json
             before_action :doorkeeper_authorize!
-            before_action :check_admin
+            
+            before_action :check_admin, except: :missing_connections
+            before_action :check_support, only: :missing_connections
 
 
             # deal with live reload   filter

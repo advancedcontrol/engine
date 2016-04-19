@@ -39,7 +39,17 @@ module Orchestrator
             end
 
             # NOTE:: Same as Device::Manager:-------
-            # TODO:: Need to have a guess about when a device may be off line
+            def notify_disconnected
+                if @instance.respond_to? :disconnected, true
+                    begin
+                        @instance.__send__(:disconnected)
+                    rescue => e
+                        @logger.print_error(e, 'error in module disconnected callback')
+                    end
+                end
+
+                update_connected_status(false)
+            end
 
             def notify_connected
                 if @instance.respond_to? :connected, true
