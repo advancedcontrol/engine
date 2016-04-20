@@ -137,7 +137,7 @@ module Orchestrator
                 search_json = @@cs.generate_body(query)
                 body = search_json[:body]
                 body[:from] = 0
-                body[:size] = 100_000_000
+                body[:size] = 10_000  # Elastic search max
                 result = ::Elastic.search(search_json)
 
                 system_ids = result[::Elastic::HITS][::Elastic::HITS].map {|entry| entry[::Elastic::ID]} || []
