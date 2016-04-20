@@ -20,7 +20,7 @@ module Orchestrator
                 if params.has_key? :zone_id
                     zone_id = params.permit(:zone_id)[:zone_id]
                     query.filter({
-                        zones: [zone_id]
+                        'doc.zones' => [zone_id]
                     })
                 end
 
@@ -28,11 +28,11 @@ module Orchestrator
                 if params.has_key? :module_id
                     module_id = params.permit(:module_id)[:module_id]
                     query.filter({
-                        modules: [module_id]
+                        'doc.modules' => [module_id]
                     })
                 end
 
-                query.search_field :name
+                query.search_field 'doc.name'
                 respond_with @@elastic.search(query)
             end
 
@@ -240,7 +240,7 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
-                :name, :description, :support_url, :installed_ui_devices,
+                :name, :edge_id, :description, :support_url, :installed_ui_devices,
                 {
                     zones: [],
                     modules: []

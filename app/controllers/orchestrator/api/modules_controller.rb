@@ -45,28 +45,28 @@ module Orchestrator
                     filter = {}
 
                     if filters[:dependency_id]
-                        filter[:dependency_id] = [filters[:dependency_id]]
+                        filter['doc.dependency_id'] = [filters[:dependency_id]]
                     end
 
                     if filters[:connected]
                         connected = filters[:connected] == 'true'
-                        filter[:ignore_connected] = [false]
-                        filter[:connected] = [connected]
+                        filter['doc.ignore_connected'] = [false]
+                        filter['doc.connected'] = [connected]
                     end
 
                     if filters[:running]
                         running = filters[:running] == 'true'
-                        filter[:running] = [running]
+                        filter['doc.running'] = [running]
                     end
 
                     if filters.has_key? :no_logic
-                        filter[:role] = [1, 2]
+                        filter['doc.role'] = [1, 2]
                     end
 
                     if filters.has_key? :as_of
                         query.raw_filter({
                             range: {
-                                updated_at: {
+                                'doc.updated_at' => {
                                     lte: filters[:as_of].to_i
                                 }
                             }

@@ -15,7 +15,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:connections_active)
+                    histogram: build_query('doc.connections_active')
                 }
             end
 
@@ -25,7 +25,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:fixed_connections)
+                    histogram: build_query('doc.fixed_connections')
                 }
             end
 
@@ -35,7 +35,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:triggers_active)
+                    histogram: build_query('doc.triggers_active')
                 }
             end
 
@@ -45,7 +45,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:modules_disconnected)
+                    histogram: build_query('doc.modules_disconnected')
                 }
             end
 
@@ -125,7 +125,7 @@ module Orchestrator
                             bool: {
                                 must: [{
                                     range: {
-                                        stat_snapshot_at: {
+                                        'doc.stat_snapshot_at': {
                                             gte: @period_start
                                         }
                                     }
@@ -150,7 +150,7 @@ module Orchestrator
                     field => {
                         histogram: {
                             min_doc_count: 0,
-                            field: :stat_snapshot_at,
+                            field: 'doc.stat_snapshot_at',
                             interval: @period[0]
                         },
                         aggregations: {

@@ -30,29 +30,29 @@ module Orchestrator
 
                 # Filter by system ID
                 if safe_query.has_key? :sys_id
-                    filter[:control_system_id] = [safe_query[:sys_id]]
+                    filter['doc.control_system_id'] = [safe_query[:sys_id]]
                 end
 
                 # Filter by trigger ID
                 if safe_query.has_key? :trigger_id
-                    filter[:trigger_id] = [safe_query[:trigger_id]]
+                    filter['doc.trigger_id'] = [safe_query[:trigger_id]]
                 end
 
                 # Filter by importance
                 if params.has_key? :important
-                    filter[:important] = [true]
+                    filter['doc.important'] = [true]
                 end
 
                 # Filter by triggered
                 if params.has_key? :triggered
-                    filter[:triggered] = [true]
+                    filter['doc.triggered'] = [true]
                 end
 
                 # That occured before a particular time
                 if safe_query.has_key? :as_of
                     query.raw_filter({
                         range: {
-                            updated_at: {
+                            'doc.updated_at' => {
                                 lte: safe_query[:as_of].to_i
                             }
                         }
