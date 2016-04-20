@@ -1,4 +1,5 @@
 require 'set'
+require 'coauth'
 
 
 module Orchestrator
