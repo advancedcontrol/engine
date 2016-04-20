@@ -120,16 +120,12 @@ module Orchestrator
 
             def query
                 {
-                    filtered: {
-                        query: {
-                            bool: {
-                                must: [{
-                                    range: {
-                                        'doc.stat_snapshot_at': {
-                                            gte: @period_start
-                                        }
-                                    }
-                                }]
+                    bool: {
+                        must: {
+                            range: {
+                                'doc.stat_snapshot_at' => {
+                                    gte: @period_start
+                                }
                             }
                         },
                         filter: {
