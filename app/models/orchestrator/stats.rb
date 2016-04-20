@@ -50,10 +50,10 @@ module Orchestrator
             # => Connections active
             #----------------------
             query = @@accessing.query
-            query.missing(:ended_at)    # Still active
+            query.missing('doc.ended_at')    # Still active
             query.raw_filter([{         # Model was updated in the last 2min
                 range: {
-                    last_checked_at: {
+                    'doc.last_checked_at' => {
                         gte: self.stat_snapshot_at - 120
                     }
                 }
@@ -64,13 +64,13 @@ module Orchestrator
             # => Fixed connections active
             #----------------------------
             query = @@accessing.query
-            query.missing(:ended_at)    # Still active
+            query.missing('doc.ended_at')    # Still active
             query.filter({
-                installed_device: [true]
+                'doc.installed_device' => [true]
             })
             query.raw_filter([{         # Model was updated in the last 2min
                 range: {
-                    last_checked_at: {
+                    'doc.last_checked_at' => {
                         gte: self.stat_snapshot_at - 120
                     }
                 }
@@ -82,9 +82,9 @@ module Orchestrator
             #-------------------
             query = @@triggers.query
             query.filter({
-                triggered: [true],
-                important: [true],
-                enabled: [true]
+                'doc.triggered' => [true],
+                #important: [true],
+                'doc.enabled' => [true]
             })
             self.triggers_active = @@triggers.count(query).to_i
 
@@ -94,15 +94,15 @@ module Orchestrator
             query = @@disconnected.query
             query.raw_filter({
                 range: {
-                    updated_at: {
+                    'doc.updated_at' => {
                         lte: Time.now.to_i - 30
                     }
                 }
             })
             query.filter({
-                ignore_connected: [false],
-                connected: [false],
-                running: [true]
+                'doc.ignore_connected' => [false],
+                'doc.connected' => [false],
+                'doc.running' => [true]
             })
             self.modules_disconnected = @@disconnected.count(query).to_i
         end
