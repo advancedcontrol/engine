@@ -56,13 +56,13 @@ module Orchestrator
                         or: [
                             # Never ending
                             {
-                                missing: { field: :ended_at }
+                                missing: { field: 'doc.ended_at' }
                             },
 
                             # Or ends after the start time we requested
                             {
                                 range: {
-                                    ending: {
+                                    'doc.ending' => {
                                         gt: args[:starting].to_i
                                     }
                                 }
@@ -75,7 +75,7 @@ module Orchestrator
                 if args.has_key? :ending
                     custom << {
                         range: {
-                            created_at: {
+                            'doc.created_at' => {
                                 lt: args[:ending].to_i
                             }
                         }
@@ -87,7 +87,7 @@ module Orchestrator
                     installed = args[:installed] == 'true'
                     custom << {
                         term: {
-                            installed_device: installed
+                            'doc.installed_device' => installed
                         }
                     }
                 end
@@ -96,7 +96,7 @@ module Orchestrator
                     suspected = args[:suspected] == 'true'
                     custom << {
                         term: {
-                            suspected: suspected
+                            'doc.suspected' => suspected
                         }
                     }
                 end
@@ -104,7 +104,7 @@ module Orchestrator
                 if args.has_key? :user
                     custom << {
                         term: {
-                            user_id: args[:user]
+                            'doc.user_id' => args[:user]
                         }
                     }
                 end
@@ -130,14 +130,14 @@ module Orchestrator
                 # System IDs Query
                 query = @@cs.query
                 query.range({
-                    installed_ui_devices: {
+                    'doc.installed_ui_devices' => {
                         gt: 0
                     }
                 })
                 search_json = @@cs.generate_body(query)
                 body = search_json[:body]
                 body[:from] = 0
-                body[:size] = 100_000_000
+                body[:size] = 10_000
                 result = ::Elastic.search(search_json)
 
                 system_ids = result[::Elastic::HITS][::Elastic::HITS].map {|entry| entry[::Elastic::ID]} || []
@@ -162,19 +162,19 @@ module Orchestrator
                                             },
                                             {
                                                 term: {
-                                                    installed_device: true
+                                                    'doc.installed_device' => true
                                                 }
                                             },
                                             {
                                                 terms: {
-                                                    system_id: system_ids
+                                                    'doc.system_id' => system_ids
                                                 }
                                             },
 
                                             # last seen within the last 2min
                                             {
                                                 range: {
-                                                    last_checked_at: {
+                                                    'doc.last_checked_at' => {
                                                         gt: two_min_ago
                                                     }
                                                 }
@@ -184,12 +184,12 @@ module Orchestrator
                                                 or: [
                                                     {
                                                         missing: { 
-                                                            field: :ended_at
+                                                            field: 'doc.ended_at'
                                                         }
                                                     },
                                                     {
                                                         range: {
-                                                            ended_at: {
+                                                            'doc.ended_at' => {
                                                                 gt: one_min_ago
                                                             }
                                                         }
@@ -203,7 +203,7 @@ module Orchestrator
                             aggs: {
                                 system_count: {
                                     terms: {
-                                        field: :system_id,
+                                        field: 'doc.system_id',
                                         size: 0
                                     }
                                 }
