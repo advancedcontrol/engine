@@ -1,15 +1,10 @@
 require 'set'
-require 'coauth'
+
 
 
 module Orchestrator
     class Engine < ::Rails::Engine
         isolate_namespace Orchestrator
-
-
-        # Inform CoAuth not to init
-        ::Auth::CoStatus[:init] = true
-        
         
         # NOTE:: if we ever have any tasks
         #rake_tasks do

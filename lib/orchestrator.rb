@@ -1,10 +1,12 @@
-require 'orchestrator/engine'
-
 
 # Gems
 require 'couchbase-id'
 require 'uv-rays'
 require 'co-elastic-query'
+require 'coauth'
+::Auth::CoStatus[:init] = true
+
+require 'orchestrator/engine'
 
 # Optional utility modules
 require 'orchestrator/utilities/transcoder' # functions for data manipulation
