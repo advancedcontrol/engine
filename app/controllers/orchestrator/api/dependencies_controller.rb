@@ -17,7 +17,7 @@ module Orchestrator
 
                 if role && Dependency::ROLES.include?(role.to_sym)
                     query.filter({
-                        'doc.role': [role]
+                        'doc.role' => [role]
                     })
                 end
 
