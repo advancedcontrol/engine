@@ -22,6 +22,10 @@ module Orchestrator
                 end
             end
 
+            
+            attr_reader :server
+
+
             def delaying; false; end
 
             def transmit(cmd)
