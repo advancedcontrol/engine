@@ -175,16 +175,23 @@ module Orchestrator
             # Service module specific:
             # ------------------------
 
+            # val = bool
             def keepalive(val)
                 @request ||= {}
                 @request[:keepalive] = !!val
             end
 
+            # opts = {user:,password:,domain:}
             def ntlm_credentials(opts)
                 @config ||= {}
                 @config[:ntlm] = opts
             end
 
+            # opts = {user:,password:}
+            def digest_credentials(opts)
+                @config ||= {}
+                @config[:digest] = opts
+            end
         end
 
 
