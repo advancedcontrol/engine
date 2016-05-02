@@ -11,14 +11,14 @@ module Orchestrator
         Close = false
         Short = false
 
-        On_vars = Set.new([1, true, 'true', 'True', 
-                            :on, :On, 'on', 'On', 
-                            :yes, :Yes, 'yes', 'Yes', 
-                            'down', 'Down', :down, :Down, 
+        On_vars = Set.new([1, true, 'true', 'True',
+                            :on, :On, 'on', 'On',
+                            :yes, :Yes, 'yes', 'Yes',
+                            'down', 'Down', :down, :Down,
                             'open', 'Open', :open, :Open,
                             'active', 'Active', :active, :Active])
         Off_vars = Set.new([0, false, 'false', 'False',
-                            :off, :Off, 'off', 'Off', 
+                            :off, :Off, 'off', 'Off',
                             :no, :No, 'no', 'No',
                             'up', 'Up', :up, :Up,
                             'close', 'Close', :close, :Close,
@@ -86,7 +86,7 @@ module Orchestrator
                         lambda do |data|
                             callbacks.each do |cb|
                                 data = cb.call(data)
-                            end 
+                            end
                             data
                         end
                     else
@@ -175,17 +175,23 @@ module Orchestrator
             # Service module specific:
             # ------------------------
 
+            # val = bool
             def keepalive(val)
                 @request ||= {}
                 @request[:keepalive] = !!val
             end
 
+            # opts = {user:,password:,domain:}
             def ntlm_credentials(opts)
                 @config ||= {}
                 @config[:ntlm] = opts
             end
 
-
+            # opts = {user:,password:}
+            def digest_credentials(opts)
+                @config ||= {}
+                @config[:digest] = opts
+            end
         end
 
 
