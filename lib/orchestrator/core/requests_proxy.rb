@@ -86,8 +86,8 @@ module Orchestrator
                                             instance.public_send(name, *args, &block)
                                         )
                                     else
-                                        msg = "user #{@user.id} attempted to access secure method #{name}"
-                                        @mod.logger.warn msg
+                                        msg = "#{@user.id} attempted to access secure method #{name}"
+                                        mod.logger.warn msg
                                         defer.reject(SecurityError.new(msg))
                                     end
                                 end

@@ -88,7 +88,7 @@ module Orchestrator
                                         if !instance.class.respond_to?(:grant_access?) || instance.class.grant_access?(instance, @user, name)
                                             defer.resolve(@mod.instance.public_send(name, *args, &block))
                                         else
-                                            msg = "user #{@user.id} attempted to access secure method #{name}"
+                                            msg = "#{@user.id} attempted to access secure method #{name}"
                                             @mod.logger.warn msg
                                             defer.reject(SecurityError.new(msg))
                                         end
@@ -109,7 +109,7 @@ module Orchestrator
                                 if !instance.class.respond_to?(:grant_access?) || instance.class.grant_access?(instance, @user, name)
                                     defer.resolve(instance.public_send(name, *args, &block))
                                 else
-                                    msg = "user #{@user.id} attempted to access secure method #{name}"
+                                    msg = "#{@user.id} attempted to access secure method #{name}"
                                     @mod.logger.warn msg
                                     defer.reject(SecurityError.new(msg))
                                 end

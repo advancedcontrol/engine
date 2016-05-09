@@ -2,14 +2,15 @@
 require 'couchbase-id'
 require 'uv-rays'
 require 'co-elastic-query'
-require 'coauth'
-::Auth::CoStatus[:init] = true
+#require 'coauth'
+#::Auth::CoStatus[:init] = true
 
 require 'orchestrator/engine'
 
 # Optional utility modules
 require 'orchestrator/utilities/transcoder' # functions for data manipulation
 require 'orchestrator/utilities/constants'  # constants for readable code
+require 'orchestrator/utilities/security'   # helper methods for protecting code access
 
 # System Main
 require 'orchestrator/dependency_manager'   # Manages code loading
