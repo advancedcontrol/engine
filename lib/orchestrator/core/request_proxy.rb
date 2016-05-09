@@ -87,14 +87,26 @@ module Orchestrator
                                 else
                                     logger.warn "the module #{@mod.settings.id} is currently stopped however should be running. Attempting restart"
                                     if @mod.start
-                                        defer.resolve(@mod.instance.public_send(name, *args, &block))
+                                        if !instance.class.respond_to?(:grant_access?) || instance.class.grant_access?(instance, @user, name)
+                                            defer.resolve(@mod.instance.public_send(name, *args, &block))
+                                        else
+                                            msg = "#{@user.id} attempted to access secure method #{name}"
+                                            @mod.logger.warn msg
+                                            defer.reject(SecurityError.new(msg))
+                                        end
                                     else
                                         err = StandardError.new "method '#{name}' request failed as the module '#{@mod.settings.id}'' failed to start"
                                         defer.reject(err)
                                     end
                                 end
                             else
-                                defer.resolve(instance.public_send(name, *args, &block))
+                                if !instance.class.respond_to?(:grant_access?) || instance.class.grant_access?(instance, @user, name)
+                                    defer.resolve(instance.public_send(name, *args, &block))
+                                else
+                                    msg = "#{@user.id} attempted to access secure method #{name}"
+                                    @mod.logger.warn msg
+                                    defer.reject(SecurityError.new(msg))
+                                end
                             end
                         rescue => e
                             @mod.logger.print_error(e, '', @trace)
