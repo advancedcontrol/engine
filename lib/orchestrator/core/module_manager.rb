@@ -7,7 +7,7 @@ module Orchestrator
                 @klass = klass
 
                 @running = false
-                
+
                 # Bit of a hack - should make testing pretty easy though
                 @status = ::ThreadSafe::Cache.new
                 @stattrak = @thread.observer
@@ -121,6 +121,20 @@ module Orchestrator
                     end
                 elsif @logger.level == 0
                     @logger.debug "No change for: #{name} = #{value}"
+                end
+            end
+
+            # Allows you to force a status update
+            # Useful if you've editited an array or hash
+            def signal_status(name)
+                value = @status[name]
+                @thread.schedule do
+                    @stattrak.update(@settings.id.to_sym, name, value)
+                end
+
+                # Check level to speed processing
+                if @logger.level == 0
+                    @logger.debug "Status update signalled: #{name} = #{value}"
                 end
             end
 

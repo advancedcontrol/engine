@@ -5,7 +5,7 @@ module Orchestrator
         module Mixin
 
             # Returns a wrapper around a shared instance of ::UV::Scheduler
-            # 
+            #
             # @return [::Orchestrator::Core::ScheduleProxy]
             def schedule
                 raise SCHEDULE_ACCESS_DENIED unless @__config__.thread.reactor_thread?
@@ -51,6 +51,11 @@ module Orchestrator
             # thread safe status settings
             def []=(status, value)
                 @__config__.trak(status.to_sym, value)
+            end
+
+            # force a status update to be sent
+            def signal_status(name)
+                @__config__.signal_status name.to_sym
             end
 
             # thread safe status subscription
