@@ -13,10 +13,10 @@ module Orchestrator
 
             def start
                 @processor = Orchestrator::Device::Processor.new(self)
+                @connection = TransportHttp.new(self, @processor)
 
                 super # Calls on load (allows setting of tls certs)
 
-                @connection = TransportHttp.new(self, @processor)
                 @processor.transport = @connection
             end
 

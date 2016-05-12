@@ -1,3 +1,4 @@
+require 'co-elastic-query/version'
 
 module Orchestrator
     module Api
@@ -15,7 +16,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:connections_active)
+                    histogram: build_query('doc.connections_active')
                 }
             end
 
@@ -25,7 +26,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:fixed_connections)
+                    histogram: build_query('doc.fixed_connections')
                 }
             end
 
@@ -35,7 +36,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:triggers_active)
+                    histogram: build_query('doc.triggers_active')
                 }
             end
 
@@ -45,7 +46,7 @@ module Orchestrator
                     period_name: @pname,
                     period_start: @period_start,
                     interval: @period[0],
-                    histogram: build_query(:modules_disconnected)
+                    histogram: build_query('doc.modules_disconnected')
                 }
             end
 
@@ -119,30 +120,55 @@ module Orchestrator
 
 
             def query
-                {
-                    filtered: {
-                        query: {
-                            bool: {
-                                must: [{
-                                    range: {
-                                        stat_snapshot_at: {
-                                            gte: @period_start
+                if CoElasticQuery::VERSION[0] === '1'
+                    # Elastic 1.x
+                    {
+                        filtered: {
+                            query: {
+                                bool: {
+                                    must: [{
+                                        range: {
+                                            stat_snapshot_at: {
+                                                gte: @period_start
+                                            }
                                         }
-                                    }
-                                }]
-                            }
-                        },
-                        filter: {
-                            bool: {
-                                must: [{
-                                    type: {
-                                        value: :stats
-                                    }
-                                }]
+                                    }]
+                                }
+                            },
+                            filter: {
+                                bool: {
+                                    must: [{
+                                        type: {
+                                            value: :stats
+                                        }
+                                    }]
+                                }
                             }
                         }
                     }
-                }
+                else
+                    # Elastic 2+
+                    {
+                        bool: {
+                            must: {
+                                range: {
+                                    'doc.stat_snapshot_at' => {
+                                        gte: @period_start
+                                    }
+                                }
+                            },
+                            filter: {
+                                bool: {
+                                    must: [{
+                                        type: {
+                                            value: :stats
+                                        }
+                                    }]
+                                }
+                            }
+                        }
+                    }
+                end
             end
 
             def aggregation(field)
@@ -150,7 +176,7 @@ module Orchestrator
                     field => {
                         histogram: {
                             min_doc_count: 0,
-                            field: :stat_snapshot_at,
+                            field: 'doc.stat_snapshot_at',
                             interval: @period[0]
                         },
                         aggregations: {

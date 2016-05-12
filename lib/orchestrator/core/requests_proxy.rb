@@ -68,9 +68,16 @@ module Orchestrator
                                     mod.current_user = @user
                                 end
 
-                                defer.resolve(
-                                    mod.instance.public_send(name, *args, &block)
-                                )
+                                instance = mod.instance
+                                if !instance.class.respond_to?(:grant_access?) || instance.class.grant_access?(instance, @user, name)
+                                    defer.resolve(
+                                        instance.public_send(name, *args, &block)
+                                    )
+                                else
+                                    msg = "#{@user.id} attempted to access secure method #{name}"
+                                    mod.logger.warn msg
+                                    defer.reject(SecurityError.new(msg))
+                                end
                             rescue => e
                                 mod.logger.print_error(e, '', @trace)
                                 defer.reject(e)
@@ -122,7 +129,7 @@ module Orchestrator
             def [](index)
                 @forward[index]
             end
-            
+
             def at(index)
                 @forward[index]
             end

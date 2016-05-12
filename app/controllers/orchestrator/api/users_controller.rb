@@ -20,7 +20,7 @@ module Orchestrator
 
             def index
                 query = @@elastic.query(params)
-                query.not({deleted: [true]})
+                query.not({'doc.deleted' => [true]})
                 results = @@elastic.search(query) do |user|
                     user.as_json(ADMIN_DATA)
                 end

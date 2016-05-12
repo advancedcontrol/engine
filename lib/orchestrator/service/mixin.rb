@@ -52,8 +52,12 @@ module Orchestrator
                 # TODO::
             end
 
-            def use_middleware(klass)
-                # TODO::
+            def middleware
+                begin
+                    @__config__.connection.server.middleware
+                rescue
+                    []
+                end
             end
         end
     end

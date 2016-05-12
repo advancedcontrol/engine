@@ -1,10 +1,10 @@
 require 'set'
 
 
+
 module Orchestrator
     class Engine < ::Rails::Engine
         isolate_namespace Orchestrator
-        
         
         # NOTE:: if we ever have any tasks
         #rake_tasks do
@@ -43,7 +43,7 @@ module Orchestrator
         # Discover the possible module location paths after initialization is complete
         #
         config.after_initialize do |app|
-            require File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/user'))
+            require File.expand_path(File.join(File.dirname(__FILE__), '../../app/models/user'))
             # Increase the default observe timeout
             # TODO:: We should really be writing our own DB adaptor
             ::User.bucket.default_observe_timeout = 10000000
@@ -63,12 +63,12 @@ module Orchestrator
             # Force design documents
             temp = ::Couchbase::Model::Configuration.design_documents_paths
 
-            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/orchestrator'))]
+            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.dirname(__FILE__), '../../app/models/orchestrator'))]
             ::Orchestrator::ControlSystem.ensure_design_document!
             ::Orchestrator::Module.ensure_design_document!
             ::Orchestrator::Zone.ensure_design_document!
             ::Orchestrator::TriggerInstance.ensure_design_document!
-            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models'))]
+            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.dirname(__FILE__), '../../app/models'))]
             ::User.ensure_design_document!
 
             ::Couchbase::Model::Configuration.design_documents_paths = temp
