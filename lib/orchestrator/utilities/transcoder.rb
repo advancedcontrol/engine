@@ -16,7 +16,7 @@ module Orchestrator
             data.scan(/.{2}/) { |byte| output << byte.hex}
             output.pack('c*')
         end
-        
+
         # Converts a binary string into a hex encoded string
         #
         # @param data [String] a binary string
@@ -32,16 +32,16 @@ module Orchestrator
             }
             return output
         end
-        
+
         # Converts a string into an array of bytes
         #
         # @param data [String] data to be converted to bytes
         # @return [Array]
         def str_to_array(data)
             return data if data.is_a? Array
-            data.bytes.to_a
+            data.bytes
         end
-        
+
         # Converts a byte array into a binary string
         #
         # @param data [Array] an array of bytes
