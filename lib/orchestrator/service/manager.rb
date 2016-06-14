@@ -16,11 +16,10 @@ module Orchestrator
                 return true if @processor
 
                 @processor = Orchestrator::Device::Processor.new(self)
-                # Before super so we can apply middleware:
-                @connection = TransportHttp.new(self, @processor)
-
                 super online # Calls on load (allows setting of tls certs)
 
+                # After super so we can apply config like NTLM
+                @connection = TransportHttp.new(self, @processor)
                 @processor.transport = @connection
                 true
             end
