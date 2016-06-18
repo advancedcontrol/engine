@@ -13,10 +13,6 @@ class Protocols::Knx
         :service_type,
         :total_length,
 
-        # CONNECTION
-        :channel_id,
-        :status,
-
         # CEMI
         :message_code,
         :aditional_info_length,
@@ -31,27 +27,17 @@ class Protocols::Knx
     ])
 
 
-    def initialize(local_address, local_port, logger, blk = nil, &block)
-        @logger = logger
-
+    def initialize(local_address, local_port)
         @local_address = local_address.split('.').map(&:to_i)
         @local_port = local_port
-        @channel_id = 0
-        @sequence_number = 0
 
-        @write_callback = blk || block
         @action_message_code = 0
         @three_level_group_addressing = true
     end
 
-    attr_accessor :channel_id
     attr_accessor :action_message_code
     attr_accessor :three_level_group_addressing
-    attr_reader :logger
 
-    def on_event(blk = nil, &block)
-        @event_callback = blk || block
-    end
 
     def action(address, data)
         raw = case data.class
@@ -68,11 +54,11 @@ class Protocols::Knx
             raise "Unknown data type for #{data}"
         end
 
-        @write_callback.call(create_action_datagram(address, data))
+        create_action_datagram(address, data)
     end
 
     def request_status(address)
-        @write_callback.call(create_status_datagram(address, data))
+        create_status_datagram(address, data)
     end
 
     def process_response(data)
@@ -176,14 +162,10 @@ class Protocols::Knx
 
         datagram.data = get_data(datagram.data_length, datagram.apdu)
 
-        logger.debug {
-            "received #{datagram}"
-        }
-
         return if datagram.message_code != 0x29
 
         type = datagram.apdu[1] >> 4
-        @event_callback(datagram.destination_address, datagram.data)
+        datagram
     end
 
 
