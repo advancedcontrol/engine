@@ -58,7 +58,7 @@ class Protocols::Knx
     end
 
     def request_status(address)
-        create_status_datagram(address, data)
+        create_status_datagram(address)
     end
 
     def process_response(data)
