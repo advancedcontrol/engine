@@ -49,7 +49,10 @@ module Orchestrator
             end
 
             def clear_cookies
-                # TODO::
+                begin
+                    @__config__.connection.server.cookiejar.clear_cookies
+                rescue
+                end
             end
 
             def middleware
