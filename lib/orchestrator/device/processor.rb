@@ -146,6 +146,7 @@ module Orchestrator
                     @queue.push(options, options[:priority] + @bonus)
                 end
 
+                @queue.pop if @queue.length > 0
             rescue => e
                 options[:defer].reject(e)
                 @logger.print_error(e, 'error queuing command')
@@ -241,6 +242,7 @@ module Orchestrator
             def do_terminate
                 if @queue.waiting
                     @queue.waiting[:defer].reject(TERMINATE_MSG)
+                    @queue.waiting = nil
                 end
                 @queue.cancel_all(TERMINATE_MSG)
             end
@@ -324,7 +326,7 @@ module Orchestrator
                 @wait = false
                 @queue.waiting = nil
                 check_next                    # Process already received
-                @queue.shift if @connected    # Then send a new command
+                @queue.pop if @connected    # Then send a new command
             end
 
             # We only care about queued commands here
@@ -347,7 +349,8 @@ module Orchestrator
                     @wait = false
                     @queue.waiting = nil
                     check_next      # Process pending
-                    @queue.shift    # Send the next command
+
+                    @queue.pop    # Send the next command
 
                     # Else it must have been a nil or :ignore
                 elsif @queue.waiting
@@ -362,7 +365,6 @@ module Orchestrator
                     end
 
                 else  # ensure consistent state (offline event may have occurred)
-
                     clear_timers
 
                     @wait = false

@@ -1,202 +1,230 @@
 require 'rails'
 require 'orchestrator'
 
+
 describe "command queue" do
     before :each do
         @loop = ::Libuv::Loop.default
+        @log = []
+        @queue = ::Orchestrator::Device::CommandQueue.new(@loop)
+        @dequeue = proc { |cmd|
+            @log << (cmd[:meta] || cmd[:name])
+        }
     end
 
-    # Uses promises to pause shifts until any timers
-    # have been resolved
-    it "should queue and shift until waiting" do
-        count = 0
-        log = []
-        queue = ::Orchestrator::Device::CommandQueue.new(@loop, proc { |cmd|
-            count += 1
-            if count % 2 == 1
-                defer = @loop.defer
-                @loop.next_tick do
-                    log << cmd[:name]
-                    defer.resolve(true)
-                end
-                defer.promise
-            else
-                log << cmd[:name]
-            end
-        })
-
+    it "should be able to enque and dequeue regular commands" do
         @loop.run do
-            queue.push({name: :first}, 50)
-            queue.push({name: :second}, 50)
+            @queue.push({meta: :first}, 50)
+            @queue.pop(@dequeue)
+
             @loop.next_tick do
-                queue.push({name: :third, wait: true}, 50)
-                @loop.next_tick do
-                    queue.push({name: :fourth}, 50)
-                    @loop.next_tick do
-                        @loop.next_tick do
-                            @loop.stop
-                        end
-                    end
-                end
+                @loop.stop
             end
         end
 
-        expect(log).to eq([:first, :second, :third])
+        expect(@log).to eq([:first])
     end
 
-    it "should continue processing after waiting" do
-        count = 0
-        log = []
-        queue = ::Orchestrator::Device::CommandQueue.new(@loop, proc { |cmd|
-            count += 1
-            if count == 3
-                log << cmd[:name]
-                queue.shift
-            else
-                defer = @loop.defer
-                @loop.next_tick do
-                    log << cmd[:name]
-                    defer.resolve(true)
-                end
-                defer.promise
-            end
-        })
-
+    it "should not matter about order" do
         @loop.run do
-            queue.push({name: :first}, 50)
-            queue.push({name: :second}, 50)
+            @queue.pop(@dequeue)
+            @queue.push({meta: :first}, 50)
+
             @loop.next_tick do
-                queue.push({name: :third, wait: true}, 50)
-                @loop.next_tick do
-                    queue.push({name: :fourth}, 50)
-                    @loop.next_tick do
-                        @loop.next_tick do
-                            @loop.stop
-                        end
-                    end
-                end
+                @loop.stop
             end
         end
 
-        expect(log).to eq([:first, :second, :third, :fourth])
+        expect(@log).to eq([:first])
     end
 
-    it "should work with anonymous commands" do
-        count = 0
-        log = []
-        queue = ::Orchestrator::Device::CommandQueue.new(@loop, proc { |cmd|
-            count += 1
-            if count == 3
-                log << cmd[:data]
-                queue.shift
-            else
-                defer = @loop.defer
-                @loop.next_tick do
-                    log << cmd[:data]
-                    defer.resolve(true)
-                end
-                defer.promise
-            end
-        })
-
+    it "should be able to enque and dequeue named commands" do
         @loop.run do
-            queue.push({data: :first}, 50)
-            queue.push({data: :second}, 50)
+            @queue.push({name: :first}, 50)
+            @queue.pop(@dequeue)
+
             @loop.next_tick do
-                queue.push({data: :third, wait: true}, 50)
-                @loop.next_tick do
-                    queue.push({data: :fourth}, 50)
-                    @loop.next_tick do
-                        @loop.next_tick do
-                            @loop.stop
-                        end
-                    end
-                end
+                @loop.stop
             end
         end
 
-        expect(log).to eq([:first, :second, :third, :fourth])
+        expect(@log).to eq([:first])
     end
 
-    it "should save named commands when offline" do
-        log = []
-        queue = ::Orchestrator::Device::CommandQueue.new(@loop, proc { |cmd|
-            defer = @loop.defer
-            @loop.next_tick do
-                log << cmd[:data]
-                defer.resolve(true)
-            end
-            defer.promise
-        })
-
+    it "should enque commands in order" do
         @loop.run do
-            dummy_defer = @loop.defer
-
-            queue.push({name: :first, wait: true, data: :first}, 50)
-            queue.push({data: :second, defer: dummy_defer}, 50)
-            queue.push({name: :third, data: :third}, 50)
-            queue.push({data: :fourth, defer: dummy_defer}, 50)
-
-            queue.offline
-
-            @loop.next_tick do
-                queue.online
-
-                @loop.next_tick do
-                    @loop.next_tick do
-                        @loop.next_tick do
-                            @loop.next_tick do
-                                @loop.next_tick do
-                                    @loop.stop
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        expect(log).to eq([:first, :third])
-    end
-
-    it "should save no commands if cleared" do
-        log = []
-        queue = ::Orchestrator::Device::CommandQueue.new(@loop, proc { |cmd|
-            defer = @loop.defer
-            @loop.next_tick do
-                log << cmd[:data]
-                defer.resolve(true)
-            end
-            defer.promise
-        })
-
-        @loop.run do
-            dummy_defer = @loop.defer
+            @queue.push({name: :first}, 100)
+            @queue.push({meta: :second}, 50)
+            @queue.push({name: :third}, 60)
+            @queue.push({meta: :fourth}, 50)
             
-            queue.push({name: :first, defer: dummy_defer, wait: true, data: :first}, 50)
-            queue.push({data: :second, defer: dummy_defer}, 50)
-            queue.push({name: :third, defer: dummy_defer, data: :third}, 50)
-            queue.push({data: :fourth, defer: dummy_defer}, 50)
-
-            queue.offline(:clear)
-
+            @queue.pop(@dequeue)
             @loop.next_tick do
-                queue.online
-
+                @queue.pop(@dequeue)
                 @loop.next_tick do
+                    @queue.pop(@dequeue)
                     @loop.next_tick do
+                        @queue.pop(@dequeue)
                         @loop.next_tick do
-                            @loop.next_tick do
-                                @loop.next_tick do
-                                    @loop.stop
-                                end
-                            end
+                            @loop.stop
                         end
                     end
                 end
             end
         end
 
-        expect(log).to eq([:first])
+        expect(@log).to eq([:first, :third, :second, :fourth])
+    end
+
+    it "should track named commands" do
+        @loop.run do
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second}, 50)
+            @queue.push({meta: :third}, 100)
+            @queue.push({meta: :fourth, name: :bob, defer: @loop.defer}, 50)
+            
+            @queue.pop(@dequeue)
+            @loop.next_tick do
+                @queue.pop(@dequeue)
+                @loop.next_tick do
+                    @queue.pop(@dequeue)
+                    @loop.next_tick do
+                        @loop.stop
+                    end
+                end
+            end
+        end
+
+        expect(@log).to eq([:third, :fourth, :second])
+    end
+
+    it "should be able to clear the queue" do
+        @loop.run do
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second, defer: @loop.defer}, 50)
+            @queue.push({meta: :third, defer: @loop.defer}, 100)
+            @queue.push({meta: :fourth, name: :bob, defer: @loop.defer}, 50)
+            
+            @queue.pop(@dequeue)
+            @loop.next_tick do
+                @queue.cancel_all 'module requested'
+                @loop.stop
+            end
+        end
+
+        expect(@log).to eq([:third])
+        expect(@queue.length).to eq(0)
+    end
+
+    it "should only save named commands when offline" do
+        @loop.run do
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second, defer: @loop.defer}, 50)
+            @queue.push({meta: :third, defer: @loop.defer}, 100)
+            @queue.push({meta: :fourth, name: :bob, defer: @loop.defer}, 50)
+
+            @queue.offline
+            begin
+                expect(@queue.length).to eq(1)
+            rescue
+            end
+            
+            @queue.pop(@dequeue)
+            @loop.next_tick do
+                @loop.stop
+            end
+        end
+
+        expect(@log).to eq([:fourth])
+    end
+
+    it "should not save any commands if offline and commands are to be cleared" do
+        @loop.run do
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second, defer: @loop.defer}, 50)
+            @queue.push({meta: :third, defer: @loop.defer}, 100)
+            @queue.push({meta: :fourth, name: :bob, defer: @loop.defer}, 50)
+
+            @queue.offline(:clear)
+            begin
+                expect(@queue.length).to eq(0)
+            rescue
+            ensure
+                @loop.stop
+            end
+        end
+    end
+
+    it "should only accept named commands when offline" do
+        @loop.run do
+            @queue.offline(:clear)
+
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second, defer: @loop.defer}, 50)
+            @queue.push({meta: :third, defer: @loop.defer}, 100)
+            @queue.push({meta: :fourth, name: :bob, defer: @loop.defer}, 50)
+            @queue.push({meta: :fith, name: :jane, defer: @loop.defer}, 50)
+
+            begin
+                expect(@queue.length).to eq(2)
+            rescue
+            end
+            
+            @queue.pop(@dequeue)
+            @loop.next_tick do
+                @loop.stop
+            end
+        end
+
+        expect(@log).to eq([:fourth])
+    end
+
+    it "should only accept a single pop every tick" do
+        # i.e. if pop is called twice the last callback provided
+        # will be the only callback called in the next tick
+        # the previous callback provided will be discarded
+
+        @loop.run do
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second, defer: @loop.defer}, 50)
+            @queue.push({meta: :third, defer: @loop.defer}, 100)
+            @queue.push({meta: :fourth, name: :bob, defer: @loop.defer}, 50)
+            @queue.push({meta: :fith, name: :jane, defer: @loop.defer}, 50)
+
+            
+            @queue.pop(proc { @log << :error1 })
+            @queue.pop(proc { @log << :error2 })
+            @queue.pop(@dequeue)
+
+            @loop.next_tick do
+                @loop.next_tick do
+                    @loop.next_tick do
+                        @loop.stop
+                    end
+                end
+            end
+        end
+
+        expect(@log).to eq([:third])
+    end
+
+    it "won't perform a pop if the callback is cleared" do
+        @loop.run do
+            @queue.push({meta: :first, name: :bob, defer: @loop.defer}, 60)
+            @queue.push({meta: :second, defer: @loop.defer}, 50)
+            
+            @queue.pop @dequeue
+            @queue.pop nil
+
+            @loop.next_tick do
+                begin
+                    expect(@queue.length).to eq(2)
+                rescue
+                end
+                @loop.stop
+            end
+        end
+
+        expect(@log).to eq([])
     end
 end
