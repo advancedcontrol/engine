@@ -11,6 +11,12 @@ module Orchestrator
                 @user = user
             end
 
+            # Checks if the system is available from this server?
+            # You may have passed in a bad system ID
+            def available?
+                !system.nil?
+            end
+
             # Alias for get
             def [](mod)
                 get mod
