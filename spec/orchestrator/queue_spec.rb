@@ -1,15 +1,12 @@
 require 'rails'
 require 'orchestrator'
 
-# TODO:: Replace existing queue system
-require 'orchestrator/command_queue'
-
 
 describe "command queue" do
     before :each do
         @loop = ::Libuv::Loop.default
         @log = []
-        @queue = ::Orchestrator::CommandQueue.new(@loop)
+        @queue = ::Orchestrator::Device::CommandQueue.new(@loop)
         @dequeue = proc { |cmd|
             @log << (cmd[:meta] || cmd[:name])
         }
