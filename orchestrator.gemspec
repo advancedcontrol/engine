@@ -16,6 +16,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'rails'
     s.add_dependency 'libuv'                # High performance IO reactor for ruby
     s.add_dependency 'oauth'                # OAuth protocol support
+    s.add_dependency 'bindata'              # Binary structure support
     s.add_dependency 'uv-rays', '>= 1.3.0'  # Evented networking library
     s.add_dependency 'addressable'          # IP address utilities
     s.add_dependency 'algorithms'           # Priority queue

@@ -1,85 +1,47 @@
-module Protocols; end
+#encoding: ASCII-8BIT
 
+module Protocols; end
 
 # == References
 #
 # https://github.com/lifeemotions/knx.net
 
 
+require 'bindata'
+
+
 class Protocols::Knx
-    Datagram = Struct.new(*[
-        :header_length,
-        :protocol_version,
-        :service_type,
-        :total_length,
 
-        # CEMI
-        :message_code,
-        :aditional_info_length,
-        :aditional_info,
-        :control_field_1,
-        :control_field_2,
-        :source_address,
-        :destination_address,
-        :data_length,
-        :apdu,
-        :data
-    ])
+    # http://www.openremote.org/display/forums/KNX+IP+Connection+Headers
+    class Header < BinData::Record
+        endian :big
 
-
-    def initialize(local_address, local_port)
-        @local_address = local_address.split('.').map(&:to_i)
-        @local_port = local_port
-
-        @action_message_code = 0
-        @three_level_group_addressing = true
+        uint8  :header_length,  value: 0x06  # Length 6 (always for version 1)
+        uint8  :version,        value: 0x10  # Version 1
+        uint16 :request_type
+        uint16 :request_length
     end
 
-    attr_accessor :action_message_code
-    attr_accessor :three_level_group_addressing
+    RequestTypes = {
+        search_request: 0x0201,
+        search_response: 0x0202,
+        description_request: 0x0203,
+        description_response: 0x0204,
+        connect_request: 0x0205,
+        connect_response: 0x0206,
+        connectionstate_request: 0x0207,
+        connectionstate_response: 0x0208,
+        disconnect_request: 0x0209,
+        disconnect_response: 0x020A,
+        device_configuration_request: 0x0310,
+        device_configuration_ack: 0x0311,
+        tunnelling_request: 0x0420,
+        tunnelling_ack: 0x0421,
+        routing_indication: 0x0530,
+        routing_lost_message: 0x0531
+    }
 
 
-    def action(address, data)
-        raw = case data.class
-        when TrueClass, FalseClass
-            [0, data ? 1 : 0]
-        when String
-            data.bytes
-        when Fixnum
-            data <= 255 ? [0, data] : [data & 0xFF, (data >> 8) & 0xFF]
-        when Array
-            # We assume this is a byte array
-            data
-        else
-            raise "Unknown data type for #{data}"
-        end
-
-        create_action_datagram(address, data)
-    end
-
-    def request_status(address)
-        create_status_datagram(address)
-    end
-
-    def process_response(data)
-        datagram = Datagram.new
-        datagram.header_length = data[0]
-        datagram.protocol_version = data[1]
-        datagram.service_type = [data[2], data[3]]
-        datagram.total_length = data[4] + data[5]
-
-        cemi = data[6..-1]
-
-        process_cemi datagram, cemi
-    end
-
-
-    protected
-
-
-    # ------------------------
-    #    Response Processing
-    # ------------------------
     # CEMI
     # +--------+--------+--------+--------+----------------+----------------+--------+----------------+
     # |  Msg   |Add.Info| Ctrl 1 | Ctrl 2 | Source Address | Dest. Address  |  Data  |      APDU      |
@@ -138,35 +100,163 @@ class Protocols::Knx
     #                    information (APCI) and data passed as an argument from higher layers of
     #                    the KNX communication stack
     #
+    class CEMI < BinData::Record
+        endian :big
+        
+        uint8 :msg_code
+        uint8 :info_length
 
-    def process_cemi(datagram, cemi)
-        datagram.message_code = cemi[0]
-        datagram.aditional_info_length = cemi[1]
 
-        if datagram.aditional_info_length > 0
-            datagram.aditional_info = cemi[2..datagram.aditional_info_length - 1]
-        end
+        # ---------------------
+        #    Control Fields
+        # ---------------------
 
-        datagram.control_field_1 = cemi[2 + datagram.aditional_info_length]
-        datagram.control_field_1 = cemi[3 + datagram.aditional_info_length]
+        # Bit order
+        # +---+---+---+---+---+---+---+---+
+        # | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+        # +---+---+---+---+---+---+---+---+
 
-        datagram.source_address = get_individual_address([cemi[4 + datagram.aditional_info_length], cemi[5 + datagram.aditional_info_length]])
-        datagram.destination_address = if get_destination_address_type(datagram.control_field_2) == :individual
-            get_individual_address([cemi[6 + datagram.aditional_info_length], cemi[7 + datagram.aditional_info_length]])
-        else
-            get_group_address([cemi[6 + datagram.aditional_info_length], cemi[7 + datagram.aditional_info_length]])
-        end
+        #  Control Field 1
 
-        datagram.data_length = cemi[8 + datagram.aditional_info_length]
-        datagram.apdu = cemi[(8 + datagram.aditional_info_length)..datagram.data_length]
+        #   Bit  |
+        #  ------+---------------------------------------------------------------
+        #    7   | Frame Type  - 0x0 for extended frame
+        #        |               0x1 for standard frame
+        #  ------+---------------------------------------------------------------
+        #    6   | Reserved
+        #        |
+        #  ------+---------------------------------------------------------------
+        #    5   | Repeat Flag - 0x0 repeat frame on medium in case of an error
+        #        |               0x1 do not repeat
+        #  ------+---------------------------------------------------------------
+        #    4   | System Broadcast - 0x0 system broadcast
+        #        |                    0x1 broadcast
+        #  ------+---------------------------------------------------------------
+        #    3   | Priority    - 0x0 system
+        #        |               0x1 normal (also called alarm priority)
+        #  ------+               0x2 urgent (also called high priority)
+        #    2   |               0x3 low
+        #        |
+        #  ------+---------------------------------------------------------------
+        #    1   | Acknowledge Request - 0x0 no ACK requested
+        #        | (L_Data.req)          0x1 ACK requested
+        #  ------+---------------------------------------------------------------
+        #    0   | Confirm      - 0x0 no error
+        #        | (L_Data.con) - 0x1 error
+        #  ------+---------------------------------------------------------------
+        bit1  :is_standard_frame
+        bit1  :_reserved_,   value: 0
+        bit1  :no_repeat
+        bit1  :broadcast
+        bit2  :priority     # 2 bits
+        bit1  :ack_requested
+        bit1  :is_error
 
-        datagram.data = get_data(datagram.data_length, datagram.apdu)
+        #  Control Field 2
 
-        return if datagram.message_code != 0x29
+        #   Bit  |
+        #  ------+---------------------------------------------------------------
+        #    7   | Destination Address Type - 0x0 individual address
+        #        |                          - 0x1 group address
+        #  ------+---------------------------------------------------------------
+        #   6-4  | Hop Count (0-7)
+        #  ------+---------------------------------------------------------------
+        #   3-0  | Extended Frame Format - 0x0 standard frame
+        #  ------+---------------------------------------------------------------
+        bit1  :is_group_address
+        bit3  :hop_count
+        bit4  :extended_frame_format
 
-        type = datagram.apdu[1] >> 4
-        datagram
+        uint16 :source_address
+        uint16 :destination_address
+
+        uint8 :data_length
+
+
+        # In the Common EMI frame, the APDU payload is defined as follows:
+
+        # +--------+--------+--------+--------+--------+
+        # | TPCI + | APCI + |  Data  |  Data  |  Data  |
+        # |  APCI  |  Data  |        |        |        |
+        # +--------+--------+--------+--------+--------+
+        #   byte 1   byte 2  byte 3     ...     byte 16
+
+        # For data that is 6 bits or less in length, only the first two bytes are used in a Common EMI
+        # frame. Common EMI frame also carries the information of the expected length of the Protocol
+        # Data Unit (PDU). Data payload can be at most 14 bytes long.  <p>
+
+        # The first byte is a combination of transport layer control information (TPCI) and application
+        # layer control information (APCI). First 6 bits are dedicated for TPCI while the two least
+        # significant bits of first byte hold the two most significant bits of APCI field, as follows:
+
+        #   Bit 1    Bit 2    Bit 3    Bit 4    Bit 5    Bit 6    Bit 7    Bit 8      Bit 1   Bit 2
+        # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
+        # |        |        |        |        |        |        |        |        ||        |
+        # |  TPCI  |  TPCI  |  TPCI  |  TPCI  |  TPCI  |  TPCI  | APCI   |  APCI  ||  APCI  |
+        # |        |        |        |        |        |        |(bit 1) |(bit 2) ||(bit 3) |
+        # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
+        # +                            B  Y  T  E    1                            ||       B Y T E  2
+        # +-----------------------------------------------------------------------++-------------....
+
+        # Total number of APCI control bits can be either 4 or 10. The second byte bit structure is as follows:
+
+        #   Bit 1    Bit 2    Bit 3    Bit 4    Bit 5    Bit 6    Bit 7    Bit 8      Bit 1   Bit 2
+        # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
+        # |        |        |        |        |        |        |        |        ||        |
+        # |  APCI  |  APCI  | APCI/  |  APCI/ |  APCI/ |  APCI/ | APCI/  |  APCI/ ||  Data  |  Data
+        # |(bit 3) |(bit 4) | Data   |  Data  |  Data  |  Data  | Data   |  Data  ||        |
+        # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
+        # +                            B  Y  T  E    2                            ||       B Y T E  3
+        # +-----------------------------------------------------------------------++-------------....
+        bit2 :tpci # transport protocol control information
+        bit4 :tpci_seq_num # Sequence number when tpci is sequenced
+        bit4 :apci # application protocol control information (What we trying to do: Read, write, respond etc)
+        bit6 :data # Or the tail end of APCI depending on the message type
     end
+
+    # APCI type
+    ActionType = {
+        group_read:  0,
+        group_resp:  1,
+        group_write: 2,
+
+        individual_write: 3,
+        individual_read:  4,
+        individual_resp:  5,
+
+        adc_read: 6,
+        adc_resp: 7,
+
+        memory_read:  8,
+        memory_resp:  9,
+        memory_write: 10,
+
+        user_msg: 11,
+
+        descriptor_read: 12,
+        descriptor_resp: 13,
+
+        restart: 14,
+        escape:  15
+    }
+
+    TpciType = {
+        unnumbered_data: 0b00,
+        numbered_data:   0b01,
+        unnumbered_control: 0b10,
+        numbered_control:   0b11
+    }
+
+    MsgCode = {
+        send_datagram: 0x29
+    }
+
+    Priority = {
+        system: 0,
+        alarm: 1,
+        high: 2,
+        low: 3
+    }
 
 
     # ------------------------
@@ -203,441 +293,306 @@ class Protocols::Knx
     #           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
     #           |  | Main Grp  |            Sub Group           |
     #           +--+--------------------+-----------------------+
-    def is_individual?(address)
-        address.include? '.'
-    end
+    module Address
+        module ClassMethods
+            def parse(input)
+                address = @address_class.new
+                klass = input.class
 
-    def is_group?(address)
-        address.include? '/'
-    end
+                if klass == Array
+                    address.read(input.pack('n'))
+                elsif [Integer, Fixnum].include? klass
+                    address.read([input].pack('n'))
+                elsif klass == String
+                    tmp = parse_friendly(input)
+                    if tmp.nil?
+                        address.read(input)
+                    else
+                        address = tmp
+                    end
+                else
+                    raise 'address parsing failed'
+                end
 
-    def invalid!(address)
-        raise "invalid KNX address: #{address}"
-    end
-
-    def get_binary_address_of(address)
-        group = is_group? address
-        addr = [0, 0]
-
-        # Extract address parts
-        parts = if group
-            address.split('/')
-        else
-            address.split('.')
-        end
-        three_level = parts.length == 3
-
-        # Check if valid
-        invalid = if group
-            (parts.length != 3 || parts[0].length > 2 || parts[1].length > 1 || parts[2].length > 3) && (parts.length != 2 || parts[0].length > 2 || parts[1].length > 4)
-        else
-            parts.length != 3 || parts[0].length > 2 || parts[1].length > 2 || parts[2].length > 3
-        end
-        invalid!(address) if invalid
-
-        # Build binary address
-        if three_level
-            part = parts[0].to_i
-            invalid!(address) if part > 15
-            addr[0] = (group ? (part << 3) : (part << 4)) & 0xFF
-
-            part = parts[1].to_i
-            invalid!(address) if (group && part > 7) || (!group && part > 15)
-            addr[0] = (addr[0] | part) & 0xFF
-
-            part = parts[2].to_i
-            invalid!(address) if part > 255
-            addr[1] = part
-        else
-            part = parts[0].to_i
-            invalid!(address) if part > 15
-            addr[0] = (part << 3) & 0xFF
-
-            part = parts[1].to_i
-            invalid!(address) if part > 2047
-
-            part2 = [part].pack('n').unpack('cc')
-            addr[0] = addr[0] | part2[0]
-            addr[1] = part2[1]
-        end
-
-        addr
-    end
-
-    def get_human_readable(address, is_group:, is_three_level:)
-        separator = is_group ? '/' : '.'
-        addr = ''
-
-        if is_group && !is_three_level
-            # 2 level group
-            addr << (address[0] >> 3).to_s
-            addr << separator
-            addr << (((address[0] & 0x07) << 8) + address[1]).to_s
-        else
-            # 3 level individual or group
-            if is_group
-                addr << ((address[0] & 0x7F) >> 3).to_s
-                addr << separator
-                addr << (address[0] & 0x07).to_s
-            else
-                addr << (address[0] >> 4).to_s
-                addr << separator
-                addr << (address[0] & 0x0F).to_s
+                address
             end
-
-            addr << separator
-            addr << address[1].to_s
         end
 
-        addr
-    end
-
-    def get_individual_address(address)
-        get_human_readable(address, is_group: false, is_three_level: false)
-    end
-
-    def get_group_address(address, three_level: true)
-        get_human_readable(address, is_group: true, is_three_level: three_level)
-    end
-
-
-
-    # ---------------------
-    #    Control Fields
-    # ---------------------
-
-    # Bit order
-    # +---+---+---+---+---+---+---+---+
-    # | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
-    # +---+---+---+---+---+---+---+---+
-
-    #  Control Field 1
-
-    #   Bit  |
-    #  ------+---------------------------------------------------------------
-    #    7   | Frame Type  - 0x0 for extended frame
-    #        |               0x1 for standard frame
-    #  ------+---------------------------------------------------------------
-    #    6   | Reserved
-    #        |
-    #  ------+---------------------------------------------------------------
-    #    5   | Repeat Flag - 0x0 repeat frame on medium in case of an error
-    #        |               0x1 do not repeat
-    #  ------+---------------------------------------------------------------
-    #    4   | System Broadcast - 0x0 system broadcast
-    #        |                    0x1 broadcast
-    #  ------+---------------------------------------------------------------
-    #    3   | Priority    - 0x0 system
-    #        |               0x1 normal (also called alarm priority)
-    #  ------+               0x2 urgent (also called high priority)
-    #    2   |               0x3 low
-    #        |
-    #  ------+---------------------------------------------------------------
-    #    1   | Acknowledge Request - 0x0 no ACK requested
-    #        | (L_Data.req)          0x1 ACK requested
-    #  ------+---------------------------------------------------------------
-    #    0   | Confirm      - 0x0 no error
-    #        | (L_Data.con) - 0x1 error
-    #  ------+---------------------------------------------------------------
-
-
-    #  Control Field 2
-
-    #   Bit  |
-    #  ------+---------------------------------------------------------------
-    #    7   | Destination Address Type - 0x0 individual address
-    #        |                          - 0x1 group address
-    #  ------+---------------------------------------------------------------
-    #   6-4  | Hop Count (0-7)
-    #  ------+---------------------------------------------------------------
-    #   3-0  | Extended Frame Format - 0x0 standard frame
-    #  ------+---------------------------------------------------------------
-
-    KnxDestinationAddress = {
-        individual: 0,
-        group: 1
-    }
-
-    def get_destination_address_type(control_field_2)
-        if (0x80 & control_field_2) == 0
-            :individual
-        else
-            :group
+        def self.included(base)
+            base.instance_variable_set(:@address_class, base)
+            base.extend(ClassMethods)
         end
-    end
 
-
-
-    # ---------------------
-    #    Data Processing
-    # ---------------------
-
-    # In the Common EMI frame, the APDU payload is defined as follows:
-
-    # +--------+--------+--------+--------+--------+
-    # | TPCI + | APCI + |  Data  |  Data  |  Data  |
-    # |  APCI  |  Data  |        |        |        |
-    # +--------+--------+--------+--------+--------+
-    #   byte 1   byte 2  byte 3     ...     byte 16
-
-    # For data that is 6 bits or less in length, only the first two bytes are used in a Common EMI
-    # frame. Common EMI frame also carries the information of the expected length of the Protocol
-    # Data Unit (PDU). Data payload can be at most 14 bytes long.  <p>
-
-    # The first byte is a combination of transport layer control information (TPCI) and application
-    # layer control information (APCI). First 6 bits are dedicated for TPCI while the two least
-    # significant bits of first byte hold the two most significant bits of APCI field, as follows:
-
-    #   Bit 1    Bit 2    Bit 3    Bit 4    Bit 5    Bit 6    Bit 7    Bit 8      Bit 1   Bit 2
-    # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
-    # |        |        |        |        |        |        |        |        ||        |
-    # |  TPCI  |  TPCI  |  TPCI  |  TPCI  |  TPCI  |  TPCI  | APCI   |  APCI  ||  APCI  |
-    # |        |        |        |        |        |        |(bit 1) |(bit 2) ||(bit 3) |
-    # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
-    # +                            B  Y  T  E    1                            ||       B Y T E  2
-    # +-----------------------------------------------------------------------++-------------....
-
-    # Total number of APCI control bits can be either 4 or 10. The second byte bit structure is as follows:
-
-    #   Bit 1    Bit 2    Bit 3    Bit 4    Bit 5    Bit 6    Bit 7    Bit 8      Bit 1   Bit 2
-    # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
-    # |        |        |        |        |        |        |        |        ||        |
-    # |  APCI  |  APCI  | APCI/  |  APCI/ |  APCI/ |  APCI/ | APCI/  |  APCI/ ||  Data  |  Data
-    # |(bit 3) |(bit 4) | Data   |  Data  |  Data  |  Data  | Data   |  Data  ||        |
-    # +--------+--------+--------+--------+--------+--------+--------+--------++--------+----....
-    # +                            B  Y  T  E    2                            ||       B Y T E  3
-    # +-----------------------------------------------------------------------++-------------....
-
-    def get_data(length, apdu)
-        case length
-        when 0
-            ''
-        when 1
-            ('' << (0x3F & apdu[1]))
-        when 2
-            ('' << apdu[2])
-        else
-            array_to_str apdu[2..-1]
+        def to_i
+            # 16-bit unsigned, network (big-endian)
+            to_binary_s.unpack('n')[0]
         end
+
+        def is_group?; true; end
     end
 
-    def get_data_length(data)
-        return 0 if data.length <= 0
-        return 1 if data.length == 1 && data[0] < 0x3F
-        return data.length if data[0] < 0x3F
-        return data.length + 1
-    end
+    class GroupAddress < ::BinData::Record
+        include Address
+        endian :big
 
-    def write_data(datagram:, data_start:, data:)
-        if data.length == 1
-            if data[0] < 0x3F
-                datagram[data_start] = datagram[data_start] | data[0]
-            else
-                datagram[data_start + 1] = data[0]
+        bit1 :_reserved_,   value: 0
+        bit4 :main_group
+        bit3 :middle_group
+        uint8 :sub_group
+        
+
+        def to_s
+            "#{main_group}/#{middle_group}/#{sub_group}"
+        end
+
+        def self.parse_friendly(str)
+            result = str.split('/')
+            if result.length == 3
+                address = GroupAddress.new
+                address.main_group   = result[0].to_i
+                address.middle_group = result[1].to_i
+                address.sub_group    = result[2].to_i
+                address
             end
-        elsif data.length > 1
-            if data[0] < 0x3F
-                datagram[data_start] = datagram[data_start] | data[0]
-                data[1..-1].each_with_index do |val, i|
-                    datagram[data_start + i + 1] = val
+        end
+    end
+
+    class GroupAddress2Level < ::BinData::Record
+        include Address
+        endian :big
+
+        bit1  :_reserved_,   value: 0
+        bit4  :main_group
+        bit11 :sub_group
+        
+
+        def to_s
+            "#{main_group}/#{sub_group}"
+        end
+
+        def self.parse_friendly(str)
+            result = str.split('/')
+            if result.length == 2
+                address = GroupAddress2Level.new
+                address.main_group = result[0].to_i
+                address.sub_group = result[1].to_i
+                address
+            end
+        end
+    end
+
+    class IndividualAddress < ::BinData::Record
+        include Address
+        endian :big
+
+        bit4 :area_address
+        bit4 :line_address
+        uint8 :device_address
+        
+        def to_s
+            "#{area_address}.#{line_address}.#{device_address}"
+        end
+
+        def is_group?; false; end
+
+        def self.parse_friendly(str)
+            result = str.split('.')
+            if result.length == 3
+                address = IndividualAddress.new
+                address.area_address = result[0].to_i
+                address.line_address = result[1].to_i
+                address.device_address = result[2].to_i
+            end
+        end
+    end
+    # ------------------------
+    #  End Address Processing
+    # ------------------------
+
+
+    DatagramBuilder = Struct.new(:header, :cemi, :source_address, :destination_address, :data) do
+
+        def to_binary_s
+            data_array = self.data
+
+            resp = if data_array.present?
+                @cemi.data_length = data_array.length
+
+                if data_array[0] <= 0b111111
+                    @cemi.data = data_array[0]
+                    if data_array.length > 1
+                        data_array[1..-1].pack('C')
+                    else
+                        String.new
+                    end
+                else
+                    @cemi.data = 0
+                    data_array.pack('C')
                 end
             else
-                data.each_with_index do |val, i|
-                    datagram[data_start + i + 1] = val
+                @cemi.data = 0
+                @cemi.data_length = 0
+                String.new
+            end
+
+            # 17 == header + cemi
+            @header.request_length = resp.bytesize + 17
+            "#{@header.to_binary_s}#{@cemi.to_binary_s}#{resp}"
+        end
+
+
+        protected
+
+
+        def initialize(address = nil, options = nil)
+            super()
+            return unless address
+
+            @address = parse(address)
+
+            @cemi = CEMI.new
+            @cemi.msg_code = MsgCode[options[:msg_code]]
+            @cemi.is_standard_frame = true
+            @cemi.no_repeat = options[:no_repeat]
+            @cemi.broadcast = options[:broadcast]
+            @cemi.priority = Priority[options[:priority]]
+
+            @cemi.is_group_address = @address.is_group?
+            @cemi.hop_count = options[:hop_count]
+
+            @header = Header.new
+            if options[:request_type]
+                @header.request_type = RequestTypes[options[:request_type]]
+            else
+                @header.request_type = RequestTypes[:routing_indication]
+            end
+
+            self.header = @header
+            self.cemi = @cemi
+            self.source_address = IndividualAddress.parse_friendly('0.0.1')
+            self.destination_address = @address
+
+            @cemi.source_address      = self.source_address.to_i
+            @cemi.destination_address = self.destination_address.to_i
+        end
+
+        def parse(address)
+            result = address.split('/')
+            if result.length > 1
+                if result.length == 3
+                    GroupAddress.parse_friendly(address)
+                else
+                    GroupAddress2Level.parse_friendly(address)
                 end
+            else
+                IndividualAddress.parse_friendly(address)
+            end
+        end
+    end
+
+    class ActionDatagram < DatagramBuilder
+        def initialize(address, data_array, options)
+            super(address, options)
+
+            # Set the protocol control information
+            @cemi.apci = @address.is_group? ? ActionType[:group_write] : ActionType[:individual_write]
+            @cemi.tpci = TpciType[:unnumbered_data]
+
+            # To attempt save a byte we try to cram the first byte into the APCI field
+            if data_array.present?
+                if data_array[0] <= 0b111111
+                    @cemi.data = data_array[0]
+                end
+                
+                @cemi.data_length = data_array.length
+                self.data = data_array
+            end
+        end
+    end
+
+    class StatusDatagram < DatagramBuilder
+        def initialize(address, options)
+            super(address, options)
+
+            # Set the protocol control information
+            @cemi.apci = @address.is_group? ? ActionType[:group_read] : ActionType[:individual_read]
+            @cemi.tpci = TpciType[:unnumbered_data]
+        end
+    end
+
+    class ResponseDatagram < DatagramBuilder
+        def initialize(raw_data, options)
+            super()
+
+            @header = Header.new
+            @header.read(raw_data[0..5])
+
+            @cemi = CEMI.new
+            @cemi.read(raw_data[6..16])
+
+            self.header = @header
+            self.cemi = @cemi
+
+            self.data = raw_data[17..(@header.request_length - 1)].bytes
+            if @cemi.data_length > self.data.length
+                self.data.unshift @cemi.data
+            end
+
+            self.source_address = IndividualAddress.parse(@cemi.source_address.to_i)
+
+            if @cemi.is_group_address == 0
+                self.destination_address = IndividualAddress.parse(@cemi.destination_address.to_i)
+            elsif options[:two_level_group]
+                self.destination_address = GroupAddress2Level.parse(@cemi.destination_address.to_i)
+            else
+                self.destination_address = GroupAddress.parse(@cemi.destination_address.to_i)
             end
         end
     end
 
 
-    # ------------------
-    #    Service Type
-    # ------------------
 
-    KnxServiceType = {
-        search_request: 0x0201,
-        search_response: 0x0202,
-        description_request: 0x0203,
-        description_response: 0x0204,
-        connect_request: 0x0205,
-        connect_response: 0x0206,
-        connectionstate_request: 0x0207,
-        connectionstate_response: 0x0208,
-        disconnect_request: 0x0209,
-        disconnect_response: 0x020A,
-        device_configuration_request: 0x0310,
-        device_configuration_ack: 0x0311,
-        tunnelling_request: 0x0420,
-        tunnelling_ack: 0x0421,
-        routing_indication: 0x0530,
-        routing_lost_message: 0x0531,
-        unknown: 0
+    # ==========================
+    #   KNX Protocol Interface
+    # ==========================
+    Defaults = {
+        priority: :low,
+        no_repeat: true,
+        broadcast: true,
+        hop_count: 6,
+        msg_code: :send_datagram
     }
 
-    def get_service_type(datagram)
-        type = case datagram[2]
-        when 0x02
-            case datagram[3]
-            when 0x06
-                KnxServiceType[:connect_response]
-            when 0x09
-                KnxServiceType[:disconnect_request]
-            when 0x08
-                KnxServiceType[:connectionstate_response]
-            end
-        when 0x04
-            case datagram[3]
-            when 0x20
-                KnxServiceType[:tunnelling_request]
-            when 0x21
-                KnxServiceType[:tunnelling_ack]
-            end
+    def initialize(options = {})
+        @options = Defaults.merge(options)
+    end
+
+    def action(address, data, options = {})
+        klass = data.class
+
+        raw = if [TrueClass, FalseClass].include? klass
+            [data ? 1 : 0]
+        elsif klass == String
+            data.bytes
+        elsif [Integer, Fixnum].include? klass
+            # Assume this is a byte
+            [data]
+        elsif klass == Array
+            # We assume this is a byte array
+            data
+        else
+            raise "Unknown data type for #{data}"
         end
 
-        return type || KnxServiceType[:unknown]
+        ActionDatagram.new(address, raw, @options.merge(options))
     end
 
 
-
-    # ------------------
-    #    Datagrams
-    # ------------------
-
-    # CEMI (start at position 6)
-    # +--------+--------+--------+--------+----------------+----------------+--------+----------------+
-    # |  Msg   |Add.Info| Ctrl 1 | Ctrl 2 | Source Address | Dest. Address  |  Data  |      APDU      |
-    # | Code   | Length |        |        |                |                | Length |                |
-    # +--------+--------+--------+--------+----------------+----------------+--------+----------------+
-    #   1 byte   1 byte   1 byte   1 byte      2 bytes          2 bytes       1 byte      2 bytes
-    #
-    #  Message Code    = 0x11 - a L_Data.req primitive
-    #      COMMON EMI MESSAGE CODES FOR DATA LINK LAYER PRIMITIVES
-    #          FROM NETWORK LAYER TO DATA LINK LAYER
-    #          +---------------------------+--------------+-------------------------+---------------------+------------------+
-    #          | Data Link Layer Primitive | Message Code | Data Link Layer Service | Service Description | Common EMI Frame |
-    #          +---------------------------+--------------+-------------------------+---------------------+------------------+
-    #          |        L_Raw.req          |    0x10      |                         |                     |                  |
-    #          +---------------------------+--------------+-------------------------+---------------------+------------------+
-    #          |                           |              |                         | Primitive used for  | Sample Common    |
-    #          |        L_Data.req         |    0x11      |      Data Service       | transmitting a data | EMI frame        |
-    #          |                           |              |                         | frame               |                  |
-    #          +---------------------------+--------------+-------------------------+---------------------+------------------+
-    #          |        L_Poll_Data.req    |    0x13      |    Poll Data Service    |                     |                  |
-    #          +---------------------------+--------------+-------------------------+---------------------+------------------+
-    #          |        L_Raw.req          |    0x10      |                         |                     |                  |
-    #          +---------------------------+--------------+-------------------------+---------------------+------------------+
-    #          FROM DATA LINK LAYER TO NETWORK LAYER
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          | Data Link Layer Primitive | Message Code | Data Link Layer Service | Service Description |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          |        L_Poll_Data.con    |    0x25      |    Poll Data Service    |                     |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          |                           |              |                         | Primitive used for  |
-    #          |        L_Data.ind         |    0x29      |      Data Service       | receiving a data    |
-    #          |                           |              |                         | frame               |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          |        L_Busmon.ind       |    0x2B      |   Bus Monitor Service   |                     |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          |        L_Raw.ind          |    0x2D      |                         |                     |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          |                           |              |                         | Primitive used for  |
-    #          |                           |              |                         | local confirmation  |
-    #          |        L_Data.con         |    0x2E      |      Data Service       | that a frame was    |
-    #          |                           |              |                         | sent (does not mean |
-    #          |                           |              |                         | successful receive) |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-    #          |        L_Raw.con          |    0x2F      |                         |                     |
-    #          +---------------------------+--------------+-------------------------+---------------------+
-
-    #  Add.Info Length = 0x00 - no additional info
-    #  Control Field 1 = see the bit structure above
-    #  Control Field 2 = see the bit structure above
-    #  Source Address  = 0x0000 - filled in by router/gateway with its source address which is
-    #                    part of the KNX subnet
-    #  Dest. Address   = KNX group or individual address (2 byte)
-    #  Data Length     = Number of bytes of data in the APDU excluding the TPCI/APCI bits
-    #  APDU            = Application Protocol Data Unit - the actual payload including transport
-    #                    protocol control information (TPCI), application protocol control
-    #                    information (APCI) and data passed as an argument from higher layers of
-    #                    the KNX communication stack
-    #
-
-    def create_action_datagram_common(destination_address, data, header)
-        data_length = get_data_length(data)
-        datagram = Array.new(data_length + 10 + header.length, 0)
-        header.each_with_index { |val, i| datagram[i] = val }
-
-        len = header.length
-        datagram[len] = @action_message_code != 0x00 ? @action_message_code : 0x11
-        datagram[len + 1] = 0x00
-        datagram[len + 2] = 0xAC
-
-        datagram[len + 3] = is_individual?(destination_address) ? 0x50 : 0xF0
-
-        datagram[len + 4] = 0x00
-        datagram[len + 5] = 0x00
-
-        dst_address = get_binary_address_of(destination_address)
-        datagram[len + 6] = dst_address[0]
-        datagram[len + 7] = dst_address[1]
-        datagram[len + 8] = data_length
-
-        datagram[len + 9] = 0x00
-        datagram[len + 10] = 0x80
-
-        write_data(datagram: datagram, data_start: len + 10, data: data)
-        datagram
+    def status(address, options = {})
+        ActionDatagram.new(address, @options.merge(options))
     end
 
-    def create_status_datagram_common(destination_address, datagram, cemi_start_pos)
-        datagram[cemi_start_pos] = @action_message_code != 0x00 ? @action_message_code : 0x11
-
-        datagram[cemi_start_pos + 1] = 0x00
-        datagram[cemi_start_pos + 2] = 0xAC
-
-        datagram[cemi_start_pos + 3] = is_individual?(destination_address) ? 0x50 : 0xF0
-
-        datagram[cemi_start_pos + 4] = 0x00
-        datagram[cemi_start_pos + 5] = 0x00
-
-        dst_address = get_binary_address_of(destination_address)
-        datagram[cemi_start_pos + 6] = dst_address[0]
-        datagram[cemi_start_pos + 7] = dst_address[1]
-
-        datagram[cemi_start_pos + 8] = 0x01
-        datagram[cemi_start_pos + 9] = 0x00
-        datagram[cemi_start_pos + 10] = 0x00
-
-        datagram
-    end
-
-    # These are currently the router version
-    def create_action_datagram(destination_address, data)
-        data_length = get_data_length(data)
-
-        # HEADER
-        datagram = Array.new(6, 0)
-        datagram[0] = 0x06
-        datagram[1] = 0x10
-        datagram[2] = 0x05
-        datagram[3] = 0x30
-
-        total_length = [data_length + 16].pack('n').unpack('cc')
-        datagram[4] = total_length[1]
-        datagram[5] = total_length[0]
-
-        create_action_datagram_common(destination_address, data, datagram)
-    end
-
-    def create_status_datagram(destination_address)
-        datagram = Array.new(6, 0)
-        datagram[00] = 0x06
-        datagram[01] = 0x10
-        datagram[02] = 0x05
-        datagram[03] = 0x30
-        datagram[04] = 0x00
-        datagram[05] = 0x11
-
-        create_status_datagram_common(destination_address, datagram, 6);
+    def read(data, options = {})
+        ResponseDatagram.new(data, @options.merge(options))
     end
 end
