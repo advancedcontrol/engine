@@ -589,7 +589,7 @@ class Protocols::Knx
 
 
     def status(address, options = {})
-        ActionDatagram.new(address, @options.merge(options))
+        StatusDatagram.new(address, @options.merge(options))
     end
 
     def read(data, options = {})
