@@ -41,9 +41,9 @@ module Orchestrator
     end
 
     class Status
-        def initialize(thread)
+        def initialize(thread, controller)
             @thread = thread
-            @controller = ::Orchestrator::Control.instance
+            @controller = controller
 
             @find_subscription = method(:find_subscription)
 
@@ -286,7 +286,7 @@ end
 module Libuv
     class Loop
         def observer
-            @observer ||= ::Orchestrator::Status.new(@loop)
+            @observer ||= ::Orchestrator::Status.new(@loop, ::Orchestrator::Control.instance)
             @observer
         end
     end
