@@ -21,6 +21,13 @@ module Orchestrator
         attribute :name
         attribute :description
 
+        # Room search meta-data
+        # Building + Level are both filtered using zones
+        attribute :email
+        attribute :capacity,    default: 0
+        attribute :features
+        attribute :searchable,  default: false
+
         # The number of UI devices that are always available in the room
         # i.e. the number of iPads mounted on the wall
         attribute :installed_ui_devices, default: 0
@@ -118,6 +125,9 @@ module Orchestrator
         # Zones and settings are only required for confident coding
         validates :name,        presence: true
         validates :zones,       presence: true
+
+        validates :capacity,    numericality: { only_integer: true }
+        validates :searchable,  inclusion:    { in: [true, false]  }
 
         validate  :support_link
 
