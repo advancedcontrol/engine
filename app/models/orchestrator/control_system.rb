@@ -26,7 +26,7 @@ module Orchestrator
         attribute :email
         attribute :capacity,    default: 0
         attribute :features
-        attribute :searchable,  default: false
+        attribute :bookable,    default: false
 
         # The number of UI devices that are always available in the room
         # i.e. the number of iPads mounted on the wall
@@ -123,11 +123,11 @@ module Orchestrator
 
 
         # Zones and settings are only required for confident coding
-        validates :name,        presence: true
-        validates :zones,       presence: true
+        validates :name,     presence: true
+        validates :zones,    presence: true
 
-        validates :capacity,    numericality: { only_integer: true }
-        validates :searchable,  inclusion:    { in: [true, false]  }
+        validates :capacity, numericality: { only_integer: true }
+        validates :bookable, inclusion:    { in: [true, false]  }
 
         validate  :support_link
 
