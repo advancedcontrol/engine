@@ -229,11 +229,20 @@ module Orchestrator
                 end
             end
 
-            # return the list of a module types in a system
+            # returns a hash of a module types in a system with
+            # the count of each of those types
             def types
                 sys = System.get(id)
+                
                 if sys
-                    render json: sys.modules
+                    result = {}
+                    mods = sys.modules
+                    mods.delete(:__Triggers__)
+                    mods.each do |mod|
+                        result[mod] = sys.count(mod)
+                    end
+
+                    render json: result
                 else
                     render nothing: true, status: :not_found
                 end
