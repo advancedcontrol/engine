@@ -179,9 +179,12 @@ module Orchestrator
 
             ctrl = ::Orchestrator::Control.instance
             if ctrl.ready
-                mods = System.get(self.id).modules
-                mods.delete(:__Triggers__)
-                self.features = mods.join ' '
+                system = System.get(self.id)
+                if system
+                    mods = system.modules
+                    mods.delete(:__Triggers__)
+                    self.features = mods.join ' '
+                end
             end
         end
     end
