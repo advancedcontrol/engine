@@ -102,6 +102,27 @@ module Orchestrator
                 system.config.name
             end
 
+            # Returns the system email as defined in the database
+            #
+            # @return [String] any email associated with the system
+            def email
+                system.config.email
+            end
+
+            # Returns the room capacity as defined in the database
+            #
+            # @return [Integer] the size, in people, of the room
+            def capacity
+                system.config.capacity
+            end
+
+            # Returns if the room is bookable as defined in the database
+            #
+            # @return [true, false] if the system is bookable
+            def bookable
+                system.config.bookable
+            end
+
             # Returns the system id as defined in the database
             #
             # @return [Symbol] the id of the system
