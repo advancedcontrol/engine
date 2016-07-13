@@ -36,7 +36,7 @@ module Orchestrator
             def destroy
                 # delete will update CS and zone caches
                 @zone.delete
-                render :nothing => true
+                head :ok
             end
 
 

@@ -11,7 +11,7 @@ module Orchestrator
 
         # This is a preflight OPTIONS request
         def options
-            render nothing: true
+            head :ok
         end
 
 
@@ -44,7 +44,7 @@ module Orchestrator
         def entry_not_found(err)
             logger.warn err.message
             logger.warn err.backtrace.join("\n") if err.respond_to?(:backtrace) && err.backtrace
-            render nothing: true, status: :not_found  # 404
+            head :not_found  # 404
         end
 
         # Helper for extracting the id from the request

@@ -25,7 +25,7 @@ module Orchestrator
 
                 throw :async     # to prevent rails from complaining
             else
-                render nothing: true, status: :method_not_allowed
+                head :method_not_allowed
             end
         end
     end
