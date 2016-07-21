@@ -22,6 +22,13 @@ module Orchestrator
                 get mod
             end
 
+            # Returns the system database model
+            #
+            # @return [ControlSystem] the database model
+            def config
+                system.config
+            end
+
             # Provides a proxy to a module for a safe way to communicate across threads
             #
             # @param module [String, Symbol] the name of the module in the system
