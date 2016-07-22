@@ -435,6 +435,9 @@ class Protocols::Knx
                 String.new
             end
 
+            @cemi.source_address      = self.source_address.to_i
+            @cemi.destination_address = self.destination_address.to_i
+
             # 17 == header + cemi
             @header.request_length = resp.bytesize + 17
             "#{@header.to_binary_s}#{@cemi.to_binary_s}#{resp}"
@@ -568,11 +571,13 @@ class Protocols::Knx
     end
 
     def action(address, data, options = {})
+        if data == true || data == false
+            data = data ? 1 : 0
+        end
+
         klass = data.class
 
-        raw = if [TrueClass, FalseClass].include? klass
-            [data ? 1 : 0]
-        elsif klass == String
+        raw = if klass == String
             data.bytes
         elsif [Integer, Fixnum].include? klass
             # Assume this is a byte
