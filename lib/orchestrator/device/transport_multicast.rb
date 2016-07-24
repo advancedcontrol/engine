@@ -2,7 +2,7 @@
 module Orchestrator
     module Device
         class MulticastConnection < ::UV::DatagramConnection
-            def post_init(manager, processor)
+            def post_init(manager, processor, bind_ip)
                 @processor = processor
                 @manager = manager
                 @thread = manager.thread
@@ -16,9 +16,18 @@ module Orchestrator
 
                 # Join the multicast group
                 @loop.next_tick do
-                    @transport.join(@manager.settings.ip, '0.0.0.0')
+                    @transport.join(@manager.settings.ip, bind_ip)
+                    disable_multicast_loop
                     @processor.connected
                 end
+            end
+
+            def enable_multicast_loop
+                @transport.enable_multicast_loop
+            end
+
+            def disable_multicast_loop
+                @transport.disable_multicast_loop
             end
 
 

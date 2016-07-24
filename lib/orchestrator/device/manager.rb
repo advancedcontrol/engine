@@ -26,8 +26,12 @@ module Orchestrator
                 # Load UV-Rays abstraction here
                 @connection = if @settings.udp
                     begin
-                        if MulticastRangeV4 === @settings.ip || MulticastRangeV6 === @settings.ip
-                            ::UV.open_datagram_socket(::Orchestrator::Device::MulticastConnection, '0.0.0.0', @settings.port, self, @processor)
+                        if MulticastRangeV4 === @settings.ip
+                            bind_ip = '0.0.0.0'
+                            ::UV.open_datagram_socket(::Orchestrator::Device::MulticastConnection, bind_ip, @settings.port, self, @processor, bind_ip)
+                        elsif MulticastRangeV6 === @settings.ip
+                            bind_ip = '::'
+                            ::UV.open_datagram_socket(::Orchestrator::Device::MulticastConnection, bind_ip, @settings.port, self, @processor, bind_ip)
                         else
                             UdpConnection.new(self, @processor)
                         end

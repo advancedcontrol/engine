@@ -38,6 +38,17 @@ module Orchestrator
             def remote_port
                 @__config__.settings.port
             end
+
+            def enable_multicast_loop(state = true)
+                transport = @__config__.connection
+                if transport.respond_to? :enable_multicast_loop
+                    if state
+                        transport.enable_multicast_loop
+                    else
+                        transport.disable_multicast_loop
+                    end
+                end
+            end
         end
     end
 end
