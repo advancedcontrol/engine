@@ -558,6 +558,13 @@ class Protocols::Knx
     # ==========================
     #   KNX Protocol Interface
     # ==========================
+    # Usage:
+    #
+    #   knx = Protocols::Knx.new
+    #   req = knx.action('1/2/0', true)
+    #   send req.to_binary_s
+    #
+
     Defaults = {
         priority: :low,
         no_repeat: true,
