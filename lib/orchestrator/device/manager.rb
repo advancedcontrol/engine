@@ -3,7 +3,8 @@ require 'ipaddr'
 module Orchestrator
     module Device
         class Manager < ::Orchestrator::Core::ModuleManager
-            MulticastRange = IPAddr.new('224.0.0.0/4')
+            MulticastRangeV4 = IPAddr.new('224.0.0.0/4')
+            MulticastRangeV6 = IPAddr.new('ff00::/8')
 
 
             def initialize(*args)
@@ -25,7 +26,7 @@ module Orchestrator
                 # Load UV-Rays abstraction here
                 @connection = if @settings.udp
                     begin
-                        if MulticastRange === @settings.ip
+                        if MulticastRangeV4 === @settings.ip || MulticastRangeV6 === @settings.ip
                             ::UV.open_datagram_socket(::Orchestrator::Device::MulticastConnection, '0.0.0.0', @settings.port, self, @processor)
                         else
                             UdpConnection.new(self, @processor)
