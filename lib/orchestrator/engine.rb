@@ -28,6 +28,7 @@ module Orchestrator
             }
 
             # if not zero all UDP sockets must be transmitted from a single thread
+            app.config.orchestrator.datagram_bind = '0.0.0.0'
             app.config.orchestrator.datagram_port = 0    # ephemeral port (random selection)
             app.config.orchestrator.broadcast_port = 0   # ephemeral port (random selection)
 

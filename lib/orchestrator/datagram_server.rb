@@ -69,13 +69,14 @@ module Libuv
                     return @udp_service if @udp_service
 
                     port = Rails.configuration.orchestrator.datagram_port || 0
+                    bind = Rails.configuration.orchestrator.datagram_bind || '0.0.0.0'
 
                     if port == 0
-                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService)
+                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService, bind, 0)
                     elsif defined? @@udp_service
                         @udp_service = @@udp_service
                     else # define a class variable at the specified port
-                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService, '0.0.0.0', port)
+                        @udp_service = ::UV.open_datagram_socket(::Orchestrator::UdpService, bind, port)
                         @@udp_service = @udp_service
                     end
                 }
