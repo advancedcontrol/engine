@@ -36,7 +36,7 @@ module Orchestrator
                     spawn(DiscoverCommand)
                 end
 
-                render nothing: true
+                head :ok
             end
         end
     end

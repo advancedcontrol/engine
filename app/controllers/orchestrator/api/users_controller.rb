@@ -57,7 +57,7 @@ module Orchestrator
 
                 if defined?(::UserCleanup)
                     @user.destroy
-                    render nothing: true
+                    head :ok
                 else
                     ::Auth::Authentication.for_user(@user.id).each do |auth|
                         auth.delete

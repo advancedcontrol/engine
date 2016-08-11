@@ -71,7 +71,7 @@ module Orchestrator
 
                     mod.delete if remove
                 end
-                render :nothing => true
+                head :ok
             end
 
             def create
@@ -81,7 +81,7 @@ module Orchestrator
 
             def destroy
                 @cs.delete # expires the cache in after callback
-                render :nothing => true
+                head :ok
             end
 
 
@@ -107,7 +107,7 @@ module Orchestrator
                     @cs.expire_cache   # :no_update
                 end
 
-                render :nothing => true
+                head :ok
             end
 
             def stop
@@ -115,7 +115,7 @@ module Orchestrator
                 @cs.modules.each do |mod_id|
                     control.stop mod_id
                 end
-                render :nothing => true
+                head :ok
             end
 
             def exec
@@ -136,10 +136,10 @@ module Orchestrator
                         end
                         throw :async
                     else
-                        render nothing: true, status: :not_found
+                        head :not_found
                     end
                 else
-                    render nothing: true, status: :not_found
+                    head :not_found
                 end
             end
 
@@ -158,10 +158,10 @@ module Orchestrator
                             render json: mod.status.marshal_dump
                         end
                     else
-                        render nothing: true, status: :not_found
+                        head :not_found
                     end
                 else
-                    render nothing: true, status: :not_found
+                    head :not_found
                 end
             end
 
@@ -205,10 +205,10 @@ module Orchestrator
 
                         render json: resp
                     else
-                        render nothing: true, status: :not_found
+                        head :not_found
                     end
                 else
-                    render nothing: true, status: :not_found
+                    head :not_found
                 end
             end
 
@@ -220,7 +220,7 @@ module Orchestrator
                     mod = params.permit(:module)[:module]
                     render json: {count: sys.count(mod)}
                 else
-                    render nothing: true, status: :not_found
+                    head :not_found
                 end
             end
 
@@ -239,7 +239,7 @@ module Orchestrator
 
                     render json: result
                 else
-                    render nothing: true, status: :not_found
+                    head :not_found
                 end
             end
 

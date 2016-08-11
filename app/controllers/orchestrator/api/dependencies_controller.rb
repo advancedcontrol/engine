@@ -47,7 +47,7 @@ module Orchestrator
 
             def destroy
                 @dep.delete
-                render :nothing => true
+                head :ok
             end
 
 

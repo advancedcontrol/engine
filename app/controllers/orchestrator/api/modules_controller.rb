@@ -108,7 +108,7 @@ module Orchestrator
 
             def destroy
                 @mod.delete
-                render nothing: true
+                head :ok
             end
 
 
@@ -203,7 +203,7 @@ module Orchestrator
                 if mod
                     yield mod
                 else
-                    render nothing: true, status: :not_found
+                    head :not_found
                 end
             end
 

@@ -84,7 +84,7 @@ module Orchestrator
                 end
 
                 Stats.bucket.set(:metrics_ignore_list, list)
-                render nothing: true
+                head :ok
             end
 
 
