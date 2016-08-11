@@ -438,7 +438,7 @@ module Orchestrator
                 @transport.transmit(command)
                 @last_sent_at = @thread.now
 
-                command[:wait]
+                if command[:wait]
                     # Set up timers for command timeout
                     @timeout = schedule.in(command[:timeout], @resp_failure)
                 else
