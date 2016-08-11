@@ -267,6 +267,7 @@ module Orchestrator
                     settings: settings.is_a?(::Hash) ? settings : {}
                 }.merge!(params.permit(CS_PARAMS))
                 args[:installed_ui_devices] = args[:installed_ui_devices].to_i if args.has_key? :installed_ui_devices
+                args[:capacity] = args[:capacity].to_i if args.has_key? :capacity
                 args
             end
 
