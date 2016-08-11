@@ -438,13 +438,19 @@ module Orchestrator
                 @transport.transmit(command)
                 @last_sent_at = @thread.now
 
-                if @queue.waiting
+                command[:wait]
                     # Set up timers for command timeout
                     @timeout = schedule.in(command[:timeout], @resp_failure)
                 else
-                    # resole the send promise early as we are not waiting for the response
+                    # resolve the send promise early as we are not waiting for the response
                     command[:defer].resolve(:no_wait)
                     call_emit command   # the command has been sent
+
+                    # move the queue forward
+                    @wait = false
+                    @queue.waiting = nil
+                    check_next                  # Process already received
+                    @queue.pop if @connected    # Then send a new command
                 end
 
                 # Useful for emergency stops etc

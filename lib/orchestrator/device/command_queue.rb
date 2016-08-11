@@ -160,8 +160,8 @@ module Orchestrator
                     # Wait for the next call to pop
                     callback = @callback
                     @callback = nil
+                    @waiting = cmd
 
-                    @waiting = cmd if cmd[:wait]
                     callback.call cmd
                 end
             rescue PerformRetry => e

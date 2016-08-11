@@ -8,6 +8,7 @@ describe "command queue" do
         @log = []
         @queue = ::Orchestrator::Device::CommandQueue.new(@loop)
         @dequeue = proc { |cmd|
+            @queue.waiting = nil
             @log << (cmd[:meta] || cmd[:name])
         }
     end
