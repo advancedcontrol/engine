@@ -443,11 +443,11 @@ module Orchestrator
                 difference = now - (@last_seen[thread] || 0)
                 thr_actual = nil
 
-                if difference > 2000
+                if difference > 4000
                     # we want to start logging
                     thr_actual = thread.reactor_thread
                     
-                    if difference > 4000
+                    if difference > 8000
                         if @watching[thread]
                             thr_actual = @watching.delete thread
                             thr_actual.set_trace_func nil
@@ -457,7 +457,7 @@ module Orchestrator
                         thr_actual.raise Error::WatchdogResuscitation.new("thread failed to checkin, performing CPR")
 
                         # Kill the process if the system is unresponsive
-                        if difference > 6000
+                        if difference > 10000
                             @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
                             kill_workers
                             exit!
