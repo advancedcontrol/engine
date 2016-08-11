@@ -37,6 +37,7 @@ require 'orchestrator/logic/mixin'          # helper functions for logic module 
 
 # Device abstractions
 require 'orchestrator/device/transport_makebreak'
+require 'orchestrator/device/transport_multicast'
 require 'orchestrator/device/command_queue'
 require 'orchestrator/device/transport_tcp'
 require 'orchestrator/device/transport_udp'

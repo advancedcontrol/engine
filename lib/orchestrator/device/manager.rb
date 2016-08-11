@@ -1,6 +1,11 @@
+require 'ipaddr'
+
 module Orchestrator
     module Device
         class Manager < ::Orchestrator::Core::ModuleManager
+            MulticastRangeV4 = IPAddr.new('224.0.0.0/4')
+            MulticastRangeV6 = IPAddr.new('ff00::/8')
+
             attr_reader :processor, :connection
 
             def start_local(online = @settings.running)
@@ -12,7 +17,19 @@ module Orchestrator
 
                 # Load UV-Rays abstraction here
                 @connection = if @settings.udp
-                    UdpConnection.new(self, @processor)
+                    begin
+                        if MulticastRangeV4 === @settings.ip
+                            bind_ip = '0.0.0.0'
+                            ::UV.open_datagram_socket(::Orchestrator::Device::MulticastConnection, bind_ip, @settings.port, self, @processor, bind_ip)
+                        elsif MulticastRangeV6 === @settings.ip
+                            bind_ip = '::'
+                            ::UV.open_datagram_socket(::Orchestrator::Device::MulticastConnection, bind_ip, @settings.port, self, @processor, bind_ip)
+                        else
+                            UdpConnection.new(self, @processor)
+                        end
+                    rescue IPAddr::InvalidAddressError
+                        UdpConnection.new(self, @processor)
+                    end
                 elsif @settings.makebreak
                     ::UV.connect(@settings.ip, @settings.port, MakebreakConnection, self, @processor, @settings.tls)
                 else
