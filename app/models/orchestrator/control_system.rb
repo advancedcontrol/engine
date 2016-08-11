@@ -13,6 +13,7 @@ module Orchestrator
         
         # Allows us to lookup systems by names
         after_save      :expire_cache
+        before_save     :update_features
 
         before_delete   :cleanup_modules
         after_delete    :expire_cache
@@ -189,6 +190,17 @@ module Orchestrator
 
             # Prevents reload for the cache expiry
             @old_id = self.id
+        end
+
+        def update_features
+            return unless self.bookable
+
+            ctrl = ::Orchestrator::Control.instance
+            if ctrl.ready
+                mods = System.get(self.id).modules
+                mods.delete(:__Triggers__)
+                self.features = mods.join ' '
+            end
         end
     end
 end
