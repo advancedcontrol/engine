@@ -224,11 +224,20 @@ module Orchestrator
                 end
             end
 
-            # return the list of a module types in a system
+            # returns a hash of a module types in a system with
+            # the count of each of those types
             def types
                 sys = System.get(id)
+                
                 if sys
-                    render json: sys.modules
+                    result = {}
+                    mods = sys.modules
+                    mods.delete(:__Triggers__)
+                    mods.each do |mod|
+                        result[mod] = sys.count(mod)
+                    end
+
+                    render json: result
                 else
                     render nothing: true, status: :not_found
                 end
@@ -241,6 +250,7 @@ module Orchestrator
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
                 :name, :edge_id, :description, :support_url, :installed_ui_devices,
+                :capacity, :email, :bookable, :features,
                 {
                     zones: [],
                     modules: []
