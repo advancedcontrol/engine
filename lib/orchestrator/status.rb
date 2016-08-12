@@ -16,8 +16,10 @@ module Orchestrator
         end
 
         def notify(update)
-            @last_update = update
-            on_thread.schedule @do_callback
+            if update != @last_update
+                @last_update = update
+                on_thread.schedule @do_callback
+            end
         end
 
         def value
