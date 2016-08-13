@@ -180,7 +180,7 @@ module Orchestrator
             def signal_status(name)
                 value = @status[name]
                 @thread.schedule do
-                    @stattrak.update(@settings.id.to_sym, name, value)
+                    @stattrak.update(@settings.id.to_sym, name, value, true)
                 end
 
                 # Check level to speed processing

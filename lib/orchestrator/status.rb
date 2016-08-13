@@ -15,9 +15,11 @@ module Orchestrator
             @do_callback = method(:do_callback)
         end
 
-        def notify(update)
-            @last_update = update
-            on_thread.schedule @do_callback
+        def notify(update, force = false)
+            if update != @last_update || force
+                @last_update = update
+                on_thread.schedule @do_callback
+            end
         end
 
         def value
@@ -92,14 +94,14 @@ module Orchestrator
         end
 
         # Triggers an update to be sent to listening callbacks
-        def update(mod_id, status, value)
+        def update(mod_id, status, value, force = false)
             mod = @subscriptions[mod_id.to_sym]
             if mod
                 subscribed = mod[status.to_sym]
                 if subscribed
                     subscribed.each_value do |subscription|
                         begin
-                            subscription.notify(value)
+                            subscription.notify(value, force)
                         rescue => e
                             @controller.log_unhandled_exception(e)
                         end
