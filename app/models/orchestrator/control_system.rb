@@ -185,6 +185,10 @@ module Orchestrator
                     mods.delete(:__Triggers__)
                     self.features = mods.join ' '
                 end
+
+                if self.settings[:extra_features].present?
+                    self.features = "#{self.features} #{self.settings[:extra_features]}"
+                end
             end
         end
     end
