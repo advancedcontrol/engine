@@ -17,10 +17,20 @@ module Orchestrator
                 # grab user for authorization checks in the web socket
                 user = current_user
                 promise.then do |hijacked|
-                    ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
-                    fixed_device = params.has_key?(:fixed_device)
-                    WebsocketManager.new(ws, user, fixed_device)
-                    ws.start
+                    begin
+                        ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
+                        fixed_device = params.has_key?(:fixed_device)
+                        WebsocketManager.new(ws, user, fixed_device)
+                        ws.start
+                    rescue => e
+                        hijacked.socket.close
+
+                        msg = String.new
+                        msg << "Error starting websocket"
+                        msg << "\n#{e.message}\n"
+                        msg << e.backtrace.join("\n") if e.respond_to?(:backtrace) && e.backtrace
+                        logger.error msg
+                    end
                 end
 
                 throw :async     # to prevent rails from complaining
