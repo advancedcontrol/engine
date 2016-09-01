@@ -40,9 +40,8 @@ EDDYSTONE
         FileUtils.mkdir_p dir
 
         # Encode the system count
-        b64 = Radix::Base.new(Radix::BASE::B62 + ['_', '~'])
         b10 = Radix::Base.new(10)
-        start = Radix.convert(args[:start], b64, b10).to_i
+        start = Radix.convert(args[:start], Radix::BASE::B62, b10).to_i
 
         zone_id = args[:zone_id]
         puts "Building files in #{dir}\nfor zone #{zone_id} with id starting at #{start}:\n"
@@ -59,7 +58,7 @@ EDDYSTONE
 
                 system_name = system.settings[:room_name] || system.name
                 system_id = system.id
-                file_name = Radix.convert(start, b10, b64)
+                file_name = Radix.convert(start, b10, Radix::BASE::B62)
 
                 url = url_template.gsub('${system_id}', system_id)
                 file_content = EDDYSTONE_TEMPLATE.gsub('${system_name}', system_name).gsub('${system_url}', url)
