@@ -18,3 +18,7 @@ _yardoc
 doc/
 
 Gemfile.lock
+
+*.rdb
+
+.DS_Store
