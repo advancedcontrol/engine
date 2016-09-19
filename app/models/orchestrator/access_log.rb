@@ -12,6 +12,7 @@ module Orchestrator
         belongs_to :system,    class_name: "::Orchestrator::ControlSystem".freeze
         attribute  :systems,   default: lambda { [] }
 
+        attribute :ip
         attribute :persisted,        default: false
         attribute :suspected,        default: false
 

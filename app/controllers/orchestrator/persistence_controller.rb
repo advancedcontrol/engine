@@ -17,13 +17,15 @@ module Orchestrator
                 # grab user for authorization checks in the web socket
                 user = current_user
                 promise.then do |hijacked|
+                    socket = hijacked.socket
                     begin
-                        ws = ::SpiderGazelle::Websocket.new(hijacked.socket, hijacked.env)
+                        ws = ::SpiderGazelle::Websocket.new(socket, hijacked.env)
                         fixed_device = params.has_key?(:fixed_device)
-                        WebsocketManager.new(ws, user, fixed_device)
+                        ip, port = socket.peername
+                        WebsocketManager.new(ip, ws, user, fixed_device)
                         ws.start
                     rescue => e
-                        hijacked.socket.close
+                        socket.close
 
                         msg = String.new
                         msg << "Error starting websocket"
