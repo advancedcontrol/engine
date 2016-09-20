@@ -16,12 +16,12 @@ module Orchestrator
 
                 # grab user for authorization checks in the web socket
                 user = current_user
+                ip = request.remote_ip
                 promise.then do |hijacked|
                     socket = hijacked.socket
                     begin
                         ws = ::SpiderGazelle::Websocket.new(socket, hijacked.env)
                         fixed_device = params.has_key?(:fixed_device)
-                        ip, port = socket.peername
                         WebsocketManager.new(ip, ws, user, fixed_device)
                         ws.start
                     rescue => e
