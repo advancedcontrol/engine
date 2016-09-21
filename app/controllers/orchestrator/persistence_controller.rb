@@ -16,7 +16,7 @@ module Orchestrator
 
                 # grab user for authorization checks in the web socket
                 user = current_user
-                ip = request.remote_ip
+                ip = request.env['HTTP_X_REAL_IP'] || request.remote_ip
                 promise.then do |hijacked|
                     socket = hijacked.socket
                     begin
