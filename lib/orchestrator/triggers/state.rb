@@ -158,7 +158,8 @@ module Orchestrator
                     end
                 end
 
-                value
+                # Symbols won't work as triggers as they can't be expressed in JSON
+                value.is_a?(Symbol) ? value.to_s.freeze : value
             end
 
 
