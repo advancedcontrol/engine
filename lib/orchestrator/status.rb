@@ -12,32 +12,17 @@ module Orchestrator
                 @sub_id = @@sub_id
             }
 
-            @do_callback = method(:do_callback)
+            @do_callback = proc { callback.call(self) }
         end
 
         def notify(update, force = false)
-            if update != @last_update || force
-                @last_update = update
+            if update != @value || force
+                @value = update
                 on_thread.schedule @do_callback
             end
         end
 
-        def value
-            @last_update
-        end
-
-        def sub_id
-            @sub_id
-        end
-
-
-        protected
-
-
-        # This is always called on the subscribing thread
-        def do_callback
-            callback.call(self)
-        end
+        attr_reader :value, :sub_id
     end
 
     class Status
@@ -60,25 +45,28 @@ module Orchestrator
         # Subscribes to updates from a system module
         # Modules do not have to exist and updates will be triggered as soon as they are
         def subscribe(opt)     # sys_name, mod_name, index, status, callback, on_thread
-            if opt[:sys_name] && !opt[:sys_id]
-                @thread.work(proc {
-                    id = ::Orchestrator::ControlSystem.bucket.get("sysname-#{sys_name}")
-                    opt[:sys_id] = id
+            # Build the subscription object (as loosely coupled as we can)
+            sub = Subscription.new(as_sym(opt[:sys_name]), as_sym(opt[:sys_id]), as_sym(opt[:mod_name]), as_sym(opt[:mod_id]), opt[:index].to_i, as_sym(opt[:status]), opt[:callback], opt[:on_thread])
 
-                    # Grabbing system here as thread-safe and has the potential to block
-                    ::Orchestrator::System.get(id)
-                }).then(proc { |sys|
-                    mod = sys.get(opt[:mod_name], opt[:index].to_i - 1)
-                    if mod
-                        opt[:mod_id] = mod.settings.id.to_sym
-                        opt[:mod] = mod
-                    end
-
-                    do_subscribe(opt)
-                })
-            else
-                do_subscribe(opt)
+            if sub.sys_id
+                @systems[sub.sys_id] ||= {}
+                @systems[sub.sys_id][sub.sub_id] = sub
             end
+
+            # Now if the module is added later we'll still receive updates
+            # and also support direct module status bindings
+            if sub.mod_id
+                @subscriptions[sub.mod_id] ||= {}
+                @subscriptions[sub.mod_id][sub.status] ||= {}
+                @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
+
+                # Check for existing status to send to subscriber
+                value = opt[:mod].status[sub.status]
+                sub.notify(value) unless value.nil?
+            end
+
+            # return the subscription
+            sub
         end
 
         # Removes subscription callback from the lookup
@@ -110,41 +98,45 @@ module Orchestrator
         # Used to maintain subscriptions where module is moved to another thread
         # or even another server.
         def move(mod_id, to_thread)
-            return if to_thread == @thread
+            # Also called from edge_control.load
+            # return if to_thread == @thread # (this check is performed before this function is called)
 
             mod_id = mod_id.to_sym
+            statuses = @subscriptions.delete(mod_id)
 
-            @thread.schedule do
-                statuses = @subscriptions.delete(mod_id)
-
-                if statuses
-                    statuses.each_value do |subs|
-                        # Remove the system references from this thread
-                        subs.each_value do |sub|
-                            @systems[sub.sys_id].delete(sub.sub_id) if sub.sys_id
-                        end
+            if statuses
+                statuses.each_value do |subs|
+                    # Remove the system references from this thread
+                    subs.each_value do |sub|
+                        @systems[sub.sys_id].delete(sub.sub_id) if sub.sys_id
+                        @systems.delete(sub.sys_id) if @systems[sub.sys_id].empty?
                     end
+                end
 
-                    # Transfer the subscriptions
+                # Transfer the subscriptions
+                to_thread.schedule do
                     to_thread.observer.transfer(mod_id, statuses)
                 end
             end
         end
 
+        # Only ever called from move, public as always called from another instance
         def transfer(mod_id, statuses)
-            @thread.schedule do
-                @subscriptions[mod_id.to_sym] = statuses
+            mod_man = @controller.loaded? mod_id
 
-                mod_man = @controller.loaded? mod_id
+            # We check for mod_man here as we don't want to loose the
+            # subscription if the module is unloaded mid-transfer
+            @subscriptions[mod_id.to_sym] = statuses if mod_man
 
-                # Rebuild the system level lookup on this thread
-                statuses.each_value do |subs|
-                    subs.each_value do |sub|
-                        if sub.sys_id
-                            @systems[sub.sys_id] ||= {}
-                            @systems[sub.sys_id][sub.sub_id] = sub
+            # Rebuild the system level lookup on this thread
+            statuses.each_value do |subs|
+                subs.each_value do |sub|
+                    if sub.sys_id
+                        @systems[sub.sys_id] ||= {}
+                        @systems[sub.sys_id][sub.sub_id] = sub
 
-                            # Update the status value
+                        # Update the status value
+                        if mod_man
                             value = mod_man.status[sub.status]
                             sub.notify(value)
                         end
@@ -157,6 +149,7 @@ module Orchestrator
         def reloaded_system(sys_id, sys)
             subscriptions = @systems[sys_id.to_sym]
             if subscriptions
+                check = []
                 subscriptions.each_value do |sub|
                     old_id = sub.mod_id
 
@@ -170,20 +163,7 @@ module Orchestrator
                         old_sub[sub.status].delete(sub.sub_id) if old_sub
 
                         # Update to the new module
-                        if mod
-                            @subscriptions[sub.mod_id] ||= {}
-                            @subscriptions[sub.mod_id][sub.status] ||= {}
-                            @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
-
-                            # Check for existing status to send to subscriber
-                            value = mod.status[sub.status]
-                            sub.notify(value) unless value.nil?
-
-                            # Transfer the subscription if on a different thread
-                            if mod.thread != @thread
-                                move(sub.mod_id.to_sym, mod.thread)
-                            end
-                        end
+                        check << [sub, mod] if mod
 
                         # Perform any required cleanup
                         if old_sub && old_sub[sub.status].empty?
@@ -193,6 +173,19 @@ module Orchestrator
                             end
                         end
                     end
+                end
+
+                check.each do |sub, mod|
+                    @subscriptions[sub.mod_id] ||= {}
+                    @subscriptions[sub.mod_id][sub.status] ||= {}
+                    @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
+
+                    # Check for existing status to send to subscriber
+                    value = mod.status[sub.status]
+                    sub.notify(value) if value
+
+                    # Transfer the subscription if on a different thread
+                    move(sub.mod_id, mod.thread) unless mod.thread == @thread
                 end
             end
         end
@@ -234,33 +227,8 @@ module Orchestrator
         protected
 
 
-        def do_subscribe(opt)
-            # Build the subscription object (as loosely coupled as we can)
-            sub = Subscription.new(as_sym(opt[:sys_name]), as_sym(opt[:sys_id]), as_sym(opt[:mod_name]), as_sym(opt[:mod_id]), opt[:index].to_i, as_sym(opt[:status]), opt[:callback], opt[:on_thread])
-
-            if sub.sys_id
-                @systems[sub.sys_id] ||= {}
-                @systems[sub.sys_id][sub.sub_id] = sub
-            end
-
-            # Now if the module is added later we'll still receive updates
-            # and also support direct module status bindings
-            if sub.mod_id
-                @subscriptions[sub.mod_id] ||= {}
-                @subscriptions[sub.mod_id][sub.status] ||= {}
-                @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
-
-                # Check for existing status to send to subscriber
-                value = opt[:mod].status[sub.status]
-                sub.notify(value) unless value.nil?
-            end
-
-            # return the subscription
-            sub
-        end
-
         def as_sym(obj)
-            obj.to_sym if obj.respond_to?(:to_sym)
+            obj.to_sym if obj
         end
 
         def find_subscription(sub)

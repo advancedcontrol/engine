@@ -176,7 +176,7 @@ module Orchestrator
                                 @unloaded.delete(mod_id)
                                 
                                 @threads.each do |thr|
-                                    thr.observer.move(mod_id, thread)
+                                    thr.schedule { thr.observer.move(mod_id, thread) } unless thr == thread
                                 end
                             end
 
