@@ -17,6 +17,9 @@ module Orchestrator
         config.before_initialize do |app|                        # Rails.configuration
             app.config.orchestrator = ActiveSupport::OrderedOptions.new
             app.config.orchestrator.module_paths = []
+            
+            # This is for trigger emails
+            app.config.orchestrator.backoffice_url = 'https://example.domain/backoffice'
 
             # Clearance levels defined in code
             #app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
