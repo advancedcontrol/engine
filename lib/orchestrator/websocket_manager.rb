@@ -157,10 +157,17 @@ module Orchestrator
                         begin
                             ::JSON.generate([res])
                             output = res
-                        rescue => e
+                        rescue Exception => e
                             # respond with nil if object cannot be converted
                             # TODO:: need a better way of dealing with this
                             # ALSO in systems controller
+                            @logger.debug {
+                                begin
+                                    "exec could not generate JSON result for #{res}"
+                                rescue Exception => e
+                                    "exec could not generate JSON result for exec return value"
+                                end
+                            }
                         end
                         @ws.text(::JSON.generate({
                             id: id,
@@ -308,9 +315,13 @@ module Orchestrator
             begin
                 ::JSON.generate([update.value])
                 output = update.value
-            rescue => e
+            rescue Exception => e
                 # respond with nil if object cannot be converted
-                # TODO:: need a better way of dealing with this
+                begin
+                    @logger.warn "status #{update.sys_id}->#{update.mod_name}[#{update.status}] update failed, could not generate JSON data for #{update.value}"
+                rescue Exception => e
+                    @logger.warn "status #{update.sys_id}->#{update.mod_name}[#{update.status}] update failed, could not generate JSON data for value"
+                end
             end
             @ws.text(::JSON.generate({
                 type: :notify,
