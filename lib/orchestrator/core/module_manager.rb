@@ -199,7 +199,10 @@ module Orchestrator
                         res = @settings.dependency.settings[name]
                     end
                 end
-                res
+                # As we don't continually go to the database we should
+                # ensure that every module has a unique copy of settings
+                # as they may modify the hash
+                res ? res.deep_dup : nil
             end
 
             # Called from Core::Mixin on any thread
