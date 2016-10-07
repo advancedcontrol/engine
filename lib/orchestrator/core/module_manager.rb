@@ -188,7 +188,7 @@ module Orchestrator
                         if res.nil?
                             sys.zones.each do |zone|
                                 res = zone.settings[name]
-                                return res unless res.nil?
+                                return res.deep_dup if res
                             end
 
                             # Fallback to the dependency
