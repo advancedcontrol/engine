@@ -15,7 +15,7 @@ module Orchestrator
 
              # Admins can see a little more of the users data
             ADMIN_DATA = User::PUBLIC_DATA.dup
-            ADMIN_DATA[:only] += [:support, :sys_admin, :email]
+            ADMIN_DATA[:only] += [:support, :sys_admin, :email, :card_number, :supervisor, :student]
 
 
             def index
@@ -78,7 +78,7 @@ module Orchestrator
 
             def safe_params
                 if current_user.sys_admin
-                    params.require(:user).permit(:name, :email, :nickname, :sys_admin, :support)
+                    new_user_params
                 else
                     params.require(:user).permit(:name, :email, :nickname)
                 end
