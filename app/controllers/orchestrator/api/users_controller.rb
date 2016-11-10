@@ -4,7 +4,7 @@ module Orchestrator
         class UsersController < ApiController
             respond_to :json
             before_action :check_authorization, only: [:update]
-            before_action :check_admin, only: [:index, :destroy]
+            before_action :check_admin, only: [:index, :destroy, :create]
 
 
             before_action :doorkeeper_authorize!
@@ -42,6 +42,12 @@ module Orchestrator
                 respond_with current_user
             end
 
+            def create
+                @user = User.new(new_user_params)
+                @user.authority = current_authority
+                save_and_respond @user
+            end
+
 
             ##
             # Requests requiring authorization have already loaded the model
@@ -76,6 +82,10 @@ module Orchestrator
                 else
                     params.require(:user).permit(:name, :email, :nickname)
                 end
+            end
+
+            def new_user_params
+                params.permit(:name, :email, :card_number, :supervisor, :student, :password, :password_confirmation, :sys_admin, :grp_admin, :nickname)
             end
 
             def check_authorization
