@@ -101,7 +101,7 @@ module Orchestrator
 
                     while length > 0
                         cmd = @pending_commands.pop
-                        if cmd.class == Symbol
+                        if cmd.is_a? Symbol
                             res = @named_commands[cmd][0]
                             pri = res.shift
                             res << pri
@@ -119,7 +119,7 @@ module Orchestrator
             def cancel_all(msg)
                 while length > 0
                     cmd = @pending_commands.pop
-                    if cmd.class == Symbol
+                    if cmd.is_a? Symbol
                         res = @named_commands[cmd]
                         if res
                             res[1][:defer].reject(msg)
@@ -129,6 +129,9 @@ module Orchestrator
                         cmd[:defer].reject(msg)
                     end
                 end
+            ensure
+                @named_commands = {}
+                @pending_commands = Containers::Heap.new(&@comparison)
                 pop nil
             end
 
@@ -144,7 +147,7 @@ module Orchestrator
                 if @callback && length > 0 && !@waiting
                     next_cmd = @pending_commands.pop
 
-                    if next_cmd.class == Symbol # (named command)
+                    if next_cmd.is_a? Symbol # (named command)
                         result = @named_commands[next_cmd]
                         result[0].shift
                         cmd = result[1]
