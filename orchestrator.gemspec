@@ -13,16 +13,17 @@ Gem::Specification.new do |s|
     s.description = 'A building and Internet of Things automation system'
 
     s.add_dependency 'rake'
-    s.add_dependency 'rails'
-    s.add_dependency 'libuv'                # High performance IO reactor for ruby
+    s.add_dependency 'rails', '~> 4.2'
+    s.add_dependency 'libuv', '~> 2.0'      # High performance IO reactor for ruby
     s.add_dependency 'oauth'                # OAuth protocol support
     s.add_dependency 'bindata'              # Binary structure support
-    s.add_dependency 'uv-rays', '>= 1.3.0'  # Evented networking library
+    s.add_dependency 'uv-rays', '~> 1.3'    # Evented networking library
     s.add_dependency 'addressable'          # IP address utilities
     s.add_dependency 'algorithms'           # Priority queue
     s.add_dependency 'couchbase-id'         # ID generation
     s.add_dependency 'elasticsearch'        # Searchable model indexes
     s.add_dependency 'co-elastic-query', '>= 1.0.6'    # Query builder
+    s.add_dependency 'spider-gazelle',   '~> 2.0'      # Rack webserver
 
     s.add_development_dependency 'rspec'    # Testing framework
     s.add_development_dependency 'yard'     # Comment based documentation generation
