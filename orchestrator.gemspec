@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'libuv', '~> 2.0'      # High performance IO reactor for ruby
     s.add_dependency 'oauth'                # OAuth protocol support
     s.add_dependency 'bindata'              # Binary structure support
-    s.add_dependency 'uv-rays', '~> 1.3'    # Evented networking library
+    s.add_dependency 'uv-rays', '1.3.8'     # Evented networking library
     s.add_dependency 'addressable'          # IP address utilities
     s.add_dependency 'algorithms'           # Priority queue
     s.add_dependency 'couchbase-id'         # ID generation
