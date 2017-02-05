@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'algorithms'           # Priority queue
     s.add_dependency 'couchbase-id'         # ID generation
     s.add_dependency 'elasticsearch'        # Searchable model indexes
-    s.add_dependency 'co-elastic-query', '>= 1.0.6'    # Query builder
+    s.add_dependency 'co-elastic-query', '>= 1.0.6', '< 3'    # Query builder
     s.add_dependency 'spider-gazelle',   '~> 2.0'      # Rack webserver
 
     s.add_development_dependency 'rspec'    # Testing framework
