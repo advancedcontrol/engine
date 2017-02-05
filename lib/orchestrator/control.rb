@@ -495,12 +495,12 @@ module Orchestrator
                 Thread.list.each do |t|
                     STDERR.puts "#" * 90
                     STDERR.puts t.inspect
-                    STDERR.puts t.backtrace
+                    STDERR.puts t.backtrace.join("\n")
                     STDERR.puts "#" * 90
 
                     @logger.error "#" * 90
                     @logger.error t.inspect
-                    @logger.error t.backtrace
+                    @logger.error t.backtrace.join("\n")
                     @logger.error "#" * 90
                 end
                 STDERR.flush
