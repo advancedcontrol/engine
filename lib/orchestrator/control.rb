@@ -483,35 +483,35 @@ module Orchestrator
                 if difference > 12000
                     should_kill = true
                     watching = true
-                elsif difference > 5000
+                elsif difference > 2000
                     watching = true
                 end
+            end
 
-                if watching
-                    @logger.error "WATCHDOG ACTIVATED" if !@watching
+            if watching
+                @logger.error "WATCHDOG ACTIVATED" if !@watching
 
-                    # Dump the thread bracktraces
-                    Thread.list.each do |t|
-                        STDERR.puts "#" * 90
-                        STDERR.puts t.inspect
-                        STDERR.puts t.backtrace
-                        STDERR.puts "#" * 90
+                # Dump the thread bracktraces
+                Thread.list.each do |t|
+                    STDERR.puts "#" * 90
+                    STDERR.puts t.inspect
+                    STDERR.puts t.backtrace
+                    STDERR.puts "#" * 90
 
-                        @logger.error "#" * 90
-                        @logger.error t.inspect
-                        @logger.error t.backtrace
-                        @logger.error "#" * 90
-                    end
-                    STDERR.flush
+                    @logger.error "#" * 90
+                    @logger.error t.inspect
+                    @logger.error t.backtrace
+                    @logger.error "#" * 90
                 end
+                STDERR.flush
+            end
 
-                @watching = watching
+            @watching = watching
 
-                if should_kill
-                    @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                    kill_workers
-                    exit!
-                end
+            if should_kill
+                @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                kill_workers
+                exit!
             end
         end
         # =================
