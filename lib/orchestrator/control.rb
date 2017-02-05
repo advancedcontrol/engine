@@ -493,14 +493,15 @@ module Orchestrator
 
                 # Dump the thread bracktraces
                 Thread.list.each do |t|
+                    backtrace = t.backtrace.join("\n")
                     STDERR.puts "#" * 90
                     STDERR.puts t.inspect
-                    STDERR.puts t.backtrace.join("\n")
+                    STDERR.puts backtrace
                     STDERR.puts "#" * 90
 
                     @logger.error "#" * 90
                     @logger.error t.inspect
-                    @logger.error t.backtrace.join("\n")
+                    @logger.error backtrace
                     @logger.error "#" * 90
                 end
                 STDERR.flush
