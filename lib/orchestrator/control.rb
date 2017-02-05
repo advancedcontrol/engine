@@ -474,53 +474,44 @@ module Orchestrator
 
         def check_threads
             now = @watchdog.now
+            should_kill = false
+            watching = false
 
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
-                thr_actual = nil
 
-                if difference > 4000
-                    # we want to start logging
-                    thr_actual = thread.reactor_thread
-
-                    if difference > 8000
-                        if @watching[thread]
-                            thr_actual = @watching.delete thread
-                            thr_actual.set_trace_func nil
-                        end
-
-                        @logger.warn "WATCHDOG PERFORMING CPR"
-                        thr_actual.raise Error::WatchdogResuscitation.new("thread failed to checkin, performing CPR")
-
-                        # Kill the process if the system is unresponsive
-                        if difference > 10000
-                            @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                            kill_workers
-                            exit!
-                        end
-                    else
-                        if @watching[thread].nil?
-                            @logger.warn "WATCHDOG ACTIVATED"
-
-                            @watching[thread] = thr_actual
-
-                            thr_actual.set_trace_func proc { |event, file, line, id, binding, classname|
-                                watchdog_trace(event, file, line, id, binding, classname)
-                            }
-                        end
-                    end
-
-                elsif @watching[thread]
-                    thr_actual = @watching.delete thread
-                    thr_actual.set_trace_func nil
+                if difference > 12000
+                    should_kill = true
+                    watching = true
+                elsif difference > 5000
+                    watching = true
                 end
-            end
-        end
 
-        TraceEvents = ['line', 'call', 'return', 'raise']
-        def watchdog_trace(event, file, line, id, binding, classname)
-            if TraceEvents.include?(event)
-                @logger.info "tracing #{event} from line #{line} in #{file}"
+                if watching
+                    @logger.error "WATCHDOG ACTIVATED" if !@watching
+
+                    # Dump the thread bracktraces
+                    Thread.list.each do |t|
+                        STDERR.puts "#" * 90
+                        STDERR.puts t.inspect
+                        STDERR.puts t.backtrace
+                        STDERR.puts "#" * 90
+
+                        @logger.error "#" * 90
+                        @logger.error t.inspect
+                        @logger.error t.backtrace
+                        @logger.error "#" * 90
+                    end
+                    STDERR.flush
+                end
+
+                @watching = watching
+
+                if should_kill
+                    @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                    kill_workers
+                    exit!
+                end
             end
         end
         # =================
