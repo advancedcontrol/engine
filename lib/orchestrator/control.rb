@@ -264,7 +264,7 @@ module Orchestrator
 
                     if running
                         promise.then(proc { |mod_man|
-                            mod.thread.schedule do
+                            mod.thread.next_tick do
                                 mod.start
                             end
                         })
@@ -304,13 +304,11 @@ module Orchestrator
 
 
         def notify_ready
-            # Clear the system cache (in case it has been populated at all)
-            System.clear_cache
-            @ready_defer.resolve(true)
-
             # these are invisible to the system - never make it into the system cache
-            @loop.work do
-                load_all_triggers 
+            @loop.work { load_all_triggers }.finally do
+                # Clear the system cache (in case it has been populated at all)
+                System.clear_cache
+                @ready_defer.resolve(true)
             end
 
             # Save a statistics snapshot every 5min
