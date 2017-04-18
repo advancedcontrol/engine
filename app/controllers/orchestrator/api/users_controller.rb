@@ -85,7 +85,7 @@ module Orchestrator
             end
 
             def new_user_params
-                params.permit(:name, :email, :card_number, :supervisor, :student, :password, :password_confirmation, :sys_admin, :grp_admin, :nickname)
+                params.permit(:name, :email, :card_number, :supervisor, :student, :password, :password_confirmation, :sys_admin, :grp_admin, :nickname, :support)
             end
 
             def check_authorization
