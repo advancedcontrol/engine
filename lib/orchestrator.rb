@@ -4,6 +4,8 @@ require 'couchbase-id'
 require 'uv-rays'
 require 'co-elastic-query'
 require 'coauth'
+require File.expand_path("../../app/models/user", __FILE__)
+require File.expand_path("../../app/models/authority", __FILE__)
 ::Auth::CoStatus[:init] = true
 
 require 'orchestrator/engine'
