@@ -263,7 +263,10 @@ module Orchestrator
                                 model
                             rescue
                                 tries += 1
-                                retry if tries < 5
+                                if tries < 5
+                                    model = ::Orchestrator::Module.find_by_id id
+                                    retry
+                                end
                                 nil
                             end
                         else
@@ -299,7 +302,10 @@ module Orchestrator
                                 model
                             rescue
                                 tries += 1
-                                retry if tries < 5
+                                if tries < 5
+                                    model = ::Orchestrator::Module.find_by_id id
+                                    retry
+                                end
                                 nil
                             end
                         else
